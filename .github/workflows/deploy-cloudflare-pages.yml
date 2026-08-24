@@ -25,221 +25,60 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Peptide Planner v189 base
+      - name: Build and verify Peptide Planner v3
         run: |
+          set -euo pipefail
           rm -rf dist
           mkdir -p dist
           cp Peptide_Planner_KB_Mobile_v184.html dist/index.html
-          cat .deploy/v189_patch_part_*.b64 > .deploy/v189_patch.b64
+
+          cat .deploy/v189_patch_part_*.b64 > /tmp/v189.b64
+          cat .deploy/v195_delta_part_*.b64 > /tmp/v195.b64
+
           python - <<'PY2'
           from pathlib import Path
           import base64, zlib
-          payload = Path('.deploy/v189_patch.b64').read_text()
-          Path('/tmp/v189.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
+          payloads = {
+              '/tmp/v189.patch': Path('/tmp/v189.b64').read_text(),
+              '/tmp/v190.patch': Path('.deploy/v190_delta_from_v189live.b64').read_text(),
+              '/tmp/v191.patch': Path('.deploy/v191_delta_from_v190live.b64').read_text(),
+              '/tmp/v193.patch': Path('.deploy/v193_delta_from_v191live.b64').read_text(),
+              '/tmp/v194.patch': Path('.deploy/v194_delta_from_v193live.b64').read_text(),
+              '/tmp/v195.patch': Path('/tmp/v195.b64').read_text(),
+              '/tmp/v1.patch': Path('.deploy/v1_delta_from_v195live.b64').read_text(),
+              '/tmp/v2.patch': Path('.deploy/v2_delta_from_v1live.b64').read_text(),
+              '/tmp/v3.patch': Path('.deploy/v3_delta_from_v2live.b64').read_text(),
+          }
+          for target, payload in payloads.items():
+              Path(target).write_bytes(zlib.decompress(base64.b64decode(payload)))
           PY2
+
           patch --silent dist/index.html < /tmp/v189.patch
-
-      - name: Apply v190 update
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import base64, zlib
-          payload = Path('.deploy/v190_delta_from_v189live.b64').read_text()
-          Path('/tmp/v190.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
           patch --silent dist/index.html < /tmp/v190.patch
-
-      - name: Apply v191 update
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import base64, zlib
-          payload = Path('.deploy/v191_delta_from_v190live.b64').read_text()
-          Path('/tmp/v191.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
           patch --silent dist/index.html < /tmp/v191.patch
-
-      - name: Verify v191 base checksum
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import hashlib
-          data = Path('dist/index.html').read_bytes()
-          expected = '88980cc6a2307c45289a005646f0acac118306f82d7beaf5e6fa1ea21eb06cb9'
-          actual = hashlib.sha256(data).hexdigest()
-          if actual != expected:
-              raise SystemExit(f'v191 base checksum mismatch: {actual}')
-          PY2
-
-      - name: Apply v193 update
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import base64, zlib
-          payload = Path('.deploy/v193_delta_from_v191live.b64').read_text()
-          Path('/tmp/v193.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
           patch --silent dist/index.html < /tmp/v193.patch
-
-      - name: Apply v194 update
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import base64, zlib
-          payload = Path('.deploy/v194_delta_from_v193live.b64').read_text()
-          Path('/tmp/v194.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
           patch --silent dist/index.html < /tmp/v194.patch
-
-      - name: Verify v194 base checksum
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import hashlib
-          data = Path('dist/index.html').read_bytes()
-          expected = 'af881149378d47b93196523675ead461d4922318e968ca2dbec7fd369aea4a50'
-          actual = hashlib.sha256(data).hexdigest()
-          if actual != expected:
-              raise SystemExit(f'v194 base checksum mismatch: {actual}')
-          PY2
-
-      - name: Apply v195 update
-        run: |
-          cat .deploy/v195_delta_part_*.b64 > /tmp/v195_delta.b64
-          python - <<'PY2'
-          from pathlib import Path
-          import base64, zlib
-          payload = Path('/tmp/v195_delta.b64').read_text()
-          Path('/tmp/v195.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
           patch --silent dist/index.html < /tmp/v195.patch
-
-      - name: Verify v195 password recovery and account sync
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import hashlib, re
-          path = Path('dist/index.html')
-          data = path.read_bytes()
-          html = data.decode('utf-8')
-          expected_sha256 = '81b632f670247bf2091d8e51572904d57b93cf961b6b8bfe419ae9519f4d85e8'
-          actual_sha256 = hashlib.sha256(data).hexdigest()
-          if actual_sha256 != expected_sha256:
-              raise SystemExit(f'v195 build checksum mismatch: {actual_sha256}')
-          required = [
-              '<title>Peptide Treatment Planner Mobile v195</title>',
-              'APP_VERSION="v195"',
-              'id="v195-myplan-phase-compact-layout"',
-              'id="cloudAccountBar"',
-              'id="cloudSignIn"',
-              'id="cloudSignUp"',
-              'id="cloudForgotPassword"',
-              'id="cloudAuthConfirmPassword"',
-              'resetPasswordForEmail',
-              'PASSWORD_RECOVERY',
-              'updateUser({password})',
-              'signInWithPassword',
-              'from("planner_state")',
-              'from("planner_snapshots")',
-              'from("knowledge_base_entries")',
-              'initCloudServices();',
-          ]
-          missing = [item for item in required if item not in html]
-          if missing:
-              raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
-          inline_scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
-          if not inline_scripts:
-              raise SystemExit('No inline application JavaScript found')
-          for i, script in enumerate(inline_scripts):
-              Path(f'/tmp/v195-inline-{i}.js').write_text(script)
-          print(f'Validated Peptide Planner v195: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
-          PY2
-          for js in /tmp/v195-inline-*.js; do node --check "$js"; done
-
-      - name: Apply uploaded patch v1
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import base64, zlib
-          payload = Path('.deploy/v1_delta_from_v195live.b64').read_text()
-          Path('/tmp/v1.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
           patch --silent dist/index.html < /tmp/v1.patch
-
-      - name: Verify v1 uploaded changes and account features
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import hashlib, re
-          path = Path('dist/index.html')
-          data = path.read_bytes()
-          html = data.decode('utf-8')
-          expected_sha256 = '45dc4fef8e188dccb6aa41be78c001c354a20240f029115a1ae332b119430d89'
-          actual_sha256 = hashlib.sha256(data).hexdigest()
-          if actual_sha256 != expected_sha256:
-              raise SystemExit(f'v1 build checksum mismatch: {actual_sha256}')
-          required = [
-              '<title>Peptide Treatment Planner Mobile v1</title>',
-              'APP_VERSION="v1"',
-              'id="v195-myplan-phase-compact-layout"',
-              'id="v196-past-purchases-one-line"',
-              'id="v197-today-done-vertical-center"',
-              'id="v198-compact-add-treatment-collapsed"',
-              'id="v199-add-treatment-row-alignment"',
-              'id="v200-myplan-kb-benefits"',
-              'id="v202-kb-record-alignment-only"',
-              'id="v202-requested-fixes"',
-              'id="cloudAccountBar"',
-              'id="cloudSignIn"',
-              'id="cloudSignUp"',
-              'id="cloudForgotPassword"',
-              'id="cloudAuthConfirmPassword"',
-              'resetPasswordForEmail',
-              'PASSWORD_RECOVERY',
-              'updateUser({password})',
-              'signInWithPassword',
-              'from("planner_state")',
-              'from("planner_snapshots")',
-              'from("knowledge_base_entries")',
-              'initCloudServices();',
-          ]
-          missing = [item for item in required if item not in html]
-          if missing:
-              raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
-          inline_scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
-          if not inline_scripts:
-              raise SystemExit('No inline application JavaScript found')
-          for i, script in enumerate(inline_scripts):
-              Path(f'/tmp/v1-inline-{i}.js').write_text(script)
-          print(f'Validated Peptide Planner v1: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
-          PY2
-          for js in /tmp/v1-inline-*.js; do node --check "$js"; done
-
-      - name: Apply uploaded patch v2
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import base64, zlib
-          payload = Path('.deploy/v2_delta_from_v1live.b64').read_text()
-          Path('/tmp/v2.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
           patch --silent dist/index.html < /tmp/v2.patch
+          patch --silent dist/index.html < /tmp/v3.patch
 
-      - name: Verify v2 uploaded changes and account features
-        run: |
           python - <<'PY2'
           from pathlib import Path
           import hashlib, re
           path = Path('dist/index.html')
           data = path.read_bytes()
           html = data.decode('utf-8')
-          expected_sha256 = 'bbd9ed4b122d9e98e8ceab0db983d4e89179f8e84c051c6b90cd061eba4c1fb7'
+          expected_sha256 = '452c810e6827def5df26c151257a21dac493a8d49cd27cd8b74b4c8753015f2a'
           actual_sha256 = hashlib.sha256(data).hexdigest()
           if actual_sha256 != expected_sha256:
-              raise SystemExit(f'v2 build checksum mismatch: {actual_sha256}')
+              raise SystemExit(f'v3 build checksum mismatch: {actual_sha256}')
           required = [
-              '<title>Peptide Treatment Planner Mobile v2</title>',
-              'APP_VERSION="v2"',
+              '<title>Peptide Treatment Planner Mobile v3</title>',
+              'APP_VERSION="v3"',
+              'id="v192-vials-buy-two-line-lock"',
+              'id="v193-phase-layout-fix"',
+              'id="v194-mobile-myplan-multi-column"',
               'id="v195-myplan-phase-compact-layout"',
               'id="v196-past-purchases-one-line"',
               'id="v197-today-done-vertical-center"',
@@ -248,8 +87,11 @@ jobs:
               'id="v200-myplan-kb-benefits"',
               'id="v202-kb-record-alignment-only"',
               'id="v202-requested-fixes"',
-              'id="v204-myplan-layout-requested-fix"',
-              '<th>Start week</th><th>End week</th><th class="phase-interval-col">Interval</th><th>Dose</th><th>Units</th>',
+              'id="v204-myplan-layout-only"',
+              'id="v205-requested-layout-only"',
+              'id="quickTargetDisplay"',
+              'Personal record',
+              'measurementDateTimeLabel',
               'id="cloudAccountBar"',
               'id="cloudSignIn"',
               'id="cloudSignUp"',
@@ -268,15 +110,15 @@ jobs:
           if missing:
               raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
           if 'data-simple-field="notes"' in html:
-              raise SystemExit('v2 still contains the removed My Plan Notes field')
+              raise SystemExit('v3 still contains the removed My Plan Notes field')
           inline_scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
           if not inline_scripts:
               raise SystemExit('No inline application JavaScript found')
           for i, script in enumerate(inline_scripts):
-              Path(f'/tmp/v2-inline-{i}.js').write_text(script)
-          print(f'Validated Peptide Planner v2: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
+              Path(f'/tmp/v3-inline-{i}.js').write_text(script)
+          print(f'Validated Peptide Planner v3: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
           PY2
-          for js in /tmp/v2-inline-*.js; do node --check "$js"; done
+          for js in /tmp/v3-inline-*.js; do node --check "$js"; done
 
       - name: Confirm this is still the newest main commit
         id: freshness
