@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v2</title>
+<title>Peptide Planner v3</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v2</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v3</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -23,13 +23,14 @@ const V194_DELTA=[`.deploy/v194_delta_from_v193live.b64`];
 const V195_DELTA=[1,2,3,4].map(n=>`.deploy/v195_delta_part_${String(n).padStart(2,"0")}.b64`);
 const V1_DELTA=[`.deploy/v1_delta_from_v195live.b64`];
 const V2_DELTA=[`.deploy/v2_delta_from_v1live.b64`];
-const EXPECTED_V2_SHA256="bbd9ed4b122d9e98e8ceab0db983d4e89179f8e84c051c6b90cd061eba4c1fb7";
+const V3_DELTA=[`.deploy/v3_delta_from_v2live.b64`];
+const EXPECTED_V3_SHA256="452c810e6827def5df26c151257a21dac493a8d49cd27cd8b74b4c8753015f2a";
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
  while(i<pl.length&&!pl[i].startsWith("@@ "))i++;
  while(i<pl.length){
-  const m=pl[i].replace(/\n$/,"").match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+  const m=pl[i].replace(/\n$/," ").trimEnd().match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
   if(!m)throw new Error("Invalid deployment patch");
   const oldStart=Number(m[1]),oldCount=m[2]===undefined?1:Number(m[2]),target=oldCount===0?oldStart:oldStart-1;
   if(target<si)throw new Error("Overlapping deployment patch");
@@ -64,8 +65,8 @@ async function sha256Hex(text){
 }
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v2…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch]=await Promise.all([
+ status.textContent="Preparing v3…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
   inflateParts(V189_PARTS),
   inflateParts(V190_DELTA),
@@ -74,7 +75,8 @@ async function sha256Hex(text){
   inflateParts(V194_DELTA),
   inflateParts(V195_DELTA),
   inflateParts(V1_DELTA),
-  inflateParts(V2_DELTA)
+  inflateParts(V2_DELTA),
+  inflateParts(V3_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -84,9 +86,10 @@ async function sha256Hex(text){
  const v195=applyUnifiedPatch(v194,v195Patch);
  const v1=applyUnifiedPatch(v195,v1Patch);
  const v2=applyUnifiedPatch(v1,v2Patch);
+ const v3=applyUnifiedPatch(v2,v3Patch);
  const required=[
-  "Peptide Treatment Planner Mobile v2",
-  'APP_VERSION="v2"',
+  "Peptide Treatment Planner Mobile v3",
+  'APP_VERSION="v3"',
   'id="v192-vials-buy-two-line-lock"',
   'id="v193-phase-layout-fix"',
   'id="v194-mobile-myplan-multi-column"',
@@ -98,7 +101,11 @@ async function sha256Hex(text){
   'id="v200-myplan-kb-benefits"',
   'id="v202-kb-record-alignment-only"',
   'id="v202-requested-fixes"',
-  'id="v204-myplan-layout-requested-fix"',
+  'id="v204-myplan-layout-only"',
+  'id="v205-requested-layout-only"',
+  'id="quickTargetDisplay"',
+  'Personal record',
+  'measurementDateTimeLabel',
   '<th>Start week</th><th>End week</th><th class="phase-interval-col">Interval</th><th>Dose</th><th>Units</th>',
   'id="cloudAccountBar"',
   'id="cloudSignIn"',
@@ -114,18 +121,18 @@ async function sha256Hex(text){
   'from("knowledge_base_entries")',
   'initCloudServices();'
  ];
- const missing=required.filter(x=>!v2.includes(x));
+ const missing=required.filter(x=>!v3.includes(x));
  if(missing.length)throw new Error("Latest planner failed feature validation: "+missing.join(", "));
- if(v2.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
- const actualHash=await sha256Hex(v2);
- if(actualHash!==EXPECTED_V2_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
- document.open();document.write(v2);document.close();
+ if(v3.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
+ const actualHash=await sha256Hex(v3);
+ if(actualHash!==EXPECTED_V3_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
+ document.open();document.write(v3);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
  if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
 });
 </script>
-<!-- production-loader: v2 uploaded-patch + password-recovery + account-sync verified -->
+<!-- production-loader: v3 uploaded-patch + password-recovery + account-sync verified -->
 </body>
 </html>
