@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v194</title>
+<title>Peptide Planner v195</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,14 +13,15 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v194</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v195</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
 const V191_DELTA=[`.deploy/v191_delta_from_v190live.b64`];
 const V193_DELTA=[`.deploy/v193_delta_from_v191live.b64`];
 const V194_DELTA=[`.deploy/v194_delta_from_v193live.b64`];
-const EXPECTED_V194_SHA256="af881149378d47b93196523675ead461d4922318e968ca2dbec7fd369aea4a50";
+const V195_DELTA=[1,2,3,4].map(n=>`.deploy/v195_delta_part_${String(n).padStart(2,"0")}.b64`);
+const EXPECTED_V195_SHA256="81b632f670247bf2091d8e51572904d57b93cf961b6b8bfe419ae9519f4d85e8";
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
@@ -61,50 +62,54 @@ async function sha256Hex(text){
 }
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v194…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch]=await Promise.all([
+ status.textContent="Preparing v195…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
   inflateParts(V189_PARTS),
   inflateParts(V190_DELTA),
   inflateParts(V191_DELTA),
   inflateParts(V193_DELTA),
-  inflateParts(V194_DELTA)
+  inflateParts(V194_DELTA),
+  inflateParts(V195_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
  const v191=applyUnifiedPatch(v190,v191Patch);
  const v193=applyUnifiedPatch(v191,v193Patch);
  const v194=applyUnifiedPatch(v193,v194Patch);
+ const v195=applyUnifiedPatch(v194,v195Patch);
  const required=[
-  "Peptide Treatment Planner Mobile v194",
-  'APP_VERSION="v194"',
+  "Peptide Treatment Planner Mobile v195",
+  'APP_VERSION="v195"',
   'id="v192-vials-buy-two-line-lock"',
   'id="v193-phase-layout-fix"',
   'id="v194-mobile-myplan-multi-column"',
+  'id="v195-myplan-phase-compact-layout"',
   'id="cloudAccountBar"',
   'id="cloudSignIn"',
   'id="cloudSignUp"',
-  'id="cloudSyncNow"',
-  'id="cloudSignOut"',
-  'id="cloudAuthOverlay"',
+  'id="cloudForgotPassword"',
+  'id="cloudAuthConfirmPassword"',
+  'resetPasswordForEmail',
+  'PASSWORD_RECOVERY',
+  'updateUser({password})',
   'signInWithPassword',
   'from("planner_state")',
   'from("planner_snapshots")',
   'from("knowledge_base_entries")',
-  'showCloudAuth("signin")',
   'initCloudServices();'
  ];
- const missing=required.filter(x=>!v194.includes(x));
+ const missing=required.filter(x=>!v195.includes(x));
  if(missing.length)throw new Error("Latest planner failed feature validation: "+missing.join(", "));
- const actualHash=await sha256Hex(v194);
- if(actualHash!==EXPECTED_V194_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
- document.open();document.write(v194);document.close();
+ const actualHash=await sha256Hex(v195);
+ if(actualHash!==EXPECTED_V195_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
+ document.open();document.write(v195);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
  if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
 });
 </script>
-<!-- production-loader: v194 account-sync verified -->
+<!-- production-loader: v195 password-recovery + account-sync verified -->
 </body>
 </html>
