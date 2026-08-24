@@ -26,10 +26,63 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import base64, zlib
-          payload = Path(".deploy/v186_loader.b64").read_text()
-          Path(".deploy/deploy_v186.py").write_bytes(zlib.decompress(base64.b64decode(payload)))
+          payload = Path('.deploy/v186_loader.b64').read_text()
+          Path('.deploy/deploy_v186.py').write_bytes(zlib.decompress(base64.b64decode(payload)))
           PY
           python .deploy/deploy_v186.py
+
+      - name: Apply latest uploaded v186 update and verify cloud features
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('dist/index.html')
+          html = path.read_text(encoding='utf-8')
+
+          latest_update = '''<style id="v186-today-two-line-peptide-name">
+          /* v186 — Today peptide/treatment names: maximum two lines */
+          .today-injection-main strong{
+            display:-webkit-box;
+            -webkit-box-orient:vertical;
+            -webkit-line-clamp:2;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            line-height:1.28;
+            max-height:2.56em;
+            overflow-wrap:anywhere;
+            word-break:normal;
+          }
+          </style>
+          '''
+          # Remove indentation introduced by the workflow block while preserving the uploaded CSS exactly.
+          latest_update = '\n'.join(line[10:] if line.startswith('          ') else line for line in latest_update.splitlines()) + '\n'
+
+          if 'id="v186-today-two-line-peptide-name"' not in html:
+              marker = '<style id="v186-cloud-sync">'
+              if marker not in html:
+                  raise SystemExit('Cloud-sync layer was not present in the built planner.')
+              html = html.replace(marker, latest_update + marker, 1)
+
+          required = [
+              'id="cloudAccountBar"',
+              'id="cloudSignIn"',
+              'id="cloudSignUp"',
+              'id="cloudSyncNow"',
+              'id="cloudSignOut"',
+              'signInWithPassword',
+              'from("planner_state")',
+              'from("planner_snapshots")',
+              'from("knowledge_base_entries")',
+              'initCloudServices();',
+              'id="v186-today-two-line-peptide-name"',
+          ]
+          missing = [item for item in required if item not in html]
+          if missing:
+              raise SystemExit('Built planner is missing required live features: ' + ', '.join(missing))
+
+          path.write_text(html, encoding='utf-8')
+          print(f'Validated live planner: {len(html):,} characters')
+          PY
 
       - name: Deploy to Cloudflare Pages
         run: npx --yes wrangler@4 pages deploy dist --project-name=peptide-planner --branch=main
