@@ -14,6 +14,13 @@ permissions:
   contents: read
   deployments: write
 
+# Only the newest production deployment is allowed to continue.
+# This prevents several rapid patch commits from finishing out of order
+# and putting an older Peptide Planner build back into production.
+concurrency:
+  group: peptide-planner-production
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -145,7 +152,22 @@ jobs:
           PY
           for js in /tmp/v194-inline-*.js; do node --check "$js"; done
 
+      - name: Confirm this is still the newest main commit
+        id: freshness
+        run: |
+          git fetch --quiet origin main
+          latest="$(git rev-parse origin/main)"
+          echo "workflow_commit=$GITHUB_SHA"
+          echo "current_main=$latest"
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale deployment so an older build cannot replace production."
+          fi
+
       - name: Deploy to Cloudflare Pages
+        if: steps.freshness.outputs.deploy == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
