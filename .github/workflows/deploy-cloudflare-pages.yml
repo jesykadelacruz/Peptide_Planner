@@ -25,7 +25,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and verify Peptide Planner v3
+      - name: Build and verify Peptide Planner v4
         run: |
           set -euo pipefail
           rm -rf dist
@@ -48,6 +48,7 @@ jobs:
               '/tmp/v1.patch': Path('.deploy/v1_delta_from_v195live.b64').read_text(),
               '/tmp/v2.patch': Path('.deploy/v2_delta_from_v1live.b64').read_text(),
               '/tmp/v3.patch': Path('.deploy/v3_delta_from_v2live.b64').read_text(),
+              '/tmp/v4.patch': Path('.deploy/v4_delta_from_v3live.b64').read_text(),
           }
           for target, payload in payloads.items():
               Path(target).write_bytes(zlib.decompress(base64.b64decode(payload)))
@@ -62,6 +63,7 @@ jobs:
           patch --silent dist/index.html < /tmp/v1.patch
           patch --silent dist/index.html < /tmp/v2.patch
           patch --silent dist/index.html < /tmp/v3.patch
+          patch --silent dist/index.html < /tmp/v4.patch
 
           python - <<'PY2'
           from pathlib import Path
@@ -69,13 +71,13 @@ jobs:
           path = Path('dist/index.html')
           data = path.read_bytes()
           html = data.decode('utf-8')
-          expected_sha256 = '452c810e6827def5df26c151257a21dac493a8d49cd27cd8b74b4c8753015f2a'
+          expected_sha256 = 'fd597593791ce334134b54561d07d478f69c3e52f0a1601b4290a1f920ca7ca3'
           actual_sha256 = hashlib.sha256(data).hexdigest()
           if actual_sha256 != expected_sha256:
-              raise SystemExit(f'v3 build checksum mismatch: {actual_sha256}')
+              raise SystemExit(f'v4 build checksum mismatch: {actual_sha256}')
           required = [
-              '<title>Peptide Treatment Planner Mobile v3</title>',
-              'APP_VERSION="v3"',
+              '<title>Peptide Treatment Planner Mobile v4</title>',
+              'APP_VERSION="v4"',
               'id="v192-vials-buy-two-line-lock"',
               'id="v193-phase-layout-fix"',
               'id="v194-mobile-myplan-multi-column"',
@@ -88,9 +90,11 @@ jobs:
               'id="v202-kb-record-alignment-only"',
               'id="v202-requested-fixes"',
               'id="v204-myplan-layout-only"',
-              'id="v205-requested-layout-only"',
+              'id="v206-requested-only"',
               'id="quickTargetDisplay"',
               'Personal record',
+              'Personal profile',
+              'id="profileDob"',
               'measurementDateTimeLabel',
               'id="cloudAccountBar"',
               'id="cloudSignIn"',
@@ -110,15 +114,15 @@ jobs:
           if missing:
               raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
           if 'data-simple-field="notes"' in html:
-              raise SystemExit('v3 still contains the removed My Plan Notes field')
+              raise SystemExit('v4 still contains the removed My Plan Notes field')
           inline_scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
           if not inline_scripts:
               raise SystemExit('No inline application JavaScript found')
           for i, script in enumerate(inline_scripts):
-              Path(f'/tmp/v3-inline-{i}.js').write_text(script)
-          print(f'Validated Peptide Planner v3: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
+              Path(f'/tmp/v4-inline-{i}.js').write_text(script)
+          print(f'Validated Peptide Planner v4: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
           PY2
-          for js in /tmp/v3-inline-*.js; do node --check "$js"; done
+          for js in /tmp/v4-inline-*.js; do node --check "$js"; done
 
       - name: Confirm this is still the newest main commit
         id: freshness
