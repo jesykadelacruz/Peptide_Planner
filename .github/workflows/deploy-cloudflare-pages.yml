@@ -21,7 +21,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Peptide Planner v189
+      - name: Build Peptide Planner v189 base
         run: |
           rm -rf dist
           mkdir -p dist
@@ -35,7 +35,17 @@ jobs:
           PY
           patch --silent dist/index.html < /tmp/v189.patch
 
-      - name: Verify v189 and cloud account features
+      - name: Apply uploaded v190 update
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, zlib
+          payload = Path('.deploy/v190_delta_from_v189live.b64').read_text()
+          Path('/tmp/v190.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
+          PY
+          patch --silent dist/index.html < /tmp/v190.patch
+
+      - name: Verify v190 and cloud account features
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -44,14 +54,15 @@ jobs:
           path = Path('dist/index.html')
           data = path.read_bytes()
           html = data.decode('utf-8')
-          expected_sha256 = '54dd1bbdbf44d401b024e593e0ae3f01e1f71983d480c983b5950bc6546ee4eb'
+          expected_sha256 = '993f0df765bd62385a14150b5c3fb02207fdb7235aafb49438d14994ce621847'
           actual_sha256 = hashlib.sha256(data).hexdigest()
           if actual_sha256 != expected_sha256:
-              raise SystemExit(f'v189 build checksum mismatch: {actual_sha256}')
+              raise SystemExit(f'v190 build checksum mismatch: {actual_sha256}')
 
           required = [
-              '<title>Peptide Treatment Planner Mobile v189</title>',
-              'APP_VERSION="v189"',
+              '<title>Peptide Treatment Planner Mobile v190</title>',
+              'APP_VERSION="v190"',
+              'id="v190-today-strict-two-line"',
               'id="cloudAccountBar"',
               'id="cloudSignIn"',
               'id="cloudSignUp"',
@@ -67,7 +78,7 @@ jobs:
           missing = [item for item in required if item not in html]
           if missing:
               raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
-          print(f'Validated Peptide Planner v189: {len(data):,} bytes')
+          print(f'Validated Peptide Planner v190: {len(data):,} bytes')
           PY
 
       - name: Deploy to Cloudflare Pages
