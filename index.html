@@ -4,14 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner</title>
-<style>html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}.loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}.loading strong{display:block;font-size:1.1rem}.loading small{display:block;margin-top:8px;color:#667a72}</style>
+<title>Peptide Planner v190</title>
+<style>
+html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
+.loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
+.loading strong{display:block;font-size:1.1rem}
+.loading small{display:block;margin-top:8px;color:#667a72;max-width:560px}
+</style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner</strong><small id="loadStatus">Loading…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v190</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
-const P1=[1,2,3,4].map(n=>`.deploy/live_v186_p1_${n}.txt`);
-const P2=[1,2].map(n=>`.deploy/live_v186_p2_${n}.txt`);
+const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
+const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
@@ -36,19 +41,46 @@ function applyUnifiedPatch(source,patch){
  while(si<src.length)out.push(src[si++]);
  return out.join("");
 }
-async function getText(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error(`Unable to load ${url}`);return r.text()}
+async function getText(url){
+ const r=await fetch(url,{cache:"no-store"});
+ if(!r.ok)throw new Error(`Unable to load ${url}`);
+ return r.text();
+}
 async function inflateParts(paths){
  const chunks=await Promise.all(paths.map(getText));
  const bytes=Uint8Array.from(atob(chunks.join("")),c=>c.charCodeAt(0));
  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"))).text();
 }
 (async()=>{
- document.getElementById("loadStatus").textContent="Preparing v186…";
- const [base,p1,p2]=await Promise.all([getText("Peptide_Planner_KB_Mobile_v184.html"),inflateParts(P1),inflateParts(P2)]);
- const v186=applyUnifiedPatch(applyUnifiedPatch(base,p1),p2);
- document.open();document.write(v186);document.close();
-})().catch(err=>{console.error(err);const s=document.getElementById("loadStatus");if(s)s.textContent="Unable to load the planner. Refresh and try again."});
+ const status=document.getElementById("loadStatus");
+ status.textContent="Preparing v190…";
+ const [base,v189Patch,v190Patch]=await Promise.all([
+  getText("Peptide_Planner_KB_Mobile_v184.html"),
+  inflateParts(V189_PARTS),
+  inflateParts(V190_DELTA)
+ ]);
+ const v189=applyUnifiedPatch(base,v189Patch);
+ const v190=applyUnifiedPatch(v189,v190Patch);
+ const required=[
+  "Peptide Treatment Planner Mobile v190",
+  'id="cloudAccountBar"',
+  'id="cloudSignIn"',
+  'id="cloudSignUp"',
+  'id="cloudSyncNow"',
+  'id="cloudSignOut"',
+  'signInWithPassword',
+  'from("planner_state")',
+  'showCloudAuth("signin")'
+ ];
+ const missing=required.filter(x=>!v190.includes(x));
+ if(missing.length)throw new Error("Latest planner failed validation: "+missing.join(", "));
+ document.open();document.write(v190);document.close();
+})().catch(err=>{
+ console.error(err);
+ const s=document.getElementById("loadStatus");
+ if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
+});
 </script>
-<!-- deploy-trigger: 2026-08-24 v186 -->
+<!-- production-loader: v190 account-sync -->
 </body>
 </html>
