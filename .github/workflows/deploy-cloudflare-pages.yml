@@ -215,6 +215,69 @@ jobs:
           PY2
           for js in /tmp/v1-inline-*.js; do node --check "$js"; done
 
+      - name: Apply uploaded patch v2
+        run: |
+          python - <<'PY2'
+          from pathlib import Path
+          import base64, zlib
+          payload = Path('.deploy/v2_delta_from_v1live.b64').read_text()
+          Path('/tmp/v2.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
+          PY2
+          patch --silent dist/index.html < /tmp/v2.patch
+
+      - name: Verify v2 uploaded changes and account features
+        run: |
+          python - <<'PY2'
+          from pathlib import Path
+          import hashlib, re
+          path = Path('dist/index.html')
+          data = path.read_bytes()
+          html = data.decode('utf-8')
+          expected_sha256 = 'bbd9ed4b122d9e98e8ceab0db983d4e89179f8e84c051c6b90cd061eba4c1fb7'
+          actual_sha256 = hashlib.sha256(data).hexdigest()
+          if actual_sha256 != expected_sha256:
+              raise SystemExit(f'v2 build checksum mismatch: {actual_sha256}')
+          required = [
+              '<title>Peptide Treatment Planner Mobile v2</title>',
+              'APP_VERSION="v2"',
+              'id="v195-myplan-phase-compact-layout"',
+              'id="v196-past-purchases-one-line"',
+              'id="v197-today-done-vertical-center"',
+              'id="v198-compact-add-treatment-collapsed"',
+              'id="v199-add-treatment-row-alignment"',
+              'id="v200-myplan-kb-benefits"',
+              'id="v202-kb-record-alignment-only"',
+              'id="v202-requested-fixes"',
+              'id="v204-myplan-layout-requested-fix"',
+              '<th>Start week</th><th>End week</th><th class="phase-interval-col">Interval</th><th>Dose</th><th>Units</th>',
+              'id="cloudAccountBar"',
+              'id="cloudSignIn"',
+              'id="cloudSignUp"',
+              'id="cloudForgotPassword"',
+              'id="cloudAuthConfirmPassword"',
+              'resetPasswordForEmail',
+              'PASSWORD_RECOVERY',
+              'updateUser({password})',
+              'signInWithPassword',
+              'from("planner_state")',
+              'from("planner_snapshots")',
+              'from("knowledge_base_entries")',
+              'initCloudServices();',
+          ]
+          missing = [item for item in required if item not in html]
+          if missing:
+              raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
+          if 'data-simple-field="notes"' in html:
+              raise SystemExit('v2 still contains the removed My Plan Notes field')
+          inline_scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
+          if not inline_scripts:
+              raise SystemExit('No inline application JavaScript found')
+          for i, script in enumerate(inline_scripts):
+              Path(f'/tmp/v2-inline-{i}.js').write_text(script)
+          print(f'Validated Peptide Planner v2: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
+          PY2
+          for js in /tmp/v2-inline-*.js; do node --check "$js"; done
+
       - name: Confirm this is still the newest main commit
         id: freshness
         run: |
