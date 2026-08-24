@@ -21,61 +21,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Peptide Planner v186
+      - name: Build Peptide Planner v189
         run: |
-          cat .deploy/v186_loader_part*.txt > .deploy/v186_loader.b64
+          rm -rf dist
+          mkdir -p dist
+          cp Peptide_Planner_KB_Mobile_v184.html dist/index.html
+          cat .deploy/v189_patch_part_*.b64 > .deploy/v189_patch.b64
           python - <<'PY'
           from pathlib import Path
           import base64, zlib
-          payload = Path('.deploy/v186_loader.b64').read_text()
-          Path('.deploy/deploy_v186.py').write_bytes(zlib.decompress(base64.b64decode(payload)))
+          payload = Path('.deploy/v189_patch.b64').read_text()
+          Path('/tmp/v189.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
           PY
-          python .deploy/deploy_v186.py
+          patch --silent dist/index.html < /tmp/v189.patch
 
-      - name: Apply latest uploaded HTML and account prompt
+      - name: Verify v189 and cloud account features
         run: |
           python - <<'PY'
           from pathlib import Path
+          import hashlib
 
           path = Path('dist/index.html')
-          html = path.read_text(encoding='utf-8')
-
-          latest_update = '''<style id="v186-today-two-line-peptide-name">
-          /* v186 — Today peptide/treatment names: maximum two lines */
-          .today-injection-main strong{
-            display:-webkit-box;
-            -webkit-box-orient:vertical;
-            -webkit-line-clamp:2;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            line-height:1.28;
-            max-height:2.56em;
-            overflow-wrap:anywhere;
-            word-break:normal;
-          }
-          </style>
-          '''
-          latest_update = '\n'.join(line[10:] if line.startswith('          ') else line for line in latest_update.splitlines()) + '\n'
-
-          if 'id="v186-today-two-line-peptide-name"' not in html:
-              marker = '<style id="v186-cloud-sync">'
-              if marker not in html:
-                  raise SystemExit('Cloud-sync layer was not present in the built planner.')
-              html = html.replace(marker, latest_update + marker, 1)
-
-          old_session = 'try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser)await reconcileCloudState({silent:true})}catch(error){console.warn("Session restore failed",error)}'
-          new_session = 'try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser){await reconcileCloudState({silent:true})}else{setTimeout(()=>showCloudAuth("signin"),180)}}catch(error){console.warn("Session restore failed",error);setTimeout(()=>showCloudAuth("signin"),180)}'
-          if old_session in html:
-              html = html.replace(old_session, new_session, 1)
-
-          old_signed_out = 'if(event==="SIGNED_OUT"){cloudUser=null;renderCloudAccount();return}'
-          new_signed_out = 'if(event==="SIGNED_OUT"){cloudUser=null;renderCloudAccount();showCloudAuth("signin");return}'
-          if old_signed_out in html:
-              html = html.replace(old_signed_out, new_signed_out, 1)
-
-          html = html.replace('switchBtn.textContent=signup?"Sign in instead":"Create account instead"','switchBtn.textContent=signup?"Sign in":"Create account"',1)
+          data = path.read_bytes()
+          html = data.decode('utf-8')
+          expected_sha256 = '54dd1bbdbf44d401b024e593e0ae3f01e1f71983d480c983b5950bc6546ee4eb'
+          actual_sha256 = hashlib.sha256(data).hexdigest()
+          if actual_sha256 != expected_sha256:
+              raise SystemExit(f'v189 build checksum mismatch: {actual_sha256}')
 
           required = [
+              '<title>Peptide Treatment Planner Mobile v189</title>',
+              'APP_VERSION="v189"',
               'id="cloudAccountBar"',
               'id="cloudSignIn"',
               'id="cloudSignUp"',
@@ -85,16 +61,13 @@ jobs:
               'from("planner_state")',
               'from("planner_snapshots")',
               'from("knowledge_base_entries")',
-              'initCloudServices();',
               'setTimeout(()=>showCloudAuth("signin"),180)',
-              'id="v186-today-two-line-peptide-name"',
+              'initCloudServices();',
           ]
           missing = [item for item in required if item not in html]
           if missing:
-              raise SystemExit('Built planner is missing required live features: ' + ', '.join(missing))
-
-          path.write_text(html, encoding='utf-8')
-          print(f'Validated live planner: {len(html):,} characters')
+              raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
+          print(f'Validated Peptide Planner v189: {len(data):,} bytes')
           PY
 
       - name: Deploy to Cloudflare Pages
