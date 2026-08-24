@@ -105,10 +105,11 @@ jobs:
 
       - name: Apply v195 update
         run: |
+          cat .deploy/v195_delta_part_*.b64 > /tmp/v195_delta.b64
           python - <<'PY2'
           from pathlib import Path
           import base64, zlib
-          payload = Path('.deploy/v195_delta_from_v194live.b64').read_text()
+          payload = Path('/tmp/v195_delta.b64').read_text()
           Path('/tmp/v195.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
           PY2
           patch --silent dist/index.html < /tmp/v195.patch
