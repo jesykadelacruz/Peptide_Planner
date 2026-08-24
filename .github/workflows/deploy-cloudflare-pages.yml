@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  deployments: write
 
 jobs:
   deploy:
@@ -31,7 +32,7 @@ jobs:
           PY
           python .deploy/deploy_v186.py
 
-      - name: Apply latest uploaded v186 update and verify cloud features
+      - name: Apply latest uploaded HTML and account prompt
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -54,7 +55,6 @@ jobs:
           }
           </style>
           '''
-          # Remove indentation introduced by the workflow block while preserving the uploaded CSS exactly.
           latest_update = '\n'.join(line[10:] if line.startswith('          ') else line for line in latest_update.splitlines()) + '\n'
 
           if 'id="v186-today-two-line-peptide-name"' not in html:
@@ -62,6 +62,18 @@ jobs:
               if marker not in html:
                   raise SystemExit('Cloud-sync layer was not present in the built planner.')
               html = html.replace(marker, latest_update + marker, 1)
+
+          old_session = 'try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser)await reconcileCloudState({silent:true})}catch(error){console.warn("Session restore failed",error)}'
+          new_session = 'try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser){await reconcileCloudState({silent:true})}else{setTimeout(()=>showCloudAuth("signin"),180)}}catch(error){console.warn("Session restore failed",error);setTimeout(()=>showCloudAuth("signin"),180)}'
+          if old_session in html:
+              html = html.replace(old_session, new_session, 1)
+
+          old_signed_out = 'if(event==="SIGNED_OUT"){cloudUser=null;renderCloudAccount();return}'
+          new_signed_out = 'if(event==="SIGNED_OUT"){cloudUser=null;renderCloudAccount();showCloudAuth("signin");return}'
+          if old_signed_out in html:
+              html = html.replace(old_signed_out, new_signed_out, 1)
+
+          html = html.replace('switchBtn.textContent=signup?"Sign in instead":"Create account instead"','switchBtn.textContent=signup?"Sign in":"Create account"',1)
 
           required = [
               'id="cloudAccountBar"',
@@ -74,6 +86,7 @@ jobs:
               'from("planner_snapshots")',
               'from("knowledge_base_entries")',
               'initCloudServices();',
+              'setTimeout(()=>showCloudAuth("signin"),180)',
               'id="v186-today-two-line-peptide-name"',
           ]
           missing = [item for item in required if item not in html]
@@ -85,7 +98,9 @@ jobs:
           PY
 
       - name: Deploy to Cloudflare Pages
-        run: npx --yes wrangler@4 pages deploy dist --project-name=peptide-planner --branch=main
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=peptide-planner --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
