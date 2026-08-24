@@ -35,7 +35,7 @@ jobs:
           PY
           patch --silent dist/index.html < /tmp/v189.patch
 
-      - name: Apply uploaded v190 update
+      - name: Apply v190 update
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -45,29 +45,52 @@ jobs:
           PY
           patch --silent dist/index.html < /tmp/v190.patch
 
-      - name: Verify v190 and cloud account features
+      - name: Verify v190 base checksum
         run: |
           python - <<'PY'
           from pathlib import Path
           import hashlib
+          data = Path('dist/index.html').read_bytes()
+          expected = '993f0df765bd62385a14150b5c3fb02207fdb7235aafb49438d14994ce621847'
+          actual = hashlib.sha256(data).hexdigest()
+          if actual != expected:
+              raise SystemExit(f'v190 base checksum mismatch: {actual}')
+          PY
+
+      - name: Apply uploaded v191 update
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, zlib
+          payload = Path('.deploy/v191_delta_from_v190live.b64').read_text()
+          Path('/tmp/v191.patch').write_bytes(zlib.decompress(base64.b64decode(payload)))
+          PY
+          patch --silent dist/index.html < /tmp/v191.patch
+
+      - name: Verify v191 and account sync features
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, re
 
           path = Path('dist/index.html')
           data = path.read_bytes()
           html = data.decode('utf-8')
-          expected_sha256 = '993f0df765bd62385a14150b5c3fb02207fdb7235aafb49438d14994ce621847'
+          expected_sha256 = '88980cc6a2307c45289a005646f0acac118306f82d7beaf5e6fa1ea21eb06cb9'
           actual_sha256 = hashlib.sha256(data).hexdigest()
           if actual_sha256 != expected_sha256:
-              raise SystemExit(f'v190 build checksum mismatch: {actual_sha256}')
+              raise SystemExit(f'v191 build checksum mismatch: {actual_sha256}')
 
           required = [
-              '<title>Peptide Treatment Planner Mobile v190</title>',
-              'APP_VERSION="v190"',
-              'id="v190-today-strict-two-line"',
+              '<title>Peptide Treatment Planner Mobile v191</title>',
+              'APP_VERSION="v191"',
+              'id="v191-final-mobile-today-vials-lock"',
               'id="cloudAccountBar"',
               'id="cloudSignIn"',
               'id="cloudSignUp"',
               'id="cloudSyncNow"',
               'id="cloudSignOut"',
+              'id="cloudAuthOverlay"',
               'signInWithPassword',
               'from("planner_state")',
               'from("planner_snapshots")',
@@ -78,8 +101,15 @@ jobs:
           missing = [item for item in required if item not in html]
           if missing:
               raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
-          print(f'Validated Peptide Planner v190: {len(data):,} bytes')
+
+          inline_scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
+          if not inline_scripts:
+              raise SystemExit('No inline application JavaScript found')
+          for i, script in enumerate(inline_scripts):
+              Path(f'/tmp/v191-inline-{i}.js').write_text(script)
+          print(f'Validated Peptide Planner v191: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
           PY
+          for js in /tmp/v191-inline-*.js; do node --check "$js"; done
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
