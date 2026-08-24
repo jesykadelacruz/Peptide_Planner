@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - index.html
+      - .deploy/**
+      - .github/workflows/deploy-cloudflare-pages.yml
   workflow_dispatch:
 
 permissions:
@@ -18,11 +20,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare Pages output
+      - name: Build Peptide Planner v186
         run: |
-          rm -rf dist
-          mkdir -p dist
-          cp index.html dist/index.html
+          cat .deploy/v186_loader_part*.txt > .deploy/v186_loader.b64
+          python - <<'PY'
+          from pathlib import Path
+          import base64, zlib
+          payload = Path(".deploy/v186_loader.b64").read_text()
+          Path(".deploy/deploy_v186.py").write_bytes(zlib.decompress(base64.b64decode(payload)))
+          PY
+          python .deploy/deploy_v186.py
 
       - name: Deploy to Cloudflare Pages
         run: npx --yes wrangler@4 pages deploy dist --project-name=peptide-planner --branch=main
