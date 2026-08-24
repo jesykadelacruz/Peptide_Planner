@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v1</title>
+<title>Peptide Planner v2</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v1</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v2</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -22,7 +22,8 @@ const V193_DELTA=[`.deploy/v193_delta_from_v191live.b64`];
 const V194_DELTA=[`.deploy/v194_delta_from_v193live.b64`];
 const V195_DELTA=[1,2,3,4].map(n=>`.deploy/v195_delta_part_${String(n).padStart(2,"0")}.b64`);
 const V1_DELTA=[`.deploy/v1_delta_from_v195live.b64`];
-const EXPECTED_V1_SHA256="45dc4fef8e188dccb6aa41be78c001c354a20240f029115a1ae332b119430d89";
+const V2_DELTA=[`.deploy/v2_delta_from_v1live.b64`];
+const EXPECTED_V2_SHA256="bbd9ed4b122d9e98e8ceab0db983d4e89179f8e84c051c6b90cd061eba4c1fb7";
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
@@ -63,8 +64,8 @@ async function sha256Hex(text){
 }
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v1…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch]=await Promise.all([
+ status.textContent="Preparing v2…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
   inflateParts(V189_PARTS),
   inflateParts(V190_DELTA),
@@ -72,7 +73,8 @@ async function sha256Hex(text){
   inflateParts(V193_DELTA),
   inflateParts(V194_DELTA),
   inflateParts(V195_DELTA),
-  inflateParts(V1_DELTA)
+  inflateParts(V1_DELTA),
+  inflateParts(V2_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -81,9 +83,10 @@ async function sha256Hex(text){
  const v194=applyUnifiedPatch(v193,v194Patch);
  const v195=applyUnifiedPatch(v194,v195Patch);
  const v1=applyUnifiedPatch(v195,v1Patch);
+ const v2=applyUnifiedPatch(v1,v2Patch);
  const required=[
-  "Peptide Treatment Planner Mobile v1",
-  'APP_VERSION="v1"',
+  "Peptide Treatment Planner Mobile v2",
+  'APP_VERSION="v2"',
   'id="v192-vials-buy-two-line-lock"',
   'id="v193-phase-layout-fix"',
   'id="v194-mobile-myplan-multi-column"',
@@ -95,6 +98,8 @@ async function sha256Hex(text){
   'id="v200-myplan-kb-benefits"',
   'id="v202-kb-record-alignment-only"',
   'id="v202-requested-fixes"',
+  'id="v204-myplan-layout-requested-fix"',
+  '<th>Start week</th><th>End week</th><th class="phase-interval-col">Interval</th><th>Dose</th><th>Units</th>',
   'id="cloudAccountBar"',
   'id="cloudSignIn"',
   'id="cloudSignUp"',
@@ -109,17 +114,18 @@ async function sha256Hex(text){
   'from("knowledge_base_entries")',
   'initCloudServices();'
  ];
- const missing=required.filter(x=>!v1.includes(x));
+ const missing=required.filter(x=>!v2.includes(x));
  if(missing.length)throw new Error("Latest planner failed feature validation: "+missing.join(", "));
- const actualHash=await sha256Hex(v1);
- if(actualHash!==EXPECTED_V1_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
- document.open();document.write(v1);document.close();
+ if(v2.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
+ const actualHash=await sha256Hex(v2);
+ if(actualHash!==EXPECTED_V2_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
+ document.open();document.write(v2);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
  if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
 });
 </script>
-<!-- production-loader: v1 uploaded-patch + password-recovery + account-sync verified -->
+<!-- production-loader: v2 uploaded-patch + password-recovery + account-sync verified -->
 </body>
 </html>
