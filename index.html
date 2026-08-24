@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v6</title>
+<title>Peptide Planner v7</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v6</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v7</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -27,13 +27,14 @@ const V3_DELTA=[`.deploy/v3_delta_from_v2live.b64`];
 const V4_DELTA=[`.deploy/v4_delta_from_v3live.b64`];
 const V5_DELTA=[`.deploy/v5_delta_from_v4live.b64`];
 const V6_DELTA=[`.deploy/v6_delta_from_v5live.b64`];
-const EXPECTED_V6_SHA256="0e9df12f0458e302be5aa5b55dc78709fd8149e1f1be11265e5601324f4f3e64";
+const V7_DELTA=[`.deploy/v7_delta_from_v6live.b64`];
+const EXPECTED_V7_SHA256="62d998d870f9374ecfa9be87b0f5c1f5333be462c585debf57ef45a1fd504116";
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
  while(i<pl.length&&!pl[i].startsWith("@@ "))i++;
  while(i<pl.length){
-  const m=pl[i].replace(/\n$/,"").match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+  const m=pl[i].replace(/\n$/,"" ).match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
   if(!m)throw new Error("Invalid deployment patch");
   const oldStart=Number(m[1]),oldCount=m[2]===undefined?1:Number(m[2]),target=oldCount===0?oldStart:oldStart-1;
   if(target<si)throw new Error("Overlapping deployment patch");
@@ -68,8 +69,8 @@ async function sha256Hex(text){
 }
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v6…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch]=await Promise.all([
+ status.textContent="Preparing v7…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
   inflateParts(V189_PARTS),
   inflateParts(V190_DELTA),
@@ -82,7 +83,8 @@ async function sha256Hex(text){
   inflateParts(V3_DELTA),
   inflateParts(V4_DELTA),
   inflateParts(V5_DELTA),
-  inflateParts(V6_DELTA)
+  inflateParts(V6_DELTA),
+  inflateParts(V7_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -96,9 +98,10 @@ async function sha256Hex(text){
  const v4=applyUnifiedPatch(v3,v4Patch);
  const v5=applyUnifiedPatch(v4,v5Patch);
  const v6=applyUnifiedPatch(v5,v6Patch);
+ const v7=applyUnifiedPatch(v6,v7Patch);
  const required=[
-  "Peptide Treatment Planner Mobile v6",
-  'APP_VERSION="v6"',
+  "Peptide Treatment Planner Mobile v7",
+  'APP_VERSION="v7"',
   'id="v192-vials-buy-two-line-lock"',
   'id="v193-phase-layout-fix"',
   'id="v194-mobile-myplan-multi-column"',
@@ -114,6 +117,9 @@ async function sha256Hex(text){
   'id="v206-requested-only"',
   'id="v210-myplan-two-fixes-only"',
   'id="v211-myplan-uniform-field-height-only"',
+  'if(plannerArraysEqual(clean,[0,1,2,3,4,5,6]))return "Daily";',
+  'if(plannerArraysEqual(clean,[1,2,3,4,5]))return "Weekdays";',
+  '["weekdays","Weekdays"]',
   'id="quickTargetDisplay"',
   'Personal record',
   'Personal profile',
@@ -133,18 +139,18 @@ async function sha256Hex(text){
   'from("knowledge_base_entries")',
   'initCloudServices();'
  ];
- const missing=required.filter(x=>!v6.includes(x));
+ const missing=required.filter(x=>!v7.includes(x));
  if(missing.length)throw new Error("Latest planner failed feature validation: "+missing.join(", "));
- if(v6.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
- const actualHash=await sha256Hex(v6);
- if(actualHash!==EXPECTED_V6_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
- document.open();document.write(v6);document.close();
+ if(v7.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
+ const actualHash=await sha256Hex(v7);
+ if(actualHash!==EXPECTED_V7_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
+ document.open();document.write(v7);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
  if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
 });
 </script>
-<!-- production-loader: v6 uploaded-patch + password-recovery + account-sync verified -->
+<!-- production-loader: v7 uploaded-patch + password-recovery + account-sync verified -->
 </body>
 </html>
