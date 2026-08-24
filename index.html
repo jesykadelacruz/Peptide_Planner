@@ -30,7 +30,7 @@ function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
  while(i<pl.length&&!pl[i].startsWith("@@ "))i++;
  while(i<pl.length){
-  const m=pl[i].replace(/\n$/," ").slice(0,-1).match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+  const m=pl[i].replace(/\n$/,"").match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
   if(!m)throw new Error("Invalid deployment patch");
   const oldStart=Number(m[1]),oldCount=m[2]===undefined?1:Number(m[2]),target=oldCount===0?oldStart:oldStart-1;
   if(target<si)throw new Error("Overlapping deployment patch");
