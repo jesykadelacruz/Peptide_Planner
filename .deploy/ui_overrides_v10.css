@@ -1,405 +1,160 @@
 /* Peptide Planner UI refresh v10
-   Presentation only: no feature, data, auth, calculation, or event-handler changes. */
+   Presentation and access-screen hardening only. Planner calculations, data handling,
+   feature handlers and existing application functions are unchanged. */
 
 :root{
   --ui-bg:#f4f8f6;
-  --ui-surface:#ffffff;
+  --ui-surface:#fff;
   --ui-surface-soft:#f8fbf9;
   --ui-text:#17382f;
   --ui-muted:#667a72;
   --ui-primary:#216b5f;
   --ui-primary-strong:#185247;
-  --ui-primary-soft:#e7f3ee;
   --ui-border:#d9e6e0;
   --ui-border-strong:#c7d8d1;
   --ui-shadow-sm:0 1px 2px rgba(20,54,45,.05),0 3px 10px rgba(20,54,45,.04);
-  --ui-shadow-md:0 12px 32px rgba(20,54,45,.10);
+  --ui-shadow-md:0 18px 48px rgba(20,54,45,.14);
   --ui-radius-sm:10px;
   --ui-radius:14px;
-  --ui-radius-lg:18px;
   --ui-control-h:42px;
 }
 
-html{
-  background:var(--ui-bg);
-  color-scheme:light;
-  -webkit-text-size-adjust:100%;
-}
-
+html{background:var(--ui-bg);color-scheme:light;-webkit-text-size-adjust:100%}
 body{
-  background:linear-gradient(180deg,#f7fbf9 0%,var(--ui-bg) 240px) !important;
+  background:linear-gradient(180deg,#f7fbf9 0%,var(--ui-bg) 240px)!important;
   color:var(--ui-text);
-  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif !important;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif!important;
   line-height:1.48;
   text-rendering:optimizeLegibility;
   -webkit-font-smoothing:antialiased;
 }
 
-/* Preserve layout while making page edges calmer and more consistent. */
-main,
-.main,
-.app-main,
-.content,
-.page-content{
-  min-width:0;
-}
+main,.main,.app-main,.content,.page-content{min-width:0}
+h1,h2,h3,h4{color:var(--ui-text);letter-spacing:-.018em;text-wrap:balance}
+h1{line-height:1.15}h2{line-height:1.2}h3,h4{line-height:1.28}
+p,.muted,.subtle,.helper,.hint,small{line-height:1.5}
+hr{border:0!important;border-top:1px solid var(--ui-border)!important}
 
-h1,h2,h3,h4{
-  color:var(--ui-text);
-  letter-spacing:-.018em;
-  text-wrap:balance;
-}
-
-h1{line-height:1.15}
-h2{line-height:1.2}
-h3,h4{line-height:1.28}
-
-p,.muted,.subtle,.helper,.hint,small{
-  line-height:1.5;
-}
-
-hr{
-  border:0 !important;
-  border-top:1px solid var(--ui-border) !important;
-}
-
-/* Form controls: same fields and behavior, cleaner sizing and focus states. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
-select,
-textarea{
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea{
   min-height:var(--ui-control-h);
   box-sizing:border-box;
-  border:1px solid var(--ui-border-strong) !important;
-  border-radius:var(--ui-radius-sm) !important;
-  background:#fff !important;
-  color:var(--ui-text) !important;
+  border:1px solid var(--ui-border-strong)!important;
+  border-radius:var(--ui-radius-sm)!important;
+  background:#fff!important;
+  color:var(--ui-text)!important;
   box-shadow:0 1px 1px rgba(20,54,45,.025);
   transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease;
 }
-
-textarea{
-  min-height:86px;
-  line-height:1.45;
-  resize:vertical;
-}
-
+textarea{min-height:86px;line-height:1.45;resize:vertical}
 input::placeholder,textarea::placeholder{color:#8a9a94}
-
-input:not([type="checkbox"]):not([type="radio"]):focus,
-select:focus,
-textarea:focus{
-  outline:none !important;
-  border-color:var(--ui-primary) !important;
-  box-shadow:0 0 0 3px rgba(33,107,95,.14) !important;
+input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:focus{
+  outline:none!important;
+  border-color:var(--ui-primary)!important;
+  box-shadow:0 0 0 3px rgba(33,107,95,.14)!important;
 }
+input[type="checkbox"],input[type="radio"]{accent-color:var(--ui-primary)}
+label{color:#294a41;font-weight:600}
 
-input[type="checkbox"],input[type="radio"]{
-  accent-color:var(--ui-primary);
-}
-
-label{
-  color:#294a41;
-  font-weight:600;
-}
-
-/* Buttons: retain every existing click handler and disabled state. */
-button,
-.button,
-.btn,
-[role="button"]{
-  border-radius:10px !important;
+button,.button,.btn,[role="button"]{
+  border-radius:10px!important;
   font-weight:650;
   letter-spacing:-.005em;
   transition:transform .12s ease,box-shadow .15s ease,background-color .15s ease,border-color .15s ease,opacity .15s ease;
 }
+button:not(:disabled),.button:not(.disabled),.btn:not(.disabled),[role="button"]:not([aria-disabled="true"]){cursor:pointer}
+button:not(:disabled):hover,.button:not(.disabled):hover,.btn:not(.disabled):hover,[role="button"]:not([aria-disabled="true"]):hover{box-shadow:0 4px 12px rgba(20,54,45,.10)}
+button:not(:disabled):active,.button:not(.disabled):active,.btn:not(.disabled):active,[role="button"]:not([aria-disabled="true"]):active{transform:translateY(1px);box-shadow:none}
+button:focus-visible,.button:focus-visible,.btn:focus-visible,[role="button"]:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid rgba(33,107,95,.22)!important;outline-offset:2px}
+button:disabled,.btn:disabled,[aria-disabled="true"]{cursor:not-allowed;opacity:.55;box-shadow:none!important}
 
-button:not(:disabled),
-.button:not(.disabled),
-.btn:not(.disabled),
-[role="button"]:not([aria-disabled="true"]){
-  cursor:pointer;
-}
-
-button:not(:disabled):hover,
-.button:not(.disabled):hover,
-.btn:not(.disabled):hover,
-[role="button"]:not([aria-disabled="true"]):hover{
-  box-shadow:0 4px 12px rgba(20,54,45,.10);
-}
-
-button:not(:disabled):active,
-.button:not(.disabled):active,
-.btn:not(.disabled):active,
-[role="button"]:not([aria-disabled="true"]):active{
-  transform:translateY(1px);
-  box-shadow:none;
-}
-
-button:focus-visible,
-.button:focus-visible,
-.btn:focus-visible,
-[role="button"]:focus-visible,
-a:focus-visible,
-summary:focus-visible{
-  outline:3px solid rgba(33,107,95,.22) !important;
-  outline-offset:2px;
-}
-
-button:disabled,
-.btn:disabled,
-[aria-disabled="true"]{
-  cursor:not-allowed;
-  opacity:.55;
-  box-shadow:none !important;
-}
-
-/* Common card/panel class names used across the planner stay in place. */
-.card,
-.panel,
-.section,
-.section-card,
-.box,
-.tile,
-.sheet,
-.widget,
-.form-card,
-.summary-card,
-.kb-card,
-.plan-card,
-.modal-content,
-.dialog-content{
-  border-color:var(--ui-border) !important;
-  border-radius:var(--ui-radius) !important;
+.card,.panel,.section,.section-card,.box,.tile,.sheet,.widget,.form-card,.summary-card,.kb-card,.plan-card,.modal-content,.dialog-content{
+  border-color:var(--ui-border)!important;
+  border-radius:var(--ui-radius)!important;
   box-shadow:var(--ui-shadow-sm);
 }
+.card:hover,.tile:hover,.kb-card:hover,.plan-card:hover{border-color:var(--ui-border-strong)!important}
+.tabs,.tab-list,[role="tablist"]{gap:6px}
+.tab,.tabs button,.tab-list button,[role="tab"]{border-radius:10px!important}
+[role="tab"][aria-selected="true"],.tab.active,.tabs button.active,.tab-list button.active{box-shadow:0 2px 8px rgba(33,107,95,.11)}
 
-.card:hover,
-.tile:hover,
-.kb-card:hover,
-.plan-card:hover{
-  border-color:var(--ui-border-strong) !important;
-}
+table{border-collapse:separate;border-spacing:0}
+thead th{color:#38594f;font-size:.88em;font-weight:700;letter-spacing:.01em}
+tbody tr{transition:background-color .12s ease}
+tbody tr:hover{background-color:rgba(33,107,95,.028)}
+th,td{border-color:var(--ui-border)!important}
+details{border-radius:var(--ui-radius-sm)}
+summary{cursor:pointer;font-weight:650}
 
-/* Navigation and tab polish without changing tab structure. */
-.tabs,
-.tab-list,
-[role="tablist"]{
-  gap:6px;
-}
+#cloudAccountBar{border-color:var(--ui-border)!important;box-shadow:var(--ui-shadow-sm)}
 
-.tab,
-.tabs button,
-.tab-list button,
-[role="tab"]{
-  border-radius:10px !important;
-}
-
-[role="tab"][aria-selected="true"],
-.tab.active,
-.tabs button.active,
-.tab-list button.active{
-  box-shadow:0 2px 8px rgba(33,107,95,.11);
-}
-
-/* Tables remain tables; improve scanability only. */
-table{
-  border-collapse:separate;
-  border-spacing:0;
-}
-
-thead th{
-  color:#38594f;
-  font-size:.88em;
-  font-weight:700;
-  letter-spacing:.01em;
-}
-
-tbody tr{
-  transition:background-color .12s ease;
-}
-
-tbody tr:hover{
-  background-color:rgba(33,107,95,.028);
-}
-
-th,td{
-  border-color:var(--ui-border) !important;
-}
-
-/* Expandable sections become easier to identify. */
-details{
-  border-radius:var(--ui-radius-sm);
-}
-
-summary{
-  cursor:pointer;
-  font-weight:650;
-}
-
-/* Cloud account area */
-#cloudAccountBar{
-  border-color:var(--ui-border) !important;
-  box-shadow:var(--ui-shadow-sm);
-  backdrop-filter:saturate(1.1);
-}
-
-/* Access gate: clearer hierarchy, same controls and auth functions. */
+/* STRICT ACCESS SCREEN
+   While the application's existing access gate is visible it fully covers the planner.
+   The planner tabs/content cannot be seen through the sign-in screen. The application's
+   own auth/access logic still decides when this element is hidden after approval. */
 #plannerAccessGate{
-  background:rgba(19,45,38,.52) !important;
-  backdrop-filter:blur(8px) saturate(.92);
-  -webkit-backdrop-filter:blur(8px) saturate(.92);
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100vh!important;
+  z-index:2147483646!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  isolation:isolate;
+  opacity:1!important;
+  background:linear-gradient(180deg,#f7fbf9 0%,#eef6f2 100%)!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
 }
-
-#plannerAccessGate > div,
-#plannerAccessGate .card,
-#plannerAccessGate .panel,
-#plannerAccessGate .modal-content{
-  border:1px solid rgba(255,255,255,.55) !important;
-  border-radius:22px !important;
-  box-shadow:0 24px 70px rgba(12,35,29,.24) !important;
+#plannerAccessGate[hidden]{display:none!important}
+#plannerAccessGate > div,#plannerAccessGate .card,#plannerAccessGate .panel,#plannerAccessGate .modal-content{
+  background:#fff!important;
+  border:1px solid var(--ui-border)!important;
+  border-radius:22px!important;
+  box-shadow:0 24px 70px rgba(12,35,29,.18)!important;
 }
+#plannerAccessGate h1,#plannerAccessGate h2,#plannerAccessGate h3{letter-spacing:-.025em}
+#plannerAccessGate input,#plannerAccessGate select,#plannerAccessGate button{min-height:44px}
 
-#plannerAccessGate h1,
-#plannerAccessGate h2,
-#plannerAccessGate h3{
-  letter-spacing:-.025em;
-}
-
-#plannerAccessGate input,
-#plannerAccessGate select,
-#plannerAccessGate button{
-  min-height:44px;
-}
-
-/* Owner/Admin access management: presentation only. */
+/* Owner/Admin access management. */
 #adminAccessOverlay{
-  background:rgba(19,45,38,.48) !important;
+  background:rgba(19,45,38,.48)!important;
   backdrop-filter:blur(7px) saturate(.94);
   -webkit-backdrop-filter:blur(7px) saturate(.94);
 }
-
-#adminAccessOverlay > div,
-#adminAccessOverlay .card,
-#adminAccessOverlay .panel,
-#adminAccessOverlay .modal-content{
-  border:1px solid rgba(255,255,255,.6) !important;
-  border-radius:20px !important;
-  box-shadow:0 22px 64px rgba(12,35,29,.24) !important;
+#adminAccessOverlay > div,#adminAccessOverlay .card,#adminAccessOverlay .panel,#adminAccessOverlay .modal-content{
+  border:1px solid rgba(255,255,255,.6)!important;
+  border-radius:20px!important;
+  box-shadow:var(--ui-shadow-md)!important;
 }
+#adminAccessOverlay table{width:100%}
+#adminAccessOverlay thead th{position:sticky;top:0;z-index:1;background:var(--ui-surface-soft)}
+#adminAccessOverlay td,#adminAccessOverlay th{vertical-align:middle}
+#adminAccessOverlay button{min-height:38px}
+.badge,.pill,.chip,.status{border-radius:999px!important;font-weight:650;line-height:1.15}
+.modal,.dialog,.overlay,[role="dialog"]{overscroll-behavior:contain}
 
-#adminAccessOverlay table{
-  width:100%;
-}
-
-#adminAccessOverlay thead th{
-  position:sticky;
-  top:0;
-  z-index:1;
-  background:var(--ui-surface-soft);
-}
-
-#adminAccessOverlay td,
-#adminAccessOverlay th{
-  vertical-align:middle;
-}
-
-#adminAccessOverlay button{
-  min-height:38px;
-}
-
-/* Improve status/badge readability where these conventional classes exist. */
-.badge,.pill,.chip,.status{
-  border-radius:999px !important;
-  font-weight:650;
-  line-height:1.15;
-}
-
-/* Modal/dialog refinement without changing visibility logic. */
-.modal,
-.dialog,
-.overlay,
-[role="dialog"]{
-  overscroll-behavior:contain;
-}
-
-[role="dialog"] .modal-content,
-[role="dialog"] .dialog-content{
-  box-shadow:var(--ui-shadow-md);
-}
-
-/* Scrollbars are intentionally subtle; no content is hidden. */
-*{
-  scrollbar-width:thin;
-  scrollbar-color:#b9cbc4 transparent;
-}
-
+*{scrollbar-width:thin;scrollbar-color:#b9cbc4 transparent}
 *::-webkit-scrollbar{width:9px;height:9px}
 *::-webkit-scrollbar-track{background:transparent}
 *::-webkit-scrollbar-thumb{background:#b9cbc4;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
-*::-webkit-scrollbar-thumb:hover{background:#97afa6;border:2px solid transparent;background-clip:padding-box}
 
-/* Desktop: slightly more breathing room without altering grid definitions. */
-@media (min-width:900px){
-  .card,.panel,.section-card,.form-card,.summary-card{
-    scroll-margin-top:84px;
-  }
-}
-
-/* Mobile usability: touch targets, overflow, dialogs. No fields or controls removed. */
-@media (max-width:720px){
+@media(max-width:720px){
   :root{--ui-control-h:44px}
-
-  body{
-    font-size:15px;
-  }
-
-  button,
-  .button,
-  .btn,
-  [role="button"]{
-    min-height:42px;
-  }
-
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
-  select,
-  textarea{
-    font-size:16px !important; /* prevents iOS input zoom */
-  }
-
-  table{
-    max-width:100%;
-  }
-
-  .table-wrap,
-  .table-scroll,
-  .overflow-x,
-  .responsive-table{
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-  }
-
-  #plannerAccessGate,
-  #adminAccessOverlay{
-    padding:12px !important;
-  }
-
-  #plannerAccessGate > div,
-  #adminAccessOverlay > div,
-  #plannerAccessGate .modal-content,
-  #adminAccessOverlay .modal-content{
-    width:min(100%,680px) !important;
-    max-width:100% !important;
-    max-height:calc(100dvh - 24px) !important;
+  body{font-size:15px}
+  button,.button,.btn,[role="button"]{min-height:42px}
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea{font-size:16px!important}
+  .table-wrap,.table-scroll,.overflow-x,.responsive-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #plannerAccessGate,#adminAccessOverlay{padding:12px!important;box-sizing:border-box}
+  #plannerAccessGate > div,#adminAccessOverlay > div,#plannerAccessGate .modal-content,#adminAccessOverlay .modal-content{
+    width:min(100%,680px)!important;
+    max-width:100%!important;
+    max-height:calc(100dvh - 24px)!important;
     overflow:auto;
-    border-radius:17px !important;
+    border-radius:17px!important;
   }
 }
 
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{
-    scroll-behavior:auto !important;
-    animation-duration:.01ms !important;
-    animation-iteration-count:1 !important;
-    transition-duration:.01ms !important;
-  }
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
