@@ -1,162 +1,66 @@
-name: Deploy Peptide Planner to Cloudflare Pages
+name: Validate Peptide Planner v9 Manual Deployment
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - index.html
-      - .deploy/**
-      - .github/workflows/deploy-cloudflare-pages.yml
   workflow_dispatch:
 
 permissions:
   contents: read
-  deployments: write
-
-concurrency:
-  group: peptide-planner-production
-  cancel-in-progress: true
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and verify Peptide Planner v8
+      - name: Validate v9 loader and access-control delta
         run: |
           set -euo pipefail
-          rm -rf dist
-          mkdir -p dist
-          cp Peptide_Planner_KB_Mobile_v184.html dist/index.html
-
-          cat .deploy/v189_patch_part_*.b64 > /tmp/v189.b64
-          cat .deploy/v195_delta_part_*.b64 > /tmp/v195.b64
-
-          python - <<'PY2'
+          cat .deploy/v9_delta_part_*.b64 > /tmp/v9_delta.b64
+          python - <<'PY'
           from pathlib import Path
           import base64, zlib
-          payloads = {
-              '/tmp/v189.patch': Path('/tmp/v189.b64').read_text(),
-              '/tmp/v190.patch': Path('.deploy/v190_delta_from_v189live.b64').read_text(),
-              '/tmp/v191.patch': Path('.deploy/v191_delta_from_v190live.b64').read_text(),
-              '/tmp/v193.patch': Path('.deploy/v193_delta_from_v191live.b64').read_text(),
-              '/tmp/v194.patch': Path('.deploy/v194_delta_from_v193live.b64').read_text(),
-              '/tmp/v195.patch': Path('/tmp/v195.b64').read_text(),
-              '/tmp/v1.patch': Path('.deploy/v1_delta_from_v195live.b64').read_text(),
-              '/tmp/v2.patch': Path('.deploy/v2_delta_from_v1live.b64').read_text(),
-              '/tmp/v3.patch': Path('.deploy/v3_delta_from_v2live.b64').read_text(),
-              '/tmp/v4.patch': Path('.deploy/v4_delta_from_v3live.b64').read_text(),
-              '/tmp/v5.patch': Path('.deploy/v5_delta_from_v4live.b64').read_text(),
-              '/tmp/v6.patch': Path('.deploy/v6_delta_from_v5live.b64').read_text(),
-              '/tmp/v7.patch': Path('.deploy/v7_delta_from_v6live.b64').read_text(),
-              '/tmp/v8.patch': Path('.deploy/v8_delta_from_v7live.b64').read_text(),
-          }
-          for target, payload in payloads.items():
-              Path(target).write_bytes(zlib.decompress(base64.b64decode(payload)))
-          PY2
-
-          patch --silent dist/index.html < /tmp/v189.patch
-          patch --silent dist/index.html < /tmp/v190.patch
-          patch --silent dist/index.html < /tmp/v191.patch
-          patch --silent dist/index.html < /tmp/v193.patch
-          patch --silent dist/index.html < /tmp/v194.patch
-          patch --silent dist/index.html < /tmp/v195.patch
-          patch --silent dist/index.html < /tmp/v1.patch
-          patch --silent dist/index.html < /tmp/v2.patch
-          patch --silent dist/index.html < /tmp/v3.patch
-          patch --silent dist/index.html < /tmp/v4.patch
-          patch --silent dist/index.html < /tmp/v5.patch
-          patch --silent dist/index.html < /tmp/v6.patch
-          patch --silent dist/index.html < /tmp/v7.patch
-          patch --silent dist/index.html < /tmp/v8.patch
-
-          python - <<'PY2'
-          from pathlib import Path
-          import hashlib, re
-          path = Path('dist/index.html')
-          data = path.read_bytes()
-          html = data.decode('utf-8')
-          expected_sha256 = '710bdd85185566eebc15f8862981d6fd27c9c7ad98c94d286f73d3d0bafc9cf7'
-          actual_sha256 = hashlib.sha256(data).hexdigest()
-          if actual_sha256 != expected_sha256:
-              raise SystemExit(f'v8 build checksum mismatch: {actual_sha256}')
+          payload = Path('/tmp/v9_delta.b64').read_text()
+          patch = zlib.decompress(base64.b64decode(payload)).decode('utf-8')
           required = [
-              '<title>Peptide Treatment Planner Mobile v8</title>',
-              'APP_VERSION="v8"',
-              'id="v192-vials-buy-two-line-lock"',
-              'id="v193-phase-layout-fix"',
-              'id="v194-mobile-myplan-multi-column"',
-              'id="v195-myplan-phase-compact-layout"',
-              'id="v196-past-purchases-one-line"',
-              'id="v197-today-done-vertical-center"',
-              'id="v198-compact-add-treatment-collapsed"',
-              'id="v199-add-treatment-row-alignment"',
-              'id="v200-myplan-kb-benefits"',
-              'id="v202-kb-record-alignment-only"',
-              'id="v202-requested-fixes"',
-              'id="v204-myplan-layout-only"',
-              'id="v206-requested-only"',
-              'id="v210-myplan-two-fixes-only"',
-              'id="v211-myplan-uniform-field-height-only"',
-              'id="v213-time-size-only"',
-              'if(plannerArraysEqual(clean,[0,1,2,3,4,5,6]))return "Daily";',
-              'if(plannerArraysEqual(clean,[1,2,3,4,5]))return "Weekdays";',
-              '["weekdays","Weekdays"]',
-              'id="quickTargetDisplay"',
-              'Personal record',
-              'Personal profile',
-              'id="profileDob"',
-              'measurementDateTimeLabel',
-              'id="cloudAccountBar"',
-              'id="cloudSignIn"',
-              'id="cloudSignUp"',
-              'id="cloudForgotPassword"',
-              'id="cloudAuthConfirmPassword"',
-              'resetPasswordForEmail',
+              'Peptide Treatment Planner Mobile v9',
+              'APP_VERSION="v9"',
+              'v9-invite-only-access-control',
+              'plannerAccessGate',
+              'adminAccessOverlay',
+              'planner_access_members',
+              'planner_claim_owner',
+              'planner-access-admin',
               'PASSWORD_RECOVERY',
-              'updateUser({password})',
               'signInWithPassword',
-              'from("planner_state")',
-              'from("planner_snapshots")',
-              'from("knowledge_base_entries")',
-              'initCloudServices();',
+          ]
+          missing = [item for item in required if item not in patch]
+          if missing:
+              raise SystemExit('v9 access-control delta is missing: ' + ', '.join(missing))
+          print('Validated v9 access-control delta')
+          PY
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text()
+          required = [
+              'Peptide Planner v9',
+              'EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3"',
+              'v9_delta_part_',
+              'plannerAccessGate',
+              'adminAccessOverlay',
           ]
           missing = [item for item in required if item not in html]
           if missing:
-              raise SystemExit('Built planner is missing required features: ' + ', '.join(missing))
-          if 'data-simple-field="notes"' in html:
-              raise SystemExit('v8 still contains the removed My Plan Notes field')
-          inline_scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
-          if not inline_scripts:
-              raise SystemExit('No inline application JavaScript found')
-          for i, script in enumerate(inline_scripts):
-              Path(f'/tmp/v8-inline-{i}.js').write_text(script)
-          print(f'Validated Peptide Planner v8: {len(data):,} bytes; {len(inline_scripts)} inline script(s)')
-          PY2
-          for js in /tmp/v8-inline-*.js; do node --check "$js"; done
+              raise SystemExit('v9 loader is missing: ' + ', '.join(missing))
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
+          for i, script in enumerate(scripts):
+              Path(f'/tmp/v9-loader-{i}.js').write_text(script)
+          print(f'Validated v9 loader markers; {len(scripts)} inline script(s)')
+          PY
+          for js in /tmp/v9-loader-*.js; do node --check "$js"; done
 
-      - name: Confirm this is still the newest main commit
-        id: freshness
+      - name: Deployment note
         run: |
-          git fetch --quiet origin main
-          latest="$(git rev-parse origin/main)"
-          echo "workflow_commit=$GITHUB_SHA"
-          echo "current_main=$latest"
-          if [ "$latest" = "$GITHUB_SHA" ]; then
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping stale deployment so an older build cannot replace production."
-          fi
-
-      - name: Deploy to Cloudflare Pages
-        if: steps.freshness.outputs.deploy == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=peptide-planner --branch=main
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          echo "v9 production is deployed from the tested Cloudflare production ZIP."
+          echo "Automatic legacy delta-chain deployment is intentionally disabled because older compressed chain assets are unreliable."
