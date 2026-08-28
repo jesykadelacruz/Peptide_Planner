@@ -157,13 +157,14 @@ async function sha256Hex(text){
  if(v9.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
  const actualHash=await sha256Hex(v9);
  if(actualHash!==EXPECTED_V9_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
- document.open();document.write(v9);document.close();
+ const styledV9=v9.replace("</head>",'<link rel="stylesheet" href=".deploy/ui_overrides_v10.css?v=1"></head>');
+ document.open();document.write(styledV9);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
  if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
 });
 </script>
-<!-- production-loader: v9 invite-only-role-access + password-recovery + account-sync verified -->
+<!-- production-loader: v9 invite-only-role-access + password-recovery + account-sync verified; UI-only refresh -->
 </body>
 </html>
