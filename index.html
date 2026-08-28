@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v8</title>
+<title>Peptide Planner v9</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v8</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v9</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -29,7 +29,8 @@ const V5_DELTA=[`.deploy/v5_delta_from_v4live.b64`];
 const V6_DELTA=[`.deploy/v6_delta_from_v5live.b64`];
 const V7_DELTA=[`.deploy/v7_delta_from_v6live.b64`];
 const V8_DELTA=[`.deploy/v8_delta_from_v7live.b64`];
-const EXPECTED_V8_SHA256="710bdd85185566eebc15f8862981d6fd27c9c7ad98c94d286f73d3d0bafc9cf7";
+const V9_DELTA=[1,2,3,4].map(n=>`.deploy/v9_delta_part_${String(n).padStart(2,"0")}.b64`);
+const EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3";
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
@@ -70,8 +71,8 @@ async function sha256Hex(text){
 }
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v8…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch]=await Promise.all([
+ status.textContent="Preparing v9…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
   inflateParts(V189_PARTS),
   inflateParts(V190_DELTA),
@@ -86,7 +87,8 @@ async function sha256Hex(text){
   inflateParts(V5_DELTA),
   inflateParts(V6_DELTA),
   inflateParts(V7_DELTA),
-  inflateParts(V8_DELTA)
+  inflateParts(V8_DELTA),
+  inflateParts(V9_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -102,9 +104,10 @@ async function sha256Hex(text){
  const v6=applyUnifiedPatch(v5,v6Patch);
  const v7=applyUnifiedPatch(v6,v7Patch);
  const v8=applyUnifiedPatch(v7,v8Patch);
+ const v9=applyUnifiedPatch(v8,v9Patch);
  const required=[
-  "Peptide Treatment Planner Mobile v8",
-  'APP_VERSION="v8"',
+  "Peptide Treatment Planner Mobile v9",
+  'APP_VERSION="v9"',
   'id="v192-vials-buy-two-line-lock"',
   'id="v193-phase-layout-fix"',
   'id="v194-mobile-myplan-multi-column"',
@@ -141,20 +144,26 @@ async function sha256Hex(text){
   'from("planner_state")',
   'from("planner_snapshots")',
   'from("knowledge_base_entries")',
-  'initCloudServices();'
+  'initCloudServices();',
+  'id="v9-invite-only-access-control"',
+  'id="plannerAccessGate"',
+  'id="adminAccessOverlay"',
+  'planner_access_members',
+  'planner_claim_owner',
+  'planner-access-admin'
  ];
- const missing=required.filter(x=>!v8.includes(x));
+ const missing=required.filter(x=>!v9.includes(x));
  if(missing.length)throw new Error("Latest planner failed feature validation: "+missing.join(", "));
- if(v8.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
- const actualHash=await sha256Hex(v8);
- if(actualHash!==EXPECTED_V8_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
- document.open();document.write(v8);document.close();
+ if(v9.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
+ const actualHash=await sha256Hex(v9);
+ if(actualHash!==EXPECTED_V9_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
+ document.open();document.write(v9);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
  if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
 });
 </script>
-<!-- production-loader: v8 uploaded-patch + password-recovery + account-sync verified -->
+<!-- production-loader: v9 invite-only-role-access + password-recovery + account-sync verified -->
 </body>
 </html>
