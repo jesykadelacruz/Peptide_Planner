@@ -1,13 +1,20 @@
-name: Validate Peptide Planner v9 Manual Deployment
+name: Build Peptide Planner Cloudflare Upload ZIP
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'Peptide_Planner_KB_Mobile_v184.html'
+      - '.deploy/**'
+      - '.github/workflows/deploy-cloudflare-pages.yml'
 
 permissions:
   contents: read
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -39,6 +46,10 @@ jobs:
               raise SystemExit('v9 access-control delta is missing: ' + ', '.join(missing))
           print('Validated v9 access-control delta')
           PY
+
+      - name: Validate production loader
+        run: |
+          set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           import re
@@ -49,6 +60,7 @@ jobs:
               'v9_delta_part_',
               'plannerAccessGate',
               'adminAccessOverlay',
+              'ui_overrides_v10.css',
           ]
           missing = [item for item in required if item not in html]
           if missing:
@@ -60,7 +72,22 @@ jobs:
           PY
           for js in /tmp/v9-loader-*.js; do node --check "$js"; done
 
-      - name: Deployment note
+      - name: Build clean Cloudflare upload folder
         run: |
-          echo "v9 production is deployed from the tested Cloudflare production ZIP."
-          echo "Automatic legacy delta-chain deployment is intentionally disabled because older compressed chain assets are unreliable."
+          set -euo pipefail
+          rm -rf cloudflare_upload
+          mkdir -p cloudflare_upload
+          cp index.html cloudflare_upload/index.html
+          cp Peptide_Planner_KB_Mobile_v184.html cloudflare_upload/Peptide_Planner_KB_Mobile_v184.html
+          cp -R .deploy cloudflare_upload/.deploy
+          test -f cloudflare_upload/index.html
+          test -f cloudflare_upload/.deploy/ui_overrides_v10.css
+          echo "Cloudflare package prepared."
+
+      - name: Upload Cloudflare deployment ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_Cloudflare_Update_v10
+          path: cloudflare_upload/
+          if-no-files-found: error
+          retention-days: 30
