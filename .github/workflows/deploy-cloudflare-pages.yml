@@ -33,7 +33,7 @@ jobs:
           EXPECTED_V18='50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb'
           EXPECTED_V19='f544d8a6a345be415cc33ea7ddb922b9e40efac0d2865866fa90791d05a71eb6'
           EXPECTED_V22='882a8b62e081f4d253f774fe3c3c85613107331077dd0e684f41818d980081e2'
-          EXPECTED_V23='e97e586669a20ff6b144689596f527126b88e29e4d6a1415a1511863eec142fa'
+          EXPECTED_V23='3536f468203f96cea443c77b9a01a9650cf86cea7aa61dacc58f31b308f62779'
           def apply_patch(source,patch):
               src=source.splitlines(keepends=True);pl=patch.splitlines(keepends=True);out=[];si=0;i=0
               while i<len(pl) and not pl[i].startswith('@@ '):i+=1
@@ -76,7 +76,7 @@ jobs:
           if hashlib.sha256(v22.encode()).hexdigest()!=EXPECTED_V22:raise SystemExit('v22 checksum mismatch')
           v23=apply_patch(v22,inflate(['.deploy/v23_delta_from_v22.b64']))
           if hashlib.sha256(v23.encode()).hexdigest()!=EXPECTED_V23:raise SystemExit('v23 checksum mismatch')
-          required=['<title>Peptide Planner v23</title>','const APP_VERSION="v23";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid','id="v22-time-column-width-fix"']
+          required=['<title>Peptide Planner v23</title>','const APP_VERSION="v23";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid','id="v22-time-column-width-fix"','id="v22-safari-time-width-fix"']
           missing=[x for x in required if x not in v23]
           if missing:raise SystemExit('v23 feature validation failed: '+', '.join(missing))
           Path('dist').mkdir(exist_ok=True);Path('dist/index.html').write_text(v23)
