@@ -39,8 +39,10 @@ const V15_DELTA=[
   `.deploy/v15_patch_part_05.b64`,
   `.deploy/v15_patch_part_06.b64`
 ];
+const V15_TIMEBOX_FIX=[`.deploy/v15_timebox_fix.b64`];
 const EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3";
-const EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536";
+const EXPECTED_V15_BASE_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536";
+const EXPECTED_V15_SHA256="ce77155bddf4ef1a64d08aa9b0f54c1ce31f06dbce87746ef2167764815bac95";
 
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
@@ -84,7 +86,7 @@ async function sha256Hex(text){
 (async()=>{
  const status=document.getElementById("loadStatus");
  status.textContent="Preparing v15…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch]=await Promise.all([
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch,v15TimeboxFix]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
   inflateParts(V189_PARTS),
   inflateParts(V190_DELTA),
@@ -101,7 +103,8 @@ async function sha256Hex(text){
   inflateParts(V7_DELTA),
   inflateParts(V8_DELTA),
   inflateParts(V9_DELTA),
-  inflateParts(V15_DELTA)
+  inflateParts(V15_DELTA),
+  inflateParts(V15_TIMEBOX_FIX)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -122,7 +125,10 @@ async function sha256Hex(text){
  const v9Hash=await sha256Hex(v9);
  if(v9Hash!==EXPECTED_V9_SHA256)throw new Error(`v9 base checksum mismatch: ${v9Hash}`);
 
- const v15=applyUnifiedPatch(v9,v15Patch);
+ const v15Base=applyUnifiedPatch(v9,v15Patch);
+ const v15BaseHash=await sha256Hex(v15Base);
+ if(v15BaseHash!==EXPECTED_V15_BASE_SHA256)throw new Error(`v15 base checksum mismatch: ${v15BaseHash}`);
+ const v15=applyUnifiedPatch(v15Base,v15TimeboxFix);
  const required=[
   '<title>Peptide Planner v15</title>',
   'const APP_VERSION="v15";',
@@ -139,6 +145,7 @@ async function sha256Hex(text){
   'id="v23-dose-schedule-wrapping-fix"',
   'id="v24-dose-text-wrap-fix"',
   'id="v26-mobile-cycle-layout-fix"',
+  'id="v15-cycle-time-box-only-fix"',
   'if(plannerArraysEqual(days,[0,1,2,3,4,5,6]))return "Daily";',
   'if(plannerArraysEqual(days,[1,2,3,4,5]))return "Weekdays";',
   'id="plannerAccessGate"',
