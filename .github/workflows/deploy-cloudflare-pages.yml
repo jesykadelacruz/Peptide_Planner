@@ -1,10 +1,10 @@
-name: Deploy Peptide Planner v22 to Cloudflare Pages
+name: Deploy Peptide Planner v23 to Cloudflare Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - '.deploy/v22_release_trigger.txt'
+      - '.deploy/v23_release_trigger.txt'
   workflow_dispatch:
 
 permissions:
@@ -22,75 +22,65 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Reconstruct and validate official v22
+      - name: Reconstruct and validate official v23
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           import base64, hashlib, re, zlib
-
-          EXPECTED_V9 = 'bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3'
-          EXPECTED_V15 = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
-          EXPECTED_V18 = '50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb'
-          EXPECTED_V19 = 'f544d8a6a345be415cc33ea7ddb922b9e40efac0d2865866fa90791d05a71eb6'
-          EXPECTED_V22 = '882a8b62e081f4d253f774fe3c3c85613107331077dd0e684f41818d980081e2'
-
-          def apply_patch(source, patch):
-              src=source.splitlines(keepends=True); pl=patch.splitlines(keepends=True); out=[]; si=0; i=0
-              while i<len(pl) and not pl[i].startswith('@@ '): i+=1
+          EXPECTED_V9='bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3'
+          EXPECTED_V15='59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
+          EXPECTED_V18='50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb'
+          EXPECTED_V19='f544d8a6a345be415cc33ea7ddb922b9e40efac0d2865866fa90791d05a71eb6'
+          EXPECTED_V22='882a8b62e081f4d253f774fe3c3c85613107331077dd0e684f41818d980081e2'
+          EXPECTED_V23='e97e586669a20ff6b144689596f527126b88e29e4d6a1415a1511863eec142fa'
+          def apply_patch(source,patch):
+              src=source.splitlines(keepends=True);pl=patch.splitlines(keepends=True);out=[];si=0;i=0
+              while i<len(pl) and not pl[i].startswith('@@ '):i+=1
               while i<len(pl):
                   m=re.match(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@',pl[i].rstrip('\n'))
-                  if not m: raise RuntimeError('Invalid patch header')
-                  old_start=int(m.group(1)); old_count=1 if m.group(2) is None else int(m.group(2)); target=old_start if old_count==0 else old_start-1
-                  if target<si: raise RuntimeError('Overlapping patch')
-                  while si<target: out.append(src[si]); si+=1
-                  i+=1; consumed=0
+                  if not m:raise RuntimeError('Invalid patch header')
+                  old_start=int(m.group(1));old_count=1 if m.group(2) is None else int(m.group(2));target=old_start if old_count==0 else old_start-1
+                  if target<si:raise RuntimeError('Overlapping patch')
+                  while si<target:out.append(src[si]);si+=1
+                  i+=1;consumed=0
                   while i<len(pl) and not pl[i].startswith('@@ '):
-                      line=pl[i]; mark=line[:1]; body=line[1:]
+                      line=pl[i];mark=line[:1];body=line[1:]
                       if mark==' ':
-                          if si>=len(src) or src[si]!=body: raise RuntimeError('Patch context mismatch')
-                          out.append(src[si]); si+=1; consumed+=1
+                          if si>=len(src) or src[si]!=body:raise RuntimeError('Patch context mismatch')
+                          out.append(src[si]);si+=1;consumed+=1
                       elif mark=='-':
-                          if si>=len(src) or src[si]!=body: raise RuntimeError('Patch source mismatch')
-                          si+=1; consumed+=1
-                      elif mark=='+': out.append(body)
-                      elif mark=='\\': pass
-                      elif line.strip()!='': raise RuntimeError('Invalid patch line')
+                          if si>=len(src) or src[si]!=body:raise RuntimeError('Patch source mismatch')
+                          si+=1;consumed+=1
+                      elif mark=='+':out.append(body)
+                      elif mark=='\\':pass
+                      elif line.strip()!='':raise RuntimeError('Invalid patch line')
                       i+=1
-                  if consumed!=old_count: raise RuntimeError('Patch count mismatch')
-              out.extend(src[si:]); return ''.join(out)
-
+                  if consumed!=old_count:raise RuntimeError('Patch count mismatch')
+              out.extend(src[si:]);return ''.join(out)
           def inflate(paths):
               payload=''.join(Path(p).read_text().strip() for p in paths)
               return zlib.decompress(base64.b64decode(payload)).decode('utf-8')
-
           base=Path('Peptide_Planner_KB_Mobile_v184.html').read_text()
-          chain=[
-              [f'.deploy/v189_patch_part_{n:02d}.b64' for n in range(1,5)],
-              ['.deploy/v190_delta_from_v189live.b64'],['.deploy/v191_delta_from_v190live.b64'],
-              ['.deploy/v193_delta_from_v191live.b64'],['.deploy/v194_delta_from_v193live.b64'],
-              [f'.deploy/v195_delta_part_{n:02d}.b64' for n in range(1,5)],
-              ['.deploy/v1_delta_from_v195live.b64'],['.deploy/v2_delta_from_v1live.b64'],['.deploy/v3_delta_from_v2live.b64'],
-              ['.deploy/v4_delta_from_v3live.b64'],['.deploy/v5_delta_from_v4live.b64'],['.deploy/v6_delta_from_v5live.b64'],
-              ['.deploy/v7_delta_from_v6live.b64'],['.deploy/v8_delta_from_v7live.b64'],
-              [f'.deploy/v9_delta_part_{n:02d}.b64' for n in range(1,5)],
-          ]
+          chain=[[f'.deploy/v189_patch_part_{n:02d}.b64' for n in range(1,5)],['.deploy/v190_delta_from_v189live.b64'],['.deploy/v191_delta_from_v190live.b64'],['.deploy/v193_delta_from_v191live.b64'],['.deploy/v194_delta_from_v193live.b64'],[f'.deploy/v195_delta_part_{n:02d}.b64' for n in range(1,5)],['.deploy/v1_delta_from_v195live.b64'],['.deploy/v2_delta_from_v1live.b64'],['.deploy/v3_delta_from_v2live.b64'],['.deploy/v4_delta_from_v3live.b64'],['.deploy/v5_delta_from_v4live.b64'],['.deploy/v6_delta_from_v5live.b64'],['.deploy/v7_delta_from_v6live.b64'],['.deploy/v8_delta_from_v7live.b64'],[f'.deploy/v9_delta_part_{n:02d}.b64' for n in range(1,5)]]
           current=base
-          for paths in chain: current=apply_patch(current,inflate(paths))
-          if hashlib.sha256(current.encode()).hexdigest()!=EXPECTED_V9: raise SystemExit('v9 checksum mismatch')
+          for paths in chain:current=apply_patch(current,inflate(paths))
+          if hashlib.sha256(current.encode()).hexdigest()!=EXPECTED_V9:raise SystemExit('v9 checksum mismatch')
           v15=apply_patch(current,inflate(['.deploy/v15_patch_part_01.b64','.deploy/v15_patch_part_02.b64','.deploy/v15_patch_part_03a.b64','.deploy/v15_patch_part_03b.b64','.deploy/v15_patch_part_04.b64','.deploy/v15_patch_part_05.b64','.deploy/v15_patch_part_06.b64']))
-          if hashlib.sha256(v15.encode()).hexdigest()!=EXPECTED_V15: raise SystemExit('v15 checksum mismatch')
+          if hashlib.sha256(v15.encode()).hexdigest()!=EXPECTED_V15:raise SystemExit('v15 checksum mismatch')
           v18=apply_patch(v15,inflate(['.deploy/v18_delta_from_v15.b64']))
-          if hashlib.sha256(v18.encode()).hexdigest()!=EXPECTED_V18: raise SystemExit('v18 checksum mismatch')
+          if hashlib.sha256(v18.encode()).hexdigest()!=EXPECTED_V18:raise SystemExit('v18 checksum mismatch')
           v19=apply_patch(v18,inflate(['.deploy/v19_delta_from_v18.b64']))
-          if hashlib.sha256(v19.encode()).hexdigest()!=EXPECTED_V19: raise SystemExit('v19 checksum mismatch')
+          if hashlib.sha256(v19.encode()).hexdigest()!=EXPECTED_V19:raise SystemExit('v19 checksum mismatch')
           v22=apply_patch(v19,inflate(['.deploy/v22_delta_from_v19.b64']))
-          if hashlib.sha256(v22.encode()).hexdigest()!=EXPECTED_V22: raise SystemExit('v22 checksum mismatch')
-          required=['<title>Peptide Planner v22</title>','const APP_VERSION="v22";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid']
-          missing=[item for item in required if item not in v22]
-          if missing: raise SystemExit('v22 feature validation failed: '+', '.join(missing))
-          Path('dist').mkdir(exist_ok=True); Path('dist/index.html').write_text(v22)
-          print('Official v22 checksum verified:', EXPECTED_V22)
+          if hashlib.sha256(v22.encode()).hexdigest()!=EXPECTED_V22:raise SystemExit('v22 checksum mismatch')
+          v23=apply_patch(v22,inflate(['.deploy/v23_delta_from_v22.b64']))
+          if hashlib.sha256(v23.encode()).hexdigest()!=EXPECTED_V23:raise SystemExit('v23 checksum mismatch')
+          required=['<title>Peptide Planner v23</title>','const APP_VERSION="v23";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid','id="v22-time-column-width-fix"']
+          missing=[x for x in required if x not in v23]
+          if missing:raise SystemExit('v23 feature validation failed: '+', '.join(missing))
+          Path('dist').mkdir(exist_ok=True);Path('dist/index.html').write_text(v23)
+          print('Official v23 checksum verified:',EXPECTED_V23)
           PY
 
       - name: Validate JavaScript
@@ -100,11 +90,11 @@ jobs:
           import re
           html=Path('dist/index.html').read_text()
           scripts=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',html,flags=re.I|re.S)
-          Path('/tmp/v22-inline.js').write_text('\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100]))
+          Path('/tmp/v23-inline.js').write_text('\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100]))
           PY
-          node --check /tmp/v22-inline.js
+          node --check /tmp/v23-inline.js
 
-      - name: Deploy v22 to Cloudflare Pages
+      - name: Deploy v23 to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
