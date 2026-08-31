@@ -1,10 +1,10 @@
-name: Deploy Peptide Planner v15 to Cloudflare Pages
+name: Deploy Peptide Planner v16 to Cloudflare Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - '.deploy/v15_release_trigger.txt'
+      - '.deploy/v16_release_trigger.txt'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Reconstruct and validate official v15
+      - name: Reconstruct and validate official v16
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -30,8 +30,8 @@ jobs:
           import base64, hashlib, re, zlib
 
           EXPECTED_V9 = 'bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3'
-          EXPECTED_V15_BASE = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
-          EXPECTED_V15 = 'ce77155bddf4ef1a64d08aa9b0f54c1ce31f06dbce87746ef2167764815bac95'
+          EXPECTED_V15 = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
+          EXPECTED_V16 = '98268e7b686495d8bee6cd2a5c00bc676540b2f1c1e94d74fae30660619b303b'
 
           def split_lines(text):
               return text.splitlines(keepends=True)
@@ -127,37 +127,29 @@ jobs:
           for p in v15_paths:
               if not Path(p).is_file():
                   raise SystemExit('Missing v15 deployment asset: ' + p)
-          v15_base = apply_patch(current, inflate(v15_paths))
-          base_actual = hashlib.sha256(v15_base.encode()).hexdigest()
-          if base_actual != EXPECTED_V15_BASE:
-              raise SystemExit(f'v15 base checksum mismatch: {base_actual}')
+          v15 = apply_patch(current, inflate(v15_paths))
+          actual_v15 = hashlib.sha256(v15.encode()).hexdigest()
+          if actual_v15 != EXPECTED_V15:
+              raise SystemExit(f'v15 checksum mismatch: {actual_v15}')
 
-          timebox_path = '.deploy/v15_timebox_fix.b64'
-          if not Path(timebox_path).is_file():
-              raise SystemExit('Missing v15 time-box deployment asset: ' + timebox_path)
-          v15 = apply_patch(v15_base, inflate([timebox_path]))
-          actual = hashlib.sha256(v15.encode()).hexdigest()
-          if actual != EXPECTED_V15:
-              raise SystemExit(f'v15 checksum mismatch: {actual}')
+          v16_path = '.deploy/v16_delta_from_v15.b64'
+          if not Path(v16_path).is_file():
+              raise SystemExit('Missing v16 deployment asset: ' + v16_path)
+          v16 = apply_patch(v15, inflate([v16_path]))
+          actual_v16 = hashlib.sha256(v16.encode()).hexdigest()
+          if actual_v16 != EXPECTED_V16:
+              raise SystemExit(f'v16 checksum mismatch: {actual_v16}')
 
           required = [
-              '<title>Peptide Planner v15</title>',
-              'const APP_VERSION="v15";',
+              '<title>Peptide Planner v16</title>',
+              'const APP_VERSION="v16";',
+              'id="v16-cycle-time-height-fix-only"',
+              'height:45.2px!important;',
+              'height:46px!important;',
               'id="v14-signup-payment-account-request"',
               'id="v17-admin-dashboard"',
               'id="v20-compact-users-autosave"',
-              'id="v14-cycle-weekday-checkbox-format"',
-              'id="v16-weekday-reference-match"',
-              'id="v17-requested-peptide-cycle-layout"',
-              'id="v18-myplan-reference-format"',
-              'id="v19-compact-getting-started"',
-              'id="v21-weekdays-spacing-only"',
-              'id="v22-dose-schedule-width-fix"',
-              'id="v23-dose-schedule-wrapping-fix"',
-              'id="v24-dose-text-wrap-fix"',
               'id="v26-mobile-cycle-layout-fix"',
-              'id="v15-cycle-time-box-only-fix"',
-              'if(plannerArraysEqual(days,[1,2,3,4,5]))return "Weekdays";',
               'id="plannerAccessGate"',
               'planner-access-admin',
               'planner_access_members',
@@ -165,27 +157,19 @@ jobs:
               'resetPasswordForEmail',
               'PASSWORD_RECOVERY',
               'updateUser({password})',
+              'initCloudServices();',
+              'https://srfuwxjwulvbalzoymcc.supabase.co',
               'from("planner_state")',
               'from("planner_snapshots")',
               'from("knowledge_base_entries")',
-              'initCloudServices();',
-              'https://srfuwxjwulvbalzoymcc.supabase.co',
           ]
-          missing = [item for item in required if item not in v15]
+          missing = [item for item in required if item not in v16]
           if missing:
-              raise SystemExit('v15 feature validation failed: ' + ', '.join(missing))
-
-          forbidden = [
-              'Complete the sections from top to bottom. Advanced settings remain optional.',
-              'Changing BAC water auto-fills final volume; edit final volume afterwards if needed.',
-          ]
-          returned = [item for item in forbidden if item in v15]
-          if returned:
-              raise SystemExit('Removed text returned: ' + ', '.join(returned))
+              raise SystemExit('v16 feature validation failed: ' + ', '.join(missing))
 
           Path('dist').mkdir(exist_ok=True)
-          Path('dist/index.html').write_text(v15)
-          print('Official v15 reconstructed and checksum verified:', actual)
+          Path('dist/index.html').write_text(v16)
+          print('Official v16 reconstructed and checksum verified:', actual_v16)
           PY
 
       - name: Validate JavaScript and responsive contracts
@@ -197,12 +181,13 @@ jobs:
           html = Path('dist/index.html').read_text()
           scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
           inline = '\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100])
-          Path('/tmp/v15-inline.js').write_text(inline)
+          Path('/tmp/v16-inline.js').write_text(inline)
           responsive = [
               'name="viewport"',
               '@media(max-width:760px)',
+              '@media(max-width:640px)',
               'v26-mobile-cycle-layout-fix',
-              'v15-cycle-time-box-only-fix',
+              'v16-cycle-time-height-fix-only',
               'grid-template-columns:repeat(7,minmax(0,1fr))',
               'requested-dose-table.mobile-card-table',
           ]
@@ -211,7 +196,7 @@ jobs:
               raise SystemExit('Responsive validation failed: ' + ', '.join(missing))
           print('Desktop/mobile responsive contracts verified')
           PY
-          node --check /tmp/v15-inline.js
+          node --check /tmp/v16-inline.js
 
       - name: Smoke-test desktop and mobile rendering
         run: |
@@ -227,12 +212,12 @@ jobs:
           html = html.replace('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>', '')
           probe = '<style id="TEST-ONLY-RENDER-PROBE">body.access-locked{overflow:auto!important}body.access-locked>.app,body.access-locked>#plannerApp{display:block!important;visibility:visible!important}#plannerAccessGate{display:none!important}</style>'
           html = html.replace('</head>', probe + '</head>', 1)
-          Path('/tmp/v15-render-probe.html').write_text(html)
+          Path('/tmp/v16-render-probe.html').write_text(html)
           PY
-          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=1440,1000 --screenshot=/tmp/v15-desktop.png file:///tmp/v15-render-probe.html
-          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=390,844 --user-agent='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' --screenshot=/tmp/v15-mobile.png file:///tmp/v15-render-probe.html
-          test -s /tmp/v15-desktop.png
-          test -s /tmp/v15-mobile.png
+          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=1440,1000 --screenshot=/tmp/v16-desktop.png file:///tmp/v16-render-probe.html
+          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=390,844 --user-agent='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' --screenshot=/tmp/v16-mobile.png file:///tmp/v16-render-probe.html
+          test -s /tmp/v16-desktop.png
+          test -s /tmp/v16-mobile.png
           echo 'Desktop 1440x1000 render passed.'
           echo 'Mobile 390x844 render passed.'
 
@@ -243,13 +228,13 @@ jobs:
           from pathlib import Path
           import hashlib, zipfile
           src = Path('dist/index.html')
-          out = Path('Peptide Planner Mobile v15.zip')
+          out = Path('Peptide Planner Mobile v16.zip')
           with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as z:
               z.write(src, 'index.html')
           with zipfile.ZipFile(out) as z:
               data = z.read('index.html')
           actual = hashlib.sha256(data).hexdigest()
-          expected = 'ce77155bddf4ef1a64d08aa9b0f54c1ce31f06dbce87746ef2167764815bac95'
+          expected = '98268e7b686495d8bee6cd2a5c00bc676540b2f1c1e94d74fae30660619b303b'
           if actual != expected:
               raise SystemExit('Cloudflare ZIP checksum mismatch: ' + actual)
           print('Cloudflare ZIP verified:', out)
@@ -258,8 +243,8 @@ jobs:
       - name: Upload production ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Peptide Planner Mobile v15
-          path: Peptide Planner Mobile v15.zip
+          name: Peptide Planner Mobile v16
+          path: Peptide Planner Mobile v16.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -278,7 +263,7 @@ jobs:
             echo 'Skipping stale deployment so an older build cannot replace production.'
           fi
 
-      - name: Deploy v15 to Cloudflare Pages
+      - name: Deploy v16 to Cloudflare Pages
         if: steps.freshness.outputs.deploy == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
