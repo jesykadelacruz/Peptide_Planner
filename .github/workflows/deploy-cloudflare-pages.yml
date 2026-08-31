@@ -1,10 +1,10 @@
-name: Deploy Peptide Planner v16 to Cloudflare Pages
+name: Deploy Peptide Planner v18 to Cloudflare Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - '.deploy/v16_release_trigger.txt'
+      - '.deploy/v18_release_trigger.txt'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Reconstruct and validate official v16
+      - name: Reconstruct and validate official v18
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -31,7 +31,7 @@ jobs:
 
           EXPECTED_V9 = 'bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3'
           EXPECTED_V15 = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
-          EXPECTED_V16 = '98268e7b686495d8bee6cd2a5c00bc676540b2f1c1e94d74fae30660619b303b'
+          EXPECTED_V18 = '50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb'
 
           def split_lines(text):
               return text.splitlines(keepends=True)
@@ -111,9 +111,9 @@ jobs:
                       raise SystemExit('Missing deployment asset: ' + p)
               current = apply_patch(current, inflate(paths))
 
-          v9_hash = hashlib.sha256(current.encode()).hexdigest()
-          if v9_hash != EXPECTED_V9:
-              raise SystemExit(f'v9 checksum mismatch: {v9_hash}')
+          actual_v9 = hashlib.sha256(current.encode()).hexdigest()
+          if actual_v9 != EXPECTED_V9:
+              raise SystemExit(f'v9 checksum mismatch: {actual_v9}')
 
           v15_paths = [
               '.deploy/v15_patch_part_01.b64',
@@ -132,20 +132,23 @@ jobs:
           if actual_v15 != EXPECTED_V15:
               raise SystemExit(f'v15 checksum mismatch: {actual_v15}')
 
-          v16_path = '.deploy/v16_delta_from_v15.b64'
-          if not Path(v16_path).is_file():
-              raise SystemExit('Missing v16 deployment asset: ' + v16_path)
-          v16 = apply_patch(v15, inflate([v16_path]))
-          actual_v16 = hashlib.sha256(v16.encode()).hexdigest()
-          if actual_v16 != EXPECTED_V16:
-              raise SystemExit(f'v16 checksum mismatch: {actual_v16}')
+          v18_path = '.deploy/v18_delta_from_v15.b64'
+          if not Path(v18_path).is_file():
+              raise SystemExit('Missing v18 deployment asset: ' + v18_path)
+          v18 = apply_patch(v15, inflate([v18_path]))
+          actual_v18 = hashlib.sha256(v18.encode()).hexdigest()
+          if actual_v18 != EXPECTED_V18:
+              raise SystemExit(f'v18 checksum mismatch: {actual_v18}')
 
           required = [
-              '<title>Peptide Planner v16</title>',
-              'const APP_VERSION="v16";',
-              'id="v16-cycle-time-height-fix-only"',
-              'height:45.2px!important;',
-              'height:46px!important;',
+              '<title>Peptide Planner v18</title>',
+              'const APP_VERSION="v18";',
+              'id="v15-mobile-dose-field-layout-fix"',
+              'input[data-cycle-config-field="injectionTime"]',
+              'height:40px!important;',
+              'grid-template-columns:repeat(6,minmax(0,1fr))!important;',
+              '.split-dose-times input[type="time"]',
+              'height:42px!important;',
               'id="v14-signup-payment-account-request"',
               'id="v17-admin-dashboard"',
               'id="v20-compact-users-autosave"',
@@ -163,13 +166,13 @@ jobs:
               'from("planner_snapshots")',
               'from("knowledge_base_entries")',
           ]
-          missing = [item for item in required if item not in v16]
+          missing = [item for item in required if item not in v18]
           if missing:
-              raise SystemExit('v16 feature validation failed: ' + ', '.join(missing))
+              raise SystemExit('v18 feature validation failed: ' + ', '.join(missing))
 
           Path('dist').mkdir(exist_ok=True)
-          Path('dist/index.html').write_text(v16)
-          print('Official v16 reconstructed and checksum verified:', actual_v16)
+          Path('dist/index.html').write_text(v18)
+          print('Official v18 reconstructed and checksum verified:', actual_v18)
           PY
 
       - name: Validate JavaScript and responsive contracts
@@ -181,24 +184,25 @@ jobs:
           html = Path('dist/index.html').read_text()
           scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
           inline = '\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100])
-          Path('/tmp/v16-inline.js').write_text(inline)
+          Path('/tmp/v18-inline.js').write_text(inline)
           responsive = [
               'name="viewport"',
               '@media(max-width:760px)',
               '@media(max-width:640px)',
               'v26-mobile-cycle-layout-fix',
-              'v16-cycle-time-height-fix-only',
-              'grid-template-columns:repeat(7,minmax(0,1fr))',
+              'v15-mobile-dose-field-layout-fix',
+              'grid-template-columns:repeat(6,minmax(0,1fr))',
               'requested-dose-table.mobile-card-table',
+              '.split-dose-times input[type="time"]',
           ]
           missing = [x for x in responsive if x not in html]
           if missing:
               raise SystemExit('Responsive validation failed: ' + ', '.join(missing))
           print('Desktop/mobile responsive contracts verified')
           PY
-          node --check /tmp/v16-inline.js
+          node --check /tmp/v18-inline.js
 
-      - name: Smoke-test desktop and mobile rendering
+      - name: Test desktop and mobile cycle layout
         run: |
           set -euo pipefail
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
@@ -208,33 +212,60 @@ jobs:
           fi
           python - <<'PY'
           from pathlib import Path
+          import re
           html = Path('dist/index.html').read_text()
-          html = html.replace('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>', '')
-          probe = '<style id="TEST-ONLY-RENDER-PROBE">body.access-locked{overflow:auto!important}body.access-locked>.app,body.access-locked>#plannerApp{display:block!important;visibility:visible!important}#plannerAccessGate{display:none!important}</style>'
-          html = html.replace('</head>', probe + '</head>', 1)
-          Path('/tmp/v16-render-probe.html').write_text(html)
+          styles = '\n'.join(re.findall(r'<style[^>]*>.*?</style>', html, flags=re.I|re.S))
+          fixture = f'''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">{styles}</head><body><div id="planner"><details class="cycle-config-card" open><div class="cycle-config-body"><div class="cycle-config-grid">
+          <div><label>Start date</label><input type="date" data-cycle-config-field="startDate" value="2026-07-30"></div>
+          <div><label>Time</label><input type="time" data-cycle-config-field="injectionTime" value="22:00"></div>
+          <div><label>Active</label><input type="number" data-cycle-config-field="activeWeeks" value="12"></div>
+          <div><label>Break</label><input type="number" data-cycle-config-field="breakWeeks" value="4"></div>
+          <div><label>Schedule</label><select data-cycle-config-field="scheduleMode"><option>Choose weekdays</option></select></div>
+          <div><label>Interval</label><input type="number" data-cycle-config-field="intervalDays" value="7"></div>
+          <div class="span-2 cycle-weekday-field"><label>Weekdays</label><div class="weekdays">''' + ''.join(f'<label class="weekday-check"><span>{d}</span><input type="checkbox"></label>' for d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']) + '''</div></div></div>
+          <div class="cycle-dose-block"><h4>Dose schedule</h4><div class="table-wrap"><table class="phase-table requested-dose-table mobile-card-table"><tbody><tr>
+          <td data-mobile-label="Start week"><input type="number" value="1"></td><td data-mobile-label="End week"><input type="number" value="2"></td><td data-mobile-label="Days"><input type="number"></td><td data-mobile-label="Dose (mg)"><input type="number" value="1.5"></td><td data-mobile-label="Units"><input type="text" value="4.5 units"></td>
+          <td data-mobile-label="Weekdays"><div class="phase-weekdays">''' + ''.join(f'<label class="weekday-check"><span>{d}</span><input type="checkbox"></label>' for d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']) + '''</div></td>
+          <td data-mobile-label="Split dose"><div class="split-dose-control"><label><input type="checkbox" checked>Split</label><span class="split-dose-parts">into <input type="number" value="2"> parts</span><div class="split-dose-times"><label>1 <input type="time" value="08:00"></label><label>2 <input type="time" value="20:00"></label></div></div></td><td data-mobile-label="Action"><button class="btn small danger">Remove</button></td>
+          </tr></tbody></table></div></div></div></details></div>
+          <div id="test-result"></div><script>
+          (()=>{{if(innerWidth<=760)document.body.classList.add('mobile-app');const b=e=>e.getBoundingClientRect(),q=s=>document.querySelector(s);const time=b(q('[data-cycle-config-field="injectionTime"]')),active=b(q('[data-cycle-config-field="activeWeeks"]')),brk=b(q('[data-cycle-config-field="breakWeeks"]')),cells=[...document.querySelectorAll('.requested-dose-table tbody tr>td')].slice(0,5).map(b),split=[...document.querySelectorAll('.split-dose-times input[type=time]')].map(b),sp=b(q('.split-dose-times'));let ok=document.documentElement.scrollWidth<=innerWidth;if(innerWidth<=760){{ok=ok&&Math.abs(time.height-active.height)<.6&&Math.abs(time.height-brk.height)<.6&&time.right<=active.x+.6&&active.right<=brk.x+.6;ok=ok&&(Math.max(...cells.slice(0,3).map(x=>x.y))-Math.min(...cells.slice(0,3).map(x=>x.y))<1)&&Math.abs(cells[3].y-cells[4].y)<1&&cells[3].y>cells[0].y+10;ok=ok&&split.every(x=>Math.abs(x.height-42)<.6&&x.x>=sp.x-.5&&x.right<=sp.right+.5);}}document.getElementById('test-result').setAttribute('data-test-result',ok?'pass':'fail');}})();
+          </script></body></html>'''
+          Path('/tmp/v18-layout-fixture.html').write_text(fixture)
           PY
-          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=1440,1000 --screenshot=/tmp/v16-desktop.png file:///tmp/v16-render-probe.html
-          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=390,844 --user-agent='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' --screenshot=/tmp/v16-mobile.png file:///tmp/v16-render-probe.html
-          test -s /tmp/v16-desktop.png
-          test -s /tmp/v16-mobile.png
-          echo 'Desktop 1440x1000 render passed.'
-          echo 'Mobile 390x844 render passed.'
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=1440,1000 --dump-dom file:///tmp/v18-layout-fixture.html > /tmp/v18-desktop-dom.html
+          grep -q 'data-test-result="pass"' /tmp/v18-desktop-dom.html
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --dump-dom file:///tmp/v18-layout-fixture.html > /tmp/v18-mobile-dom.html
+          grep -q 'data-test-result="pass"' /tmp/v18-mobile-dom.html
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=1440,1000 --screenshot=/tmp/v18-desktop.png file:///tmp/v18-layout-fixture.html >/dev/null 2>&1
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=390,844 --screenshot=/tmp/v18-mobile.png file:///tmp/v18-layout-fixture.html >/dev/null 2>&1
+          test -s /tmp/v18-desktop.png
+          test -s /tmp/v18-mobile.png
+          echo 'Desktop 1440x1000 layout passed.'
+          echo 'Mobile 390x844 layout passed.'
 
       - name: Build Cloudflare production ZIP
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          import hashlib, zipfile
+          import hashlib, json, zipfile
           src = Path('dist/index.html')
-          out = Path('Peptide Planner Mobile v16.zip')
+          manifest = {
+              'release': 'Peptide Planner Mobile v18',
+              'production_entry': 'index.html',
+              'sha256': hashlib.sha256(src.read_bytes()).hexdigest(),
+              'target': 'https://peptide-planner.pages.dev/'
+          }
+          Path('RELEASE_MANIFEST_v18.json').write_text(json.dumps(manifest, indent=2))
+          out = Path('Peptide Planner Mobile v18 Cloudflare.zip')
           with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as z:
               z.write(src, 'index.html')
+              z.write('RELEASE_MANIFEST_v18.json', 'RELEASE_MANIFEST_v18.json')
           with zipfile.ZipFile(out) as z:
               data = z.read('index.html')
           actual = hashlib.sha256(data).hexdigest()
-          expected = '98268e7b686495d8bee6cd2a5c00bc676540b2f1c1e94d74fae30660619b303b'
+          expected = '50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb'
           if actual != expected:
               raise SystemExit('Cloudflare ZIP checksum mismatch: ' + actual)
           print('Cloudflare ZIP verified:', out)
@@ -243,8 +274,8 @@ jobs:
       - name: Upload production ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Peptide Planner Mobile v16
-          path: Peptide Planner Mobile v16.zip
+          name: Peptide Planner Mobile v18
+          path: Peptide Planner Mobile v18 Cloudflare.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -263,7 +294,7 @@ jobs:
             echo 'Skipping stale deployment so an older build cannot replace production.'
           fi
 
-      - name: Deploy v16 to Cloudflare Pages
+      - name: Deploy v18 to Cloudflare Pages
         if: steps.freshness.outputs.deploy == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
