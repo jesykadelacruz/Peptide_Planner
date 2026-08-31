@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v22</title>
+<title>Peptide Planner v23</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -12,7 +12,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v22</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v23</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -33,18 +33,34 @@ const V15_DELTA=[`.deploy/v15_patch_part_01.b64`,`.deploy/v15_patch_part_02.b64`
 const V18_DELTA=[`.deploy/v18_delta_from_v15.b64`];
 const V19_DELTA=[`.deploy/v19_delta_from_v18.b64`];
 const V22_DELTA=[`.deploy/v22_delta_from_v19.b64`];
+const V23_DELTA=[`.deploy/v23_delta_from_v22.b64`];
 const EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3";
 const EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536";
 const EXPECTED_V18_SHA256="50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb";
 const EXPECTED_V19_SHA256="f544d8a6a345be415cc33ea7ddb922b9e40efac0d2865866fa90791d05a71eb6";
 const EXPECTED_V22_SHA256="882a8b62e081f4d253f774fe3c3c85613107331077dd0e684f41818d980081e2";
+const EXPECTED_V23_SHA256="e97e586669a20ff6b144689596f527126b88e29e4d6a1415a1511863eec142fa";
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;while(i<pl.length&&!pl[i].startsWith("@@ "))i++;while(i<pl.length){const m=pl[i].replace(/\n$/,"" ).match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);if(!m)throw new Error("Invalid deployment patch");const oldStart=Number(m[1]),oldCount=m[2]===undefined?1:Number(m[2]),target=oldCount===0?oldStart:oldStart-1;if(target<si)throw new Error("Overlapping deployment patch");while(si<target)out.push(src[si++]);i++;let consumed=0;while(i<pl.length&&!pl[i].startsWith("@@ ")){const line=pl[i],mark=line[0],body=line.slice(1);if(mark===" "){if(src[si]!==body)throw new Error("Deployment context mismatch");out.push(src[si++]);consumed++}else if(mark==="-"){if(src[si]!==body)throw new Error("Deployment source mismatch");si++;consumed++}else if(mark==="+")out.push(body);else if(mark!=="\\"&&line.trim()!=="")throw new Error("Invalid deployment patch line");i++}if(consumed!==oldCount)throw new Error("Deployment patch count mismatch")}while(si<src.length)out.push(src[si++]);return out.join("")}
 async function getText(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error(`Unable to load ${url}`);return r.text()}
 async function inflateParts(paths){const chunks=await Promise.all(paths.map(getText));const bytes=Uint8Array.from(atob(chunks.join("")),c=>c.charCodeAt(0));return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"))).text()}
 async function sha256Hex(text){const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("")}
-(async()=>{const status=document.getElementById("loadStatus");status.textContent="Preparing v22…";const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch,v18Patch,v19Patch,v22Patch]=await Promise.all([getText("Peptide_Planner_KB_Mobile_v184.html"),inflateParts(V189_PARTS),inflateParts(V190_DELTA),inflateParts(V191_DELTA),inflateParts(V193_DELTA),inflateParts(V194_DELTA),inflateParts(V195_DELTA),inflateParts(V1_DELTA),inflateParts(V2_DELTA),inflateParts(V3_DELTA),inflateParts(V4_DELTA),inflateParts(V5_DELTA),inflateParts(V6_DELTA),inflateParts(V7_DELTA),inflateParts(V8_DELTA),inflateParts(V9_DELTA),inflateParts(V15_DELTA),inflateParts(V18_DELTA),inflateParts(V19_DELTA),inflateParts(V22_DELTA)]);const v189=applyUnifiedPatch(base,v189Patch),v190=applyUnifiedPatch(v189,v190Patch),v191=applyUnifiedPatch(v190,v191Patch),v193=applyUnifiedPatch(v191,v193Patch),v194=applyUnifiedPatch(v193,v194Patch),v195=applyUnifiedPatch(v194,v195Patch),v1=applyUnifiedPatch(v195,v1Patch),v2=applyUnifiedPatch(v1,v2Patch),v3=applyUnifiedPatch(v2,v3Patch),v4=applyUnifiedPatch(v3,v4Patch),v5=applyUnifiedPatch(v4,v5Patch),v6=applyUnifiedPatch(v5,v6Patch),v7=applyUnifiedPatch(v6,v7Patch),v8=applyUnifiedPatch(v7,v8Patch),v9=applyUnifiedPatch(v8,v9Patch);if(await sha256Hex(v9)!==EXPECTED_V9_SHA256)throw new Error("v9 checksum mismatch");const v15=applyUnifiedPatch(v9,v15Patch);if(await sha256Hex(v15)!==EXPECTED_V15_SHA256)throw new Error("v15 checksum mismatch");const v18=applyUnifiedPatch(v15,v18Patch);if(await sha256Hex(v18)!==EXPECTED_V18_SHA256)throw new Error("v18 checksum mismatch");const v19=applyUnifiedPatch(v18,v19Patch);if(await sha256Hex(v19)!==EXPECTED_V19_SHA256)throw new Error("v19 checksum mismatch");const v22=applyUnifiedPatch(v19,v22Patch);const required=['<title>Peptide Planner v22</title>','const APP_VERSION="v22";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid'];const missing=required.filter(x=>!v22.includes(x));if(missing.length)throw new Error("Official v22 failed feature validation: "+missing.join(", "));const v22Hash=await sha256Hex(v22);if(v22Hash!==EXPECTED_V22_SHA256)throw new Error(`v22 checksum mismatch: ${v22Hash}`);document.open();document.write(v22);document.close()})().catch(err=>{console.error(err);const s=document.getElementById("loadStatus");if(s)s.textContent="Unable to load Peptide Planner v22. Refresh and try again."});
+(async()=>{
+ const status=document.getElementById("loadStatus");status.textContent="Preparing v23…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch,v18Patch,v19Patch,v22Patch,v23Patch]=await Promise.all([getText("Peptide_Planner_KB_Mobile_v184.html"),inflateParts(V189_PARTS),inflateParts(V190_DELTA),inflateParts(V191_DELTA),inflateParts(V193_DELTA),inflateParts(V194_DELTA),inflateParts(V195_DELTA),inflateParts(V1_DELTA),inflateParts(V2_DELTA),inflateParts(V3_DELTA),inflateParts(V4_DELTA),inflateParts(V5_DELTA),inflateParts(V6_DELTA),inflateParts(V7_DELTA),inflateParts(V8_DELTA),inflateParts(V9_DELTA),inflateParts(V15_DELTA),inflateParts(V18_DELTA),inflateParts(V19_DELTA),inflateParts(V22_DELTA),inflateParts(V23_DELTA)]);
+ const v189=applyUnifiedPatch(base,v189Patch),v190=applyUnifiedPatch(v189,v190Patch),v191=applyUnifiedPatch(v190,v191Patch),v193=applyUnifiedPatch(v191,v193Patch),v194=applyUnifiedPatch(v193,v194Patch),v195=applyUnifiedPatch(v194,v195Patch),v1=applyUnifiedPatch(v195,v1Patch),v2=applyUnifiedPatch(v1,v2Patch),v3=applyUnifiedPatch(v2,v3Patch),v4=applyUnifiedPatch(v3,v4Patch),v5=applyUnifiedPatch(v4,v5Patch),v6=applyUnifiedPatch(v5,v6Patch),v7=applyUnifiedPatch(v6,v7Patch),v8=applyUnifiedPatch(v7,v8Patch),v9=applyUnifiedPatch(v8,v9Patch);
+ if(await sha256Hex(v9)!==EXPECTED_V9_SHA256)throw new Error("v9 checksum mismatch");
+ const v15=applyUnifiedPatch(v9,v15Patch);if(await sha256Hex(v15)!==EXPECTED_V15_SHA256)throw new Error("v15 checksum mismatch");
+ const v18=applyUnifiedPatch(v15,v18Patch);if(await sha256Hex(v18)!==EXPECTED_V18_SHA256)throw new Error("v18 checksum mismatch");
+ const v19=applyUnifiedPatch(v18,v19Patch);if(await sha256Hex(v19)!==EXPECTED_V19_SHA256)throw new Error("v19 checksum mismatch");
+ const v22=applyUnifiedPatch(v19,v22Patch);if(await sha256Hex(v22)!==EXPECTED_V22_SHA256)throw new Error("v22 checksum mismatch");
+ const v23=applyUnifiedPatch(v22,v23Patch);
+ const required=['<title>Peptide Planner v23</title>','const APP_VERSION="v23";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid','id="v22-time-column-width-fix"'];
+ const missing=required.filter(x=>!v23.includes(x));if(missing.length)throw new Error("Official v23 failed feature validation: "+missing.join(", "));
+ const v23Hash=await sha256Hex(v23);if(v23Hash!==EXPECTED_V23_SHA256)throw new Error(`v23 checksum mismatch: ${v23Hash}`);
+ document.open();document.write(v23);document.close();
+})().catch(err=>{console.error(err);const s=document.getElementById("loadStatus");if(s)s.textContent="Unable to load Peptide Planner v23. Refresh and try again."});
 </script>
-<!-- production-loader: official v22 = staged v19 base + attached v22 patch -->
+<!-- production-loader: official v23 = staged v22 base + attached v23 patch -->
 </body>
 </html>
