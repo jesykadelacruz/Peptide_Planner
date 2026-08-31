@@ -150,7 +150,8 @@ async function sha256Hex(text){
  if(v19.includes("Enable schedule"))throw new Error("Official v19 unexpectedly contains Enable schedule");
  const actualHash=await sha256Hex(v19);
  if(actualHash!==EXPECTED_V19_SHA256)throw new Error(`v19 checksum mismatch: ${actualHash}`);
- document.open();document.write(v19);document.close();
+ const liveHtml=v19.replace('</head>',`<style id="time-box-dimension-fix">#simpleTreatmentTime,input[data-simple-field="injectionTime"],input[data-cycle-config-field="injectionTime"]{width:100%!important;min-width:0!important;max-width:100%!important;height:42px;min-height:42px;box-sizing:border-box!important}</style></head>`);
+ document.open();document.write(liveHtml);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
