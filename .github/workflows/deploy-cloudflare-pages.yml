@@ -1,66 +1,115 @@
-name: Validate Peptide Planner v9 Manual Deployment
+name: Deploy Peptide Planner v15 to Cloudflare Pages
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - index.html
+      - .deploy/v15_delta_from_v9.b64
+      - .github/workflows/deploy-cloudflare-pages.yml
   workflow_dispatch:
 
 permissions:
   contents: read
+  deployments: write
+
+concurrency:
+  group: peptide-planner-production
+  cancel-in-progress: true
 
 jobs:
-  validate:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate v9 loader and access-control delta
+      - name: Validate official v15 loader and delta
         run: |
           set -euo pipefail
-          cat .deploy/v9_delta_part_*.b64 > /tmp/v9_delta.b64
           python - <<'PY'
           from pathlib import Path
-          import base64, zlib
-          payload = Path('/tmp/v9_delta.b64').read_text()
-          patch = zlib.decompress(base64.b64decode(payload)).decode('utf-8')
-          required = [
-              'Peptide Treatment Planner Mobile v9',
-              'APP_VERSION="v9"',
-              'v9-invite-only-access-control',
-              'plannerAccessGate',
-              'adminAccessOverlay',
-              'planner_access_members',
-              'planner_claim_owner',
-              'planner-access-admin',
-              'PASSWORD_RECOVERY',
-              'signInWithPassword',
-          ]
-          missing = [item for item in required if item not in patch]
-          if missing:
-              raise SystemExit('v9 access-control delta is missing: ' + ', '.join(missing))
-          print('Validated v9 access-control delta')
-          PY
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          html = Path('index.html').read_text()
-          required = [
-              'Peptide Planner v9',
-              'EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3"',
-              'v9_delta_part_',
-              'plannerAccessGate',
-              'adminAccessOverlay',
-          ]
-          missing = [item for item in required if item not in html]
-          if missing:
-              raise SystemExit('v9 loader is missing: ' + ', '.join(missing))
-          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
-          for i, script in enumerate(scripts):
-              Path(f'/tmp/v9-loader-{i}.js').write_text(script)
-          print(f'Validated v9 loader markers; {len(scripts)} inline script(s)')
-          PY
-          for js in /tmp/v9-loader-*.js; do node --check "$js"; done
+          import base64, zlib, re
 
-      - name: Deployment note
+          delta = zlib.decompress(base64.b64decode(Path('.deploy/v15_delta_from_v9.b64').read_text())).decode('utf-8')
+          required_delta = [
+              '<title>Peptide Planner v15</title>',
+              'APP_VERSION="v15"',
+              'v14-signup-payment-account-request',
+              'v17-admin-dashboard',
+              'v20-compact-users-autosave',
+              'v14-cycle-weekday-checkbox-format',
+              'v16-weekday-reference-match',
+              'v17-requested-peptide-cycle-layout',
+              'v18-myplan-reference-format',
+              'v19-compact-getting-started',
+              'v21-weekdays-spacing-only',
+              'v22-dose-schedule-width-fix',
+              'v23-dose-schedule-wrapping-fix',
+              'v24-dose-text-wrap-fix',
+              'v26-mobile-cycle-layout-fix',
+              'plannerArraysEqual(days,[1,2,3,4,5])',
+          ]
+          missing = [item for item in required_delta if item not in delta]
+          if missing:
+              raise SystemExit('v15 delta is missing: ' + ', '.join(missing))
+
+          html = Path('index.html').read_text()
+          required_loader = [
+              'Peptide Planner v15',
+              'V15_DELTA',
+              '.deploy/v15_delta_from_v9.b64',
+              'EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3"',
+              'EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536"',
+              'id="plannerAccessGate"',
+              'planner-access-admin',
+              'v26-mobile-cycle-layout-fix',
+          ]
+          missing = [item for item in required_loader if item not in html]
+          if missing:
+              raise SystemExit('v15 loader is missing: ' + ', '.join(missing))
+
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
+          if not scripts:
+              raise SystemExit('No inline loader JavaScript found')
+          for i, script in enumerate(scripts):
+              Path(f'/tmp/v15-loader-{i}.js').write_text(script)
+          print(f'Validated v15 loader and delta; {len(scripts)} inline script(s)')
+          PY
+          for js in /tmp/v15-loader-*.js; do node --check "$js"; done
+
+      - name: Build Cloudflare Pages upload
         run: |
-          echo "v9 production is deployed from the tested Cloudflare production ZIP."
-          echo "Automatic legacy delta-chain deployment is intentionally disabled because older compressed chain assets are unreliable."
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+          cp index.html dist/index.html
+          cp Peptide_Planner_KB_Mobile_v184.html dist/Peptide_Planner_KB_Mobile_v184.html
+          cp -R .deploy dist/.deploy
+          test -f dist/index.html
+          test -f dist/.deploy/v15_delta_from_v9.b64
+          test -f dist/.deploy/v9_delta_part_01.b64
+
+      - name: Confirm this is still the newest main commit
+        id: freshness
+        run: |
+          git fetch --quiet origin main
+          latest="$(git rev-parse origin/main)"
+          echo "workflow_commit=$GITHUB_SHA"
+          echo "current_main=$latest"
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale deployment so an older build cannot replace production."
+          fi
+
+      - name: Deploy v15 to Cloudflare Pages
+        if: steps.freshness.outputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=peptide-planner --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
