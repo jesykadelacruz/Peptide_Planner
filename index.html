@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v18</title>
+<title>Peptide Planner v19</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v18</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v19</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -40,9 +40,11 @@ const V15_DELTA=[
   `.deploy/v15_patch_part_06.b64`
 ];
 const V18_DELTA=[`.deploy/v18_delta_from_v15.b64`];
+const V19_DELTA=[`.deploy/v19_delta_from_v18.b64`];
 const EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3";
 const EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536";
 const EXPECTED_V18_SHA256="50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb";
+const EXPECTED_V19_SHA256="f544d8a6a345be415cc33ea7ddb922b9e40efac0d2865866fa90791d05a71eb6";
 
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
@@ -85,10 +87,10 @@ async function sha256Hex(text){
 
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v18…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch,v18Patch]=await Promise.all([
+ status.textContent="Preparing v19…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch,v18Patch,v19Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
-  inflateParts(V189_PARTS),inflateParts(V190_DELTA),inflateParts(V191_DELTA),inflateParts(V193_DELTA),inflateParts(V194_DELTA),inflateParts(V195_DELTA),inflateParts(V1_DELTA),inflateParts(V2_DELTA),inflateParts(V3_DELTA),inflateParts(V4_DELTA),inflateParts(V5_DELTA),inflateParts(V6_DELTA),inflateParts(V7_DELTA),inflateParts(V8_DELTA),inflateParts(V9_DELTA),inflateParts(V15_DELTA),inflateParts(V18_DELTA)
+  inflateParts(V189_PARTS),inflateParts(V190_DELTA),inflateParts(V191_DELTA),inflateParts(V193_DELTA),inflateParts(V194_DELTA),inflateParts(V195_DELTA),inflateParts(V1_DELTA),inflateParts(V2_DELTA),inflateParts(V3_DELTA),inflateParts(V4_DELTA),inflateParts(V5_DELTA),inflateParts(V6_DELTA),inflateParts(V7_DELTA),inflateParts(V8_DELTA),inflateParts(V9_DELTA),inflateParts(V15_DELTA),inflateParts(V18_DELTA),inflateParts(V19_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -113,19 +115,24 @@ async function sha256Hex(text){
  if(v15Hash!==EXPECTED_V15_SHA256)throw new Error(`v15 checksum mismatch: ${v15Hash}`);
 
  const v18=applyUnifiedPatch(v15,v18Patch);
+ const v18Hash=await sha256Hex(v18);
+ if(v18Hash!==EXPECTED_V18_SHA256)throw new Error(`v18 checksum mismatch: ${v18Hash}`);
+
+ const v19=applyUnifiedPatch(v18,v19Patch);
  const required=[
-  '<title>Peptide Planner v18</title>',
-  'const APP_VERSION="v18";',
-  'id="v15-mobile-dose-field-layout-fix"',
-  'input[data-cycle-config-field="injectionTime"]',
-  'height:40px!important;',
-  'grid-template-columns:repeat(6,minmax(0,1fr))!important;',
+  '<title>Peptide Planner v19</title>',
+  'const APP_VERSION="v19";',
+  'id="v18-treatment-mobile-layout-fix"',
+  'grid-template-columns:repeat(2,minmax(0,1fr))!important;',
+  'data-cycle-config-field="injectionTime"',
+  'data-cycle-phase-field="startWeek"',
+  'data-cycle-phase-field="endWeek"',
+  'data-cycle-phase-field="intervalDays"',
+  'data-cycle-phase-field="doseMg"',
   '.split-dose-times input[type="time"]',
-  'height:42px!important;',
   'id="v14-signup-payment-account-request"',
   'id="v17-admin-dashboard"',
   'id="v20-compact-users-autosave"',
-  'id="v26-mobile-cycle-layout-fix"',
   'id="plannerAccessGate"',
   'planner-access-admin',
   'planner_access_members',
@@ -138,17 +145,18 @@ async function sha256Hex(text){
   'from("planner_snapshots")',
   'from("knowledge_base_entries")'
  ];
- const missing=required.filter(x=>!v18.includes(x));
- if(missing.length)throw new Error("Official v18 failed feature validation: "+missing.join(", "));
- const actualHash=await sha256Hex(v18);
- if(actualHash!==EXPECTED_V18_SHA256)throw new Error(`v18 checksum mismatch: ${actualHash}`);
- document.open();document.write(v18);document.close();
+ const missing=required.filter(x=>!v19.includes(x));
+ if(missing.length)throw new Error("Official v19 failed feature validation: "+missing.join(", "));
+ if(v19.includes("Enable schedule"))throw new Error("Official v19 unexpectedly contains Enable schedule");
+ const actualHash=await sha256Hex(v19);
+ if(actualHash!==EXPECTED_V19_SHA256)throw new Error(`v19 checksum mismatch: ${actualHash}`);
+ document.open();document.write(v19);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
- if(s)s.textContent="Unable to load Peptide Planner v18. Refresh and try again.";
+ if(s)s.textContent="Unable to load Peptide Planner v19. Refresh and try again.";
 });
 </script>
-<!-- production-loader: official v18 = verified v15 base + attached mobile field/split-dose patch -->
+<!-- production-loader: official v19 = verified v18 GitHub base + attached v18 update promoted to v19 -->
 </body>
 </html>
