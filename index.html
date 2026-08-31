@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v9</title>
+<title>Peptide Planner v15</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v9</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v15</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -30,7 +30,10 @@ const V6_DELTA=[`.deploy/v6_delta_from_v5live.b64`];
 const V7_DELTA=[`.deploy/v7_delta_from_v6live.b64`];
 const V8_DELTA=[`.deploy/v8_delta_from_v7live.b64`];
 const V9_DELTA=[1,2,3,4].map(n=>`.deploy/v9_delta_part_${String(n).padStart(2,"0")}.b64`);
+const V15_DELTA=[`.deploy/v15_delta_from_v9.b64`];
 const EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3";
+const EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536";
+
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
  const src=splitLines(source),pl=splitLines(patch),out=[];let si=0,i=0;
@@ -69,10 +72,11 @@ async function sha256Hex(text){
  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));
  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
 }
+
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v9…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch]=await Promise.all([
+ status.textContent="Preparing v15…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
   inflateParts(V189_PARTS),
   inflateParts(V190_DELTA),
@@ -88,7 +92,8 @@ async function sha256Hex(text){
   inflateParts(V6_DELTA),
   inflateParts(V7_DELTA),
   inflateParts(V8_DELTA),
-  inflateParts(V9_DELTA)
+  inflateParts(V9_DELTA),
+  inflateParts(V15_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -105,66 +110,55 @@ async function sha256Hex(text){
  const v7=applyUnifiedPatch(v6,v7Patch);
  const v8=applyUnifiedPatch(v7,v8Patch);
  const v9=applyUnifiedPatch(v8,v9Patch);
+
+ const v9Hash=await sha256Hex(v9);
+ if(v9Hash!==EXPECTED_V9_SHA256)throw new Error(`v9 base checksum mismatch: ${v9Hash}`);
+
+ const v15=applyUnifiedPatch(v9,v15Patch);
  const required=[
-  "Peptide Treatment Planner Mobile v9",
-  'APP_VERSION="v9"',
-  'id="v192-vials-buy-two-line-lock"',
-  'id="v193-phase-layout-fix"',
-  'id="v194-mobile-myplan-multi-column"',
-  'id="v195-myplan-phase-compact-layout"',
-  'id="v196-past-purchases-one-line"',
-  'id="v197-today-done-vertical-center"',
-  'id="v198-compact-add-treatment-collapsed"',
-  'id="v199-add-treatment-row-alignment"',
-  'id="v200-myplan-kb-benefits"',
-  'id="v202-kb-record-alignment-only"',
-  'id="v202-requested-fixes"',
-  'id="v204-myplan-layout-only"',
-  'id="v206-requested-only"',
-  'id="v210-myplan-two-fixes-only"',
-  'id="v211-myplan-uniform-field-height-only"',
-  'id="v213-time-size-only"',
-  'if(plannerArraysEqual(clean,[0,1,2,3,4,5,6]))return "Daily";',
-  'if(plannerArraysEqual(clean,[1,2,3,4,5]))return "Weekdays";',
-  '["weekdays","Weekdays"]',
-  'id="quickTargetDisplay"',
-  'Personal record',
-  'Personal profile',
-  'id="profileDob"',
-  'measurementDateTimeLabel',
-  'id="cloudAccountBar"',
-  'id="cloudSignIn"',
-  'id="cloudSignUp"',
-  'id="cloudForgotPassword"',
-  'id="cloudAuthConfirmPassword"',
-  'resetPasswordForEmail',
-  'PASSWORD_RECOVERY',
-  'updateUser({password})',
+  '<title>Peptide Planner v15</title>',
+  'const APP_VERSION="v15";',
+  'id="v14-signup-payment-account-request"',
+  'id="v17-admin-dashboard"',
+  'id="v20-compact-users-autosave"',
+  'id="v14-cycle-weekday-checkbox-format"',
+  'id="v16-weekday-reference-match"',
+  'id="v17-requested-peptide-cycle-layout"',
+  'id="v18-myplan-reference-format"',
+  'id="v19-compact-getting-started"',
+  'id="v21-weekdays-spacing-only"',
+  'id="v22-dose-schedule-width-fix"',
+  'id="v23-dose-schedule-wrapping-fix"',
+  'id="v24-dose-text-wrap-fix"',
+  'id="v26-mobile-cycle-layout-fix"',
+  'if(plannerArraysEqual(days,[0,1,2,3,4,5,6]))return "Daily";',
+  'if(plannerArraysEqual(days,[1,2,3,4,5]))return "Weekdays";',
+  'id="plannerAccessGate"',
+  'planner-access-admin',
+  'planner_access_members',
   'signInWithPassword',
   'from("planner_state")',
   'from("planner_snapshots")',
-  'from("knowledge_base_entries")',
-  'initCloudServices();',
-  'id="v9-invite-only-access-control"',
-  'id="plannerAccessGate"',
-  'id="adminAccessOverlay"',
-  'planner_access_members',
-  'planner_claim_owner',
-  'planner-access-admin'
+  'from("knowledge_base_entries")'
  ];
- const missing=required.filter(x=>!v9.includes(x));
- if(missing.length)throw new Error("Latest planner failed feature validation: "+missing.join(", "));
- if(v9.includes('data-simple-field="notes"'))throw new Error("Latest planner still contains the removed My Plan Notes field");
- const actualHash=await sha256Hex(v9);
- if(actualHash!==EXPECTED_V9_SHA256)throw new Error(`Latest planner checksum mismatch: ${actualHash}`);
- const styledV9=v9.replace("</head>",'<link rel="stylesheet" href=".deploy/ui_overrides_v10.css?v=1"></head>');
- document.open();document.write(styledV9);document.close();
+ const missing=required.filter(x=>!v15.includes(x));
+ if(missing.length)throw new Error("Official v15 failed feature validation: "+missing.join(", "));
+ const forbidden=[
+  'Complete the sections from top to bottom. Advanced settings remain optional.',
+  'Changing BAC water auto-fills final volume; edit final volume afterwards if needed.'
+ ];
+ const returned=forbidden.filter(x=>v15.includes(x));
+ if(returned.length)throw new Error("Removed text returned: "+returned.join(", "));
+ const actualHash=await sha256Hex(v15);
+ if(actualHash!==EXPECTED_V15_SHA256)throw new Error(`v15 checksum mismatch: ${actualHash}`);
+
+ document.open();document.write(v15);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
- if(s)s.textContent="Unable to load the latest planner. Refresh and try again.";
+ if(s)s.textContent="Unable to load Peptide Planner v15. Refresh and try again.";
 });
 </script>
-<!-- production-loader: v9 invite-only-role-access + password-recovery + account-sync verified; UI-only refresh -->
+<!-- production-loader: official v15 = v14 baseline + approved post-v14 updates -->
 </body>
 </html>
