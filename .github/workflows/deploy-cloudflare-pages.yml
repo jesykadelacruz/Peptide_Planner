@@ -30,7 +30,8 @@ jobs:
           import base64, hashlib, re, zlib
 
           EXPECTED_V9 = 'bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3'
-          EXPECTED_V15 = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
+          EXPECTED_V15_BASE = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
+          EXPECTED_V15 = 'ce77155bddf4ef1a64d08aa9b0f54c1ce31f06dbce87746ef2167764815bac95'
 
           def split_lines(text):
               return text.splitlines(keepends=True)
@@ -126,7 +127,15 @@ jobs:
           for p in v15_paths:
               if not Path(p).is_file():
                   raise SystemExit('Missing v15 deployment asset: ' + p)
-          v15 = apply_patch(current, inflate(v15_paths))
+          v15_base = apply_patch(current, inflate(v15_paths))
+          base_actual = hashlib.sha256(v15_base.encode()).hexdigest()
+          if base_actual != EXPECTED_V15_BASE:
+              raise SystemExit(f'v15 base checksum mismatch: {base_actual}')
+
+          timebox_path = '.deploy/v15_timebox_fix.b64'
+          if not Path(timebox_path).is_file():
+              raise SystemExit('Missing v15 time-box deployment asset: ' + timebox_path)
+          v15 = apply_patch(v15_base, inflate([timebox_path]))
           actual = hashlib.sha256(v15.encode()).hexdigest()
           if actual != EXPECTED_V15:
               raise SystemExit(f'v15 checksum mismatch: {actual}')
@@ -147,6 +156,7 @@ jobs:
               'id="v23-dose-schedule-wrapping-fix"',
               'id="v24-dose-text-wrap-fix"',
               'id="v26-mobile-cycle-layout-fix"',
+              'id="v15-cycle-time-box-only-fix"',
               'if(plannerArraysEqual(days,[1,2,3,4,5]))return "Weekdays";',
               'id="plannerAccessGate"',
               'planner-access-admin',
@@ -192,6 +202,7 @@ jobs:
               'name="viewport"',
               '@media(max-width:760px)',
               'v26-mobile-cycle-layout-fix',
+              'v15-cycle-time-box-only-fix',
               'grid-template-columns:repeat(7,minmax(0,1fr))',
               'requested-dose-table.mobile-card-table',
           ]
@@ -238,7 +249,7 @@ jobs:
           with zipfile.ZipFile(out) as z:
               data = z.read('index.html')
           actual = hashlib.sha256(data).hexdigest()
-          expected = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
+          expected = 'ce77155bddf4ef1a64d08aa9b0f54c1ce31f06dbce87746ef2167764815bac95'
           if actual != expected:
               raise SystemExit('Cloudflare ZIP checksum mismatch: ' + actual)
           print('Cloudflare ZIP verified:', out)
