@@ -30,7 +30,15 @@ const V6_DELTA=[`.deploy/v6_delta_from_v5live.b64`];
 const V7_DELTA=[`.deploy/v7_delta_from_v6live.b64`];
 const V8_DELTA=[`.deploy/v8_delta_from_v7live.b64`];
 const V9_DELTA=[1,2,3,4].map(n=>`.deploy/v9_delta_part_${String(n).padStart(2,"0")}.b64`);
-const V15_DELTA=[`.deploy/v15_delta_from_v9.b64`];
+const V15_DELTA=[
+  `.deploy/v15_patch_part_01.b64`,
+  `.deploy/v15_patch_part_02.b64`,
+  `.deploy/v15_patch_part_03a.b64`,
+  `.deploy/v15_patch_part_03b.b64`,
+  `.deploy/v15_patch_part_04.b64`,
+  `.deploy/v15_patch_part_05.b64`,
+  `.deploy/v15_patch_part_06.b64`
+];
 const EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3";
 const EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536";
 
@@ -137,6 +145,11 @@ async function sha256Hex(text){
   'planner-access-admin',
   'planner_access_members',
   'signInWithPassword',
+  'resetPasswordForEmail',
+  'PASSWORD_RECOVERY',
+  'updateUser({password})',
+  'initCloudServices();',
+  'https://srfuwxjwulvbalzoymcc.supabase.co',
   'from("planner_state")',
   'from("planner_snapshots")',
   'from("knowledge_base_entries")'
