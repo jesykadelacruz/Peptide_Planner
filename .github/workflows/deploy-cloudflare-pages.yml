@@ -2,12 +2,9 @@ name: Deploy Peptide Planner v15 to Cloudflare Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - index.html
-      - .deploy/v15_delta_from_v9.b64
-      - .github/workflows/deploy-cloudflare-pages.yml
+      - '.deploy/v15_release_trigger.txt'
   workflow_dispatch:
 
 permissions:
@@ -25,75 +22,240 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate official v15 loader and delta
+      - name: Reconstruct and validate official v15
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          import base64, zlib, re
+          import base64, hashlib, re, zlib
 
-          delta = zlib.decompress(base64.b64decode(Path('.deploy/v15_delta_from_v9.b64').read_text())).decode('utf-8')
-          required_delta = [
-              '<title>Peptide Planner v15</title>',
-              'APP_VERSION="v15"',
-              'v14-signup-payment-account-request',
-              'v17-admin-dashboard',
-              'v20-compact-users-autosave',
-              'v14-cycle-weekday-checkbox-format',
-              'v16-weekday-reference-match',
-              'v17-requested-peptide-cycle-layout',
-              'v18-myplan-reference-format',
-              'v19-compact-getting-started',
-              'v21-weekdays-spacing-only',
-              'v22-dose-schedule-width-fix',
-              'v23-dose-schedule-wrapping-fix',
-              'v24-dose-text-wrap-fix',
-              'v26-mobile-cycle-layout-fix',
-              'plannerArraysEqual(days,[1,2,3,4,5])',
+          EXPECTED_V9 = 'bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3'
+          EXPECTED_V15 = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
+
+          def split_lines(text):
+              return text.splitlines(keepends=True)
+
+          def apply_patch(source, patch):
+              src = split_lines(source)
+              pl = split_lines(patch)
+              out = []
+              si = 0
+              i = 0
+              while i < len(pl) and not pl[i].startswith('@@ '):
+                  i += 1
+              while i < len(pl):
+                  header = pl[i].rstrip('\n')
+                  m = re.match(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', header)
+                  if not m:
+                      raise RuntimeError('Invalid deployment patch header: ' + header)
+                  old_start = int(m.group(1))
+                  old_count = 1 if m.group(2) is None else int(m.group(2))
+                  target = old_start if old_count == 0 else old_start - 1
+                  if target < si:
+                      raise RuntimeError('Overlapping deployment patch')
+                  while si < target:
+                      out.append(src[si]); si += 1
+                  i += 1
+                  consumed = 0
+                  while i < len(pl) and not pl[i].startswith('@@ '):
+                      line = pl[i]
+                      mark = line[:1]
+                      body = line[1:]
+                      if mark == ' ':
+                          if si >= len(src) or src[si] != body:
+                              raise RuntimeError('Deployment context mismatch')
+                          out.append(src[si]); si += 1; consumed += 1
+                      elif mark == '-':
+                          if si >= len(src) or src[si] != body:
+                              raise RuntimeError('Deployment source mismatch')
+                          si += 1; consumed += 1
+                      elif mark == '+':
+                          out.append(body)
+                      elif mark == '\\':
+                          pass
+                      elif line.strip() != '':
+                          raise RuntimeError('Invalid deployment patch line')
+                      i += 1
+                  if consumed != old_count:
+                      raise RuntimeError(f'Deployment patch count mismatch: {consumed} != {old_count}')
+              out.extend(src[si:])
+              return ''.join(out)
+
+          def inflate(paths):
+              payload = ''.join(Path(p).read_text().strip() for p in paths)
+              return zlib.decompress(base64.b64decode(payload)).decode('utf-8')
+
+          base = Path('Peptide_Planner_KB_Mobile_v184.html').read_text()
+          chain = [
+              [f'.deploy/v189_patch_part_{n:02d}.b64' for n in range(1,5)],
+              ['.deploy/v190_delta_from_v189live.b64'],
+              ['.deploy/v191_delta_from_v190live.b64'],
+              ['.deploy/v193_delta_from_v191live.b64'],
+              ['.deploy/v194_delta_from_v193live.b64'],
+              [f'.deploy/v195_delta_part_{n:02d}.b64' for n in range(1,5)],
+              ['.deploy/v1_delta_from_v195live.b64'],
+              ['.deploy/v2_delta_from_v1live.b64'],
+              ['.deploy/v3_delta_from_v2live.b64'],
+              ['.deploy/v4_delta_from_v3live.b64'],
+              ['.deploy/v5_delta_from_v4live.b64'],
+              ['.deploy/v6_delta_from_v5live.b64'],
+              ['.deploy/v7_delta_from_v6live.b64'],
+              ['.deploy/v8_delta_from_v7live.b64'],
+              [f'.deploy/v9_delta_part_{n:02d}.b64' for n in range(1,5)],
           ]
-          missing = [item for item in required_delta if item not in delta]
-          if missing:
-              raise SystemExit('v15 delta is missing: ' + ', '.join(missing))
+          current = base
+          for paths in chain:
+              for p in paths:
+                  if not Path(p).is_file():
+                      raise SystemExit('Missing deployment asset: ' + p)
+              current = apply_patch(current, inflate(paths))
 
-          html = Path('index.html').read_text()
-          required_loader = [
-              'Peptide Planner v15',
-              'V15_DELTA',
-              '.deploy/v15_delta_from_v9.b64',
-              'EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3"',
-              'EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536"',
+          v9_hash = hashlib.sha256(current.encode()).hexdigest()
+          if v9_hash != EXPECTED_V9:
+              raise SystemExit(f'v9 checksum mismatch: {v9_hash}')
+
+          v15_paths = [
+              '.deploy/v15_patch_part_01.b64',
+              '.deploy/v15_patch_part_02.b64',
+              '.deploy/v15_patch_part_03a.b64',
+              '.deploy/v15_patch_part_03b.b64',
+              '.deploy/v15_patch_part_04.b64',
+              '.deploy/v15_patch_part_05.b64',
+              '.deploy/v15_patch_part_06.b64',
+          ]
+          for p in v15_paths:
+              if not Path(p).is_file():
+                  raise SystemExit('Missing v15 deployment asset: ' + p)
+          v15 = apply_patch(current, inflate(v15_paths))
+          actual = hashlib.sha256(v15.encode()).hexdigest()
+          if actual != EXPECTED_V15:
+              raise SystemExit(f'v15 checksum mismatch: {actual}')
+
+          required = [
+              '<title>Peptide Planner v15</title>',
+              'const APP_VERSION="v15";',
+              'id="v14-signup-payment-account-request"',
+              'id="v17-admin-dashboard"',
+              'id="v20-compact-users-autosave"',
+              'id="v14-cycle-weekday-checkbox-format"',
+              'id="v16-weekday-reference-match"',
+              'id="v17-requested-peptide-cycle-layout"',
+              'id="v18-myplan-reference-format"',
+              'id="v19-compact-getting-started"',
+              'id="v21-weekdays-spacing-only"',
+              'id="v22-dose-schedule-width-fix"',
+              'id="v23-dose-schedule-wrapping-fix"',
+              'id="v24-dose-text-wrap-fix"',
+              'id="v26-mobile-cycle-layout-fix"',
+              'if(plannerArraysEqual(days,[1,2,3,4,5]))return "Weekdays";',
               'id="plannerAccessGate"',
               'planner-access-admin',
-              'v26-mobile-cycle-layout-fix',
+              'planner_access_members',
+              'signInWithPassword',
+              'resetPasswordForEmail',
+              'PASSWORD_RECOVERY',
+              'updateUser({password})',
+              'from("planner_state")',
+              'from("planner_snapshots")',
+              'from("knowledge_base_entries")',
+              'initCloudServices();',
+              'https://srfuwxjwulvbalzoymcc.supabase.co',
           ]
-          missing = [item for item in required_loader if item not in html]
+          missing = [item for item in required if item not in v15]
           if missing:
-              raise SystemExit('v15 loader is missing: ' + ', '.join(missing))
+              raise SystemExit('v15 feature validation failed: ' + ', '.join(missing))
 
-          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
-          if not scripts:
-              raise SystemExit('No inline loader JavaScript found')
-          for i, script in enumerate(scripts):
-              Path(f'/tmp/v15-loader-{i}.js').write_text(script)
-          print(f'Validated v15 loader and delta; {len(scripts)} inline script(s)')
+          forbidden = [
+              'Complete the sections from top to bottom. Advanced settings remain optional.',
+              'Changing BAC water auto-fills final volume; edit final volume afterwards if needed.',
+          ]
+          returned = [item for item in forbidden if item in v15]
+          if returned:
+              raise SystemExit('Removed text returned: ' + ', '.join(returned))
+
+          Path('dist').mkdir(exist_ok=True)
+          Path('dist/index.html').write_text(v15)
+          print('Official v15 reconstructed and checksum verified:', actual)
           PY
-          for js in /tmp/v15-loader-*.js; do node --check "$js"; done
 
-      - name: Build Cloudflare Pages upload
+      - name: Validate JavaScript and responsive contracts
         run: |
           set -euo pipefail
-          rm -rf dist
-          mkdir -p dist
-          cp index.html dist/index.html
-          cp Peptide_Planner_KB_Mobile_v184.html dist/Peptide_Planner_KB_Mobile_v184.html
-          cp -R .deploy dist/.deploy
-          test -f dist/index.html
-          test -f dist/.deploy/v15_delta_from_v9.b64
-          test -f dist/.deploy/v9_delta_part_01.b64
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('dist/index.html').read_text()
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I|re.S)
+          inline = '\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100])
+          Path('/tmp/v15-inline.js').write_text(inline)
+          responsive = [
+              'name="viewport"',
+              '@media(max-width:760px)',
+              'v26-mobile-cycle-layout-fix',
+              'grid-template-columns:repeat(7,minmax(0,1fr))',
+              'requested-dose-table.mobile-card-table',
+          ]
+          missing = [x for x in responsive if x not in html]
+          if missing:
+              raise SystemExit('Responsive validation failed: ' + ', '.join(missing))
+          print('Desktop/mobile responsive contracts verified')
+          PY
+          node --check /tmp/v15-inline.js
+
+      - name: Smoke-test desktop and mobile rendering
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo 'Chrome/Chromium is not available on this runner.' >&2
+            exit 1
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          html = Path('dist/index.html').read_text()
+          html = html.replace('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>', '')
+          probe = '<style id="TEST-ONLY-RENDER-PROBE">body.access-locked{overflow:auto!important}body.access-locked>.app,body.access-locked>#plannerApp{display:block!important;visibility:visible!important}#plannerAccessGate{display:none!important}</style>'
+          html = html.replace('</head>', probe + '</head>', 1)
+          Path('/tmp/v15-render-probe.html').write_text(html)
+          PY
+          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=1440,1000 --screenshot=/tmp/v15-desktop.png file:///tmp/v15-render-probe.html
+          timeout 45s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --window-size=390,844 --user-agent='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1' --screenshot=/tmp/v15-mobile.png file:///tmp/v15-render-probe.html
+          test -s /tmp/v15-desktop.png
+          test -s /tmp/v15-mobile.png
+          echo 'Desktop 1440x1000 render passed.'
+          echo 'Mobile 390x844 render passed.'
+
+      - name: Build Cloudflare production ZIP
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, zipfile
+          src = Path('dist/index.html')
+          out = Path('Peptide Planner Mobile v15.zip')
+          with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as z:
+              z.write(src, 'index.html')
+          with zipfile.ZipFile(out) as z:
+              data = z.read('index.html')
+          actual = hashlib.sha256(data).hexdigest()
+          expected = '59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
+          if actual != expected:
+              raise SystemExit('Cloudflare ZIP checksum mismatch: ' + actual)
+          print('Cloudflare ZIP verified:', out)
+          PY
+
+      - name: Upload production ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Peptide Planner Mobile v15
+          path: Peptide Planner Mobile v15.zip
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Confirm this is still the newest main commit
         id: freshness
         run: |
+          set -euo pipefail
           git fetch --quiet origin main
           latest="$(git rev-parse origin/main)"
           echo "workflow_commit=$GITHUB_SHA"
@@ -102,7 +264,7 @@ jobs:
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping stale deployment so an older build cannot replace production."
+            echo 'Skipping stale deployment so an older build cannot replace production.'
           fi
 
       - name: Deploy v15 to Cloudflare Pages
