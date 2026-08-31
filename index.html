@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#216b5f">
-<title>Peptide Planner v20</title>
+<title>Peptide Planner v21</title>
 <style>
 html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3faf6;color:#17382f}
 .loading{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI
 </style>
 </head>
 <body>
-<div class="loading"><div><strong>Peptide Planner v20</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
+<div class="loading"><div><strong>Peptide Planner v21</strong><small id="loadStatus">Loading the latest planner…</small></div></div>
 <script>
 const V189_PARTS=[1,2,3,4].map(n=>`.deploy/v189_patch_part_${String(n).padStart(2,"0")}.b64`);
 const V190_DELTA=[`.deploy/v190_delta_from_v189live.b64`];
@@ -42,11 +42,13 @@ const V15_DELTA=[
 const V18_DELTA=[`.deploy/v18_delta_from_v15.b64`];
 const V19_DELTA=[`.deploy/v19_delta_from_v18.b64`];
 const V20_DELTA=[`.deploy/v20_delta_from_v19live.b64`];
+const V21_DELTA=[`.deploy/v21_delta_from_v20.b64`];
 const EXPECTED_V9_SHA256="bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3";
 const EXPECTED_V15_SHA256="59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536";
 const EXPECTED_V18_SHA256="50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb";
 const EXPECTED_V19_SHA256="f544d8a6a345be415cc33ea7ddb922b9e40efac0d2865866fa90791d05a71eb6";
 const EXPECTED_V20_SHA256="24b8bd159b1e14480299da11cbef6a71eccf125ccacccff8fca1febead2b3af3";
+const EXPECTED_V21_SHA256="16189d4a94f44f0f36428b698a0bee19e03035be12c77954d104018f991fb7a0";
 
 function splitLines(s){return s.match(/[^\n]*\n|[^\n]+$/g)||[]}
 function applyUnifiedPatch(source,patch){
@@ -89,10 +91,10 @@ async function sha256Hex(text){
 
 (async()=>{
  const status=document.getElementById("loadStatus");
- status.textContent="Preparing v20…";
- const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch,v18Patch,v19Patch,v20Patch]=await Promise.all([
+ status.textContent="Preparing v21…";
+ const [base,v189Patch,v190Patch,v191Patch,v193Patch,v194Patch,v195Patch,v1Patch,v2Patch,v3Patch,v4Patch,v5Patch,v6Patch,v7Patch,v8Patch,v9Patch,v15Patch,v18Patch,v19Patch,v20Patch,v21Patch]=await Promise.all([
   getText("Peptide_Planner_KB_Mobile_v184.html"),
-  inflateParts(V189_PARTS),inflateParts(V190_DELTA),inflateParts(V191_DELTA),inflateParts(V193_DELTA),inflateParts(V194_DELTA),inflateParts(V195_DELTA),inflateParts(V1_DELTA),inflateParts(V2_DELTA),inflateParts(V3_DELTA),inflateParts(V4_DELTA),inflateParts(V5_DELTA),inflateParts(V6_DELTA),inflateParts(V7_DELTA),inflateParts(V8_DELTA),inflateParts(V9_DELTA),inflateParts(V15_DELTA),inflateParts(V18_DELTA),inflateParts(V19_DELTA),inflateParts(V20_DELTA)
+  inflateParts(V189_PARTS),inflateParts(V190_DELTA),inflateParts(V191_DELTA),inflateParts(V193_DELTA),inflateParts(V194_DELTA),inflateParts(V195_DELTA),inflateParts(V1_DELTA),inflateParts(V2_DELTA),inflateParts(V3_DELTA),inflateParts(V4_DELTA),inflateParts(V5_DELTA),inflateParts(V6_DELTA),inflateParts(V7_DELTA),inflateParts(V8_DELTA),inflateParts(V9_DELTA),inflateParts(V15_DELTA),inflateParts(V18_DELTA),inflateParts(V19_DELTA),inflateParts(V20_DELTA),inflateParts(V21_DELTA)
  ]);
  const v189=applyUnifiedPatch(base,v189Patch);
  const v190=applyUnifiedPatch(v189,v190Patch);
@@ -145,13 +147,36 @@ async function sha256Hex(text){
  if(missing.length)throw new Error("Official v20 failed feature validation: "+missing.join(", "));
  const v20Hash=await sha256Hex(v20);
  if(v20Hash!==EXPECTED_V20_SHA256)throw new Error(`v20 checksum mismatch: ${v20Hash}`);
- document.open();document.write(v20);document.close();
+
+ const v21=applyUnifiedPatch(v20,v21Patch);
+ const requiredV21=[
+  '<title>Peptide Planner v21</title>',
+  'const APP_VERSION="v21";',
+  'id="v21-time-field-dimension-fix"',
+  'data-cycle-config-field="injectionTime"',
+  'id="plannerAccessGate"',
+  'planner_access_members',
+  'signInWithPassword',
+  'signUp',
+  'resetPasswordForEmail',
+  'PASSWORD_RECOVERY',
+  'updateUser({password})',
+  'https://srfuwxjwulvbalzoymcc.supabase.co',
+  'from("planner_state")',
+  'from("planner_snapshots")',
+  'from("knowledge_base_entries")'
+ ];
+ const missingV21=requiredV21.filter(x=>!v21.includes(x));
+ if(missingV21.length)throw new Error("Official v21 failed feature validation: "+missingV21.join(", "));
+ const v21Hash=await sha256Hex(v21);
+ if(v21Hash!==EXPECTED_V21_SHA256)throw new Error(`v21 checksum mismatch: ${v21Hash}`);
+ document.open();document.write(v21);document.close();
 })().catch(err=>{
  console.error(err);
  const s=document.getElementById("loadStatus");
- if(s)s.textContent="Unable to load Peptide Planner v20. Refresh and try again.";
+ if(s)s.textContent="Unable to load Peptide Planner v21. Refresh and try again.";
 });
 </script>
-<!-- production-loader: official v20 = verified v19 live + attached HTML patch promoted to v20 -->
+<!-- production-loader: official v21 = verified v20 + v21 Time-field dimension patch -->
 </body>
 </html>
