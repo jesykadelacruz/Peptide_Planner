@@ -1,10 +1,10 @@
-name: Deploy Peptide Planner v23 to Cloudflare Pages
+name: Deploy Peptide Planner v24 to Cloudflare Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - '.deploy/v23_release_trigger.txt'
+      - '.deploy/v24_release_trigger.txt'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Reconstruct and validate official v23
+      - name: Reconstruct and validate official v24
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -34,6 +34,7 @@ jobs:
           EXPECTED_V19='f544d8a6a345be415cc33ea7ddb922b9e40efac0d2865866fa90791d05a71eb6'
           EXPECTED_V22='882a8b62e081f4d253f774fe3c3c85613107331077dd0e684f41818d980081e2'
           EXPECTED_V23='3536f468203f96cea443c77b9a01a9650cf86cea7aa61dacc58f31b308f62779'
+          EXPECTED_V24='eed996ad0a1f9e060e3a7206b2e90d06cd302bb1a28d2042a868c57dc8e8bce9'
           def apply_patch(source,patch):
               src=source.splitlines(keepends=True);pl=patch.splitlines(keepends=True);out=[];si=0;i=0
               while i<len(pl) and not pl[i].startswith('@@ '):i+=1
@@ -76,25 +77,31 @@ jobs:
           if hashlib.sha256(v22.encode()).hexdigest()!=EXPECTED_V22:raise SystemExit('v22 checksum mismatch')
           v23=apply_patch(v22,inflate(['.deploy/v23_delta_from_v22.b64']))
           if hashlib.sha256(v23.encode()).hexdigest()!=EXPECTED_V23:raise SystemExit('v23 checksum mismatch')
-          required=['<title>Peptide Planner v23</title>','const APP_VERSION="v23";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid','id="v22-time-column-width-fix"','id="v22-safari-time-width-fix"']
-          missing=[x for x in required if x not in v23]
-          if missing:raise SystemExit('v23 feature validation failed: '+', '.join(missing))
-          Path('dist').mkdir(exist_ok=True);Path('dist/index.html').write_text(v23)
-          print('Official v23 checksum verified:',EXPECTED_V23)
+          v24=apply_patch(v23,inflate(['.deploy/v24_delta_from_v23.b64']))
+          if hashlib.sha256(v24.encode()).hexdigest()!=EXPECTED_V24:raise SystemExit('v24 checksum mismatch')
+          required=['<title>Peptide Planner v24</title>','const APP_VERSION="v24";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid','id="v22-time-column-width-fix"','id="v22-safari-time-width-fix"','id="v22-split-time-alignment-height-fix"','id="v22-desktop-split-field-height-match"']
+          missing=[x for x in required if x not in v24]
+          if missing:raise SystemExit('v24 feature validation failed: '+', '.join(missing))
+          Path('dist').mkdir(exist_ok=True);Path('dist/index.html').write_text(v24)
+          print('Official v24 checksum verified:',EXPECTED_V24)
           PY
 
-      - name: Validate JavaScript
+      - name: Validate JavaScript and responsive contracts
         run: |
+          set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           import re
           html=Path('dist/index.html').read_text()
           scripts=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',html,flags=re.I|re.S)
-          Path('/tmp/v23-inline.js').write_text('\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100]))
+          Path('/tmp/v24-inline.js').write_text('\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100]))
+          responsive=['name="viewport"','@media(max-width:760px)','split-dose-schedule-grid','v22-time-column-width-fix','v22-safari-time-width-fix','v22-split-time-alignment-height-fix','v22-desktop-split-field-height-match']
+          missing=[x for x in responsive if x not in html]
+          if missing:raise SystemExit('Responsive validation failed: '+', '.join(missing))
           PY
-          node --check /tmp/v23-inline.js
+          node --check /tmp/v24-inline.js
 
-      - name: Deploy v23 to Cloudflare Pages
+      - name: Deploy v24 to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
