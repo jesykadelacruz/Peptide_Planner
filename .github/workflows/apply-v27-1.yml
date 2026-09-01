@@ -1,0 +1,48 @@
+name: Apply Peptide Planner v27.1 patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v27-1.yml'
+      - '.deploy/v27_1.patch'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact attached HTML patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .deploy/v27_1.patch
+          git apply .deploy/v27_1.patch
+          test "$(sha256sum index.html | awk '{print $1}')" = "a5f935b120eed27b9b29c709091a91a3df03f14c56ec3a4bb0fbf260bf0d37c3"
+          grep -Fq '<title>Peptide Planner v27.1</title>' index.html
+          grep -Fq 'const APP_VERSION="v27.1";' index.html
+          grep -Fq 'signInWithPassword' index.html
+          grep -Fq 'signUp' index.html
+          grep -Fq 'resetPasswordForEmail' index.html
+          grep -Fq 'PASSWORD_RECOVERY' index.html
+          grep -Fq 'https://srfuwxjwulvbalzoymcc.supabase.co' index.html
+          grep -Fq 'from("planner_state")' index.html
+          grep -Fq 'from("planner_snapshots")' index.html
+          grep -Fq 'from("knowledge_base_entries")' index.html
+
+      - name: Commit direct v27.1 index
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Promote Peptide Planner v27.1 direct production index'
+          git push origin HEAD:main
