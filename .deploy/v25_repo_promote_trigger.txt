@@ -1,0 +1,1 @@
+Promote the exact validated Peptide Planner v25 direct index to GitHub only. Do not deploy Cloudflare.
