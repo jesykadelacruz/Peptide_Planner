@@ -1,0 +1,40 @@
+Peptide Planner v26
+===================
+
+Source attachment: Peptide_Planner_Mobile_v24_Stabilization(1).html
+Source attachment SHA-256: c45d8dc1b2faf28df5d0d98b9fe6cdc25905c603cb3f5f3d7d0e96ce74b93e93
+Validated v25 base SHA-256: 0d15503cb5193e1fc96f6e58e4be880c84540cb99117e4ed62d97a6a8d4c3e17
+Validated v26 SHA-256: f0a7c2ae5ddb89cf2ac12b588e6a3e7cfcc9cb40f940a27594ad7ce11df775e9
+Supplied payment QR PNG SHA-256: cfea03810ec5925766eaa04c66c5ab912c786d5c14fb6fc86b8741b096a44197
+
+Change scope from validated v25:
+- Release version v25 -> v26.
+- Replace the payment QR image with the full QR image supplied in the attached HTML.
+- All other v25 application lines and functions remain unchanged.
+
+Preserved and validated:
+- Supabase sign-in.
+- Account creation / backend signup.
+- Forgot password and PASSWORD_RECOVERY flow.
+- Password update flow.
+- Cloud planner_state and planner_snapshots sync.
+- Knowledge Base cloud access.
+- Verified-only Today logic.
+- Dose/Units source-of-truth and split-unit logic.
+- Existing owner/admin access and payment-proof backend workflow.
+
+Validation:
+- JavaScript syntax: PASS.
+- Required auth/cloud/Supabase markers: PASS.
+- Supabase planner-access-admin: ACTIVE.
+- Supabase planner-signup-public: ACTIVE.
+- Supabase planner-signup-admin-proof: ACTIVE.
+- Desktop Chromium layout 1440x1000: PASS; no horizontal overflow.
+- Mobile Chromium layout 390x844: PASS; no horizontal overflow.
+- Full payment QR intrinsic size: 875x1280.
+
+Cloudflare Pages manual production package root:
+- index.html
+- _headers
+
+Note: the exact v26 direct index.html is 2.25 MB. The connected GitHub text-write action does not accept a local container file path, so this manifest records the validated release without replacing the current repository-root index.html through an unsafe/truncated text transfer.
