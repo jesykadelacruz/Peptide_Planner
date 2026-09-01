@@ -1,0 +1,60 @@
+name: Apply Peptide Planner v27.2 patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v27-2.yml'
+      - '.deploy/v27_2.patch'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact attached HTML patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .deploy/v27_2.patch
+          git apply .deploy/v27_2.patch
+          test "$(sha256sum index.html | awk '{print $1}')" = "9e9a2658fe618a46aff1246dd77d5d99a3be36a097255a7f0314b34e05610e96"
+          grep -Fq '<title>Peptide Planner v27.2</title>' index.html
+          grep -Fq 'const APP_VERSION="v27.2";' index.html
+          grep -Fq 'signInWithPassword' index.html
+          grep -Fq 'planner-signup-public' index.html
+          grep -Fq 'resetPasswordForEmail' index.html
+          grep -Fq 'PASSWORD_RECOVERY' index.html
+          grep -Fq 'updateUser({password})' index.html
+          grep -Fq 'https://srfuwxjwulvbalzoymcc.supabase.co' index.html
+          grep -Fq 'from("planner_state")' index.html
+          grep -Fq 'from("planner_snapshots")' index.html
+          grep -Fq 'from("knowledge_base_entries")' index.html
+          grep -Fq 'View attachment' index.html
+          grep -Fq '.filter(plan=>!!plan.confirmed)' index.html
+          grep -Fq '#adminAccessClose{white-space:nowrap}' index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',html,flags=re.I|re.S)
+          Path('/tmp/v27_2_inline.js').write_text('\n'.join(x for x in scripts if x.strip()))
+          PY
+          node --check /tmp/v27_2_inline.js
+
+      - name: Commit direct v27.2 index
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Promote Peptide Planner v27.2 direct production index'
+          git push origin HEAD:main
