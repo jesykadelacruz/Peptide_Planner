@@ -1,10 +1,8 @@
 name: Promote Peptide Planner v25 index only
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.deploy/v25_repo_promote_trigger.txt'
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
@@ -15,6 +13,7 @@ concurrency:
 
 jobs:
   promote:
+    if: github.event.issue.title == 'Promote v25 index only'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
