@@ -1,0 +1,141 @@
+name: Peptide Planner v27 regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v27-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Chromium test runtime
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Serve direct v27 index
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/v27-http.log 2>&1 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:4173/index.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/v27-http.log
+          exit 1
+
+      - name: Test desktop and mobile
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          const assert = require('node:assert/strict');
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const results = [];
+
+            for (const config of [
+              { name: 'desktop', viewport: { width: 1440, height: 1000 } },
+              { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }
+            ]) {
+              const context = await browser.newContext({
+                viewport: config.viewport,
+                isMobile: !!config.isMobile,
+                hasTouch: !!config.hasTouch
+              });
+              const page = await context.newPage();
+              await page.route('https://cdn.jsdelivr.net/**', route => route.abort());
+
+              await page.goto('http://127.0.0.1:4173/index.html', { waitUntil: 'domcontentloaded' });
+              assert.equal(await page.title(), 'Peptide Planner v27');
+
+              await page.locator('#plannerAccessTabSignUp').click();
+              await page.locator('#plannerSignupName').fill('Regression Test');
+              await page.locator('#plannerSignupEmail').fill('regression@example.invalid');
+              await page.locator('#plannerSignupMobile').fill('0000000000');
+              await page.locator('#plannerSignupPay').click();
+              await page.locator('#plannerSignupPayment:not(.hidden)').waitFor();
+
+              const qr = await page.locator('.signup-payment-qr').evaluate(img => ({
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+                width: img.getBoundingClientRect().width,
+                complete: img.complete
+              }));
+              assert.equal(qr.complete, true);
+              assert.equal(qr.naturalWidth, 1053);
+              assert.equal(qr.naturalHeight, 2048);
+              assert.ok(qr.width <= (config.name === 'mobile' ? 360 : 430));
+
+              const upload = await page.locator('#plannerPaymentScreenshot').evaluate(input => ({
+                accept: input.accept,
+                required: input.required,
+                type: input.type
+              }));
+              assert.equal(upload.type, 'file');
+              assert.equal(upload.required, true);
+              assert.match(upload.accept, /image/);
+
+              const layout = await page.evaluate(() => ({
+                innerWidth,
+                documentWidth: document.documentElement.scrollWidth,
+                bodyWidth: document.body.scrollWidth
+              }));
+              assert.ok(layout.documentWidth <= layout.innerWidth, JSON.stringify(layout));
+              assert.ok(layout.bodyWidth <= layout.innerWidth, JSON.stringify(layout));
+
+              const request = {
+                id: 'request-1',
+                name: 'Regression Test',
+                email: 'regression@example.invalid',
+                mobile: '0000000000',
+                submitted_at: new Date().toISOString(),
+                payment_proof_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+                payment_proof_name: 'proof.jpg'
+              };
+
+              const admin = await page.evaluate(request => {
+                cloudAccess = { role: 'admin' };
+                renderAdminSignupRequests([request]);
+                return {
+                  view: !!document.querySelector('#adminSignupRequests .proof-link'),
+                  upload: !!document.querySelector('#adminSignupRequests [data-signup-proof-upload]'),
+                  remove: !!document.querySelector('#adminSignupRequests [data-signup-proof-remove]'),
+                  header: [...document.querySelectorAll('.admin-signup-request-table th')].some(th => th.textContent.trim() === 'Payment proof')
+                };
+              }, request);
+              assert.deepEqual(admin, { view: true, upload: true, remove: false, header: true });
+
+              const owner = await page.evaluate(request => {
+                cloudAccess = { role: 'owner' };
+                renderAdminSignupRequests([request]);
+                return {
+                  view: !!document.querySelector('#adminSignupRequests .proof-link'),
+                  upload: !!document.querySelector('#adminSignupRequests [data-signup-proof-upload]'),
+                  remove: !!document.querySelector('#adminSignupRequests [data-signup-proof-remove]')
+                };
+              }, request);
+              assert.deepEqual(owner, { view: true, upload: true, remove: true });
+
+              results.push({ name: config.name, qr, upload, layout, admin, owner });
+              await context.close();
+            }
+
+            await browser.close();
+            console.log(JSON.stringify(results, null, 2));
+          })().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
