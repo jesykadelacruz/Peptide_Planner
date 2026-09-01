@@ -1,14 +1,14 @@
-name: Deploy Peptide Planner v24 to Cloudflare Pages
+name: Deploy Peptide Planner v25 to Cloudflare Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - '.deploy/v24_release_trigger.txt'
+      - '.deploy/v25_release_trigger.txt'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   deployments: write
 
 concurrency:
@@ -21,13 +21,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Reconstruct and validate official v24
+      - name: Reconstruct and validate official v25
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           import base64, hashlib, re, zlib
+
           EXPECTED_V9='bcebcd78b5a63a518e5114cea56e787800ab0d71fbd4b835b2e9b3ee5ee389d3'
           EXPECTED_V15='59543b450c89db382c2be4da8a31df98528b9893d8bfb6f38c8077e9bce8a536'
           EXPECTED_V18='50e2fd4c3902b935144adb58fad943cdb6fd886c28e4a56a42f414ed835987cb'
@@ -35,7 +38,9 @@ jobs:
           EXPECTED_V22='882a8b62e081f4d253f774fe3c3c85613107331077dd0e684f41818d980081e2'
           EXPECTED_V23='3536f468203f96cea443c77b9a01a9650cf86cea7aa61dacc58f31b308f62779'
           EXPECTED_V24='eed996ad0a1f9e060e3a7206b2e90d06cd302bb1a28d2042a868c57dc8e8bce9'
-          def apply_patch(source,patch):
+          EXPECTED_V25='0d15503cb5193e1fc96f6e58e4be880c84540cb99117e4ed62d97a6a8d4c3e17'
+
+          def apply_patch(source, patch):
               src=source.splitlines(keepends=True);pl=patch.splitlines(keepends=True);out=[];si=0;i=0
               while i<len(pl) and not pl[i].startswith('@@ '):i+=1
               while i<len(pl):
@@ -59,14 +64,33 @@ jobs:
                       i+=1
                   if consumed!=old_count:raise RuntimeError('Patch count mismatch')
               out.extend(src[si:]);return ''.join(out)
+
           def inflate(paths):
               payload=''.join(Path(p).read_text().strip() for p in paths)
               return zlib.decompress(base64.b64decode(payload)).decode('utf-8')
+
           base=Path('Peptide_Planner_KB_Mobile_v184.html').read_text()
-          chain=[[f'.deploy/v189_patch_part_{n:02d}.b64' for n in range(1,5)],['.deploy/v190_delta_from_v189live.b64'],['.deploy/v191_delta_from_v190live.b64'],['.deploy/v193_delta_from_v191live.b64'],['.deploy/v194_delta_from_v193live.b64'],[f'.deploy/v195_delta_part_{n:02d}.b64' for n in range(1,5)],['.deploy/v1_delta_from_v195live.b64'],['.deploy/v2_delta_from_v1live.b64'],['.deploy/v3_delta_from_v2live.b64'],['.deploy/v4_delta_from_v3live.b64'],['.deploy/v5_delta_from_v4live.b64'],['.deploy/v6_delta_from_v5live.b64'],['.deploy/v7_delta_from_v6live.b64'],['.deploy/v8_delta_from_v7live.b64'],[f'.deploy/v9_delta_part_{n:02d}.b64' for n in range(1,5)]]
+          chain=[
+              [f'.deploy/v189_patch_part_{n:02d}.b64' for n in range(1,5)],
+              ['.deploy/v190_delta_from_v189live.b64'],
+              ['.deploy/v191_delta_from_v190live.b64'],
+              ['.deploy/v193_delta_from_v191live.b64'],
+              ['.deploy/v194_delta_from_v193live.b64'],
+              [f'.deploy/v195_delta_part_{n:02d}.b64' for n in range(1,5)],
+              ['.deploy/v1_delta_from_v195live.b64'],
+              ['.deploy/v2_delta_from_v1live.b64'],
+              ['.deploy/v3_delta_from_v2live.b64'],
+              ['.deploy/v4_delta_from_v3live.b64'],
+              ['.deploy/v5_delta_from_v4live.b64'],
+              ['.deploy/v6_delta_from_v5live.b64'],
+              ['.deploy/v7_delta_from_v6live.b64'],
+              ['.deploy/v8_delta_from_v7live.b64'],
+              [f'.deploy/v9_delta_part_{n:02d}.b64' for n in range(1,5)],
+          ]
           current=base
           for paths in chain:current=apply_patch(current,inflate(paths))
           if hashlib.sha256(current.encode()).hexdigest()!=EXPECTED_V9:raise SystemExit('v9 checksum mismatch')
+
           v15=apply_patch(current,inflate(['.deploy/v15_patch_part_01.b64','.deploy/v15_patch_part_02.b64','.deploy/v15_patch_part_03a.b64','.deploy/v15_patch_part_03b.b64','.deploy/v15_patch_part_04.b64','.deploy/v15_patch_part_05.b64','.deploy/v15_patch_part_06.b64']))
           if hashlib.sha256(v15.encode()).hexdigest()!=EXPECTED_V15:raise SystemExit('v15 checksum mismatch')
           v18=apply_patch(v15,inflate(['.deploy/v18_delta_from_v15.b64']))
@@ -79,11 +103,38 @@ jobs:
           if hashlib.sha256(v23.encode()).hexdigest()!=EXPECTED_V23:raise SystemExit('v23 checksum mismatch')
           v24=apply_patch(v23,inflate(['.deploy/v24_delta_from_v23.b64']))
           if hashlib.sha256(v24.encode()).hexdigest()!=EXPECTED_V24:raise SystemExit('v24 checksum mismatch')
-          required=['<title>Peptide Planner v24</title>','const APP_VERSION="v24";','id="plannerAccessGate"','planner_access_members','signInWithPassword','signUp','resetPasswordForEmail','PASSWORD_RECOVERY','updateUser({password})','https://srfuwxjwulvbalzoymcc.supabase.co','from("planner_state")','from("planner_snapshots")','from("knowledge_base_entries")','splitUnits','phaseSplitUnitValues','syncPhaseFromSplitUnits','data-cycle-phase-split-unit','data-simple-phase-split-unit','split-dose-schedule-grid','id="v22-time-column-width-fix"','id="v22-safari-time-width-fix"','id="v22-split-time-alignment-height-fix"','id="v22-desktop-split-field-height-match"']
-          missing=[x for x in required if x not in v24]
-          if missing:raise SystemExit('v24 feature validation failed: '+', '.join(missing))
-          Path('dist').mkdir(exist_ok=True);Path('dist/index.html').write_text(v24)
-          print('Official v24 checksum verified:',EXPECTED_V24)
+
+          v25=apply_patch(v24,inflate([f'.deploy/v25_delta_part_{n:02d}.b64' for n in range(1,5)]))
+          actual=hashlib.sha256(v25.encode()).hexdigest()
+          if actual!=EXPECTED_V25:raise SystemExit(f'v25 checksum mismatch: {actual}')
+
+          required=[
+              '<title>Peptide Planner v25</title>',
+              'const APP_VERSION="v25";',
+              'id="production-css"',
+              'planVerificationCompleteness',
+              'planReadyForToday',
+              'doseSourceIndicatorHtml',
+              'doseEntryMode',
+              'planner-signup-public',
+              'planner-signup-admin-proof',
+              'from("planner_state")',
+              'from("planner_snapshots")',
+              'splitUnits',
+              'syncPhaseFromSplitUnits',
+          ]
+          missing=[x for x in required if x not in v25]
+          if missing:raise SystemExit('v25 feature validation failed: '+', '.join(missing))
+
+          forbidden=['ADMIN_PREVIEW_SIGNUPS_KEY','adminPreviewSignupRegistry','data-admin-preview-email','previewOnly']
+          present=[x for x in forbidden if x in v25]
+          if present:raise SystemExit('v25 contains retired preview signup code: '+', '.join(present))
+          if len(re.findall(r'<style\b',v25,flags=re.I))!=1:raise SystemExit('v25 CSS consolidation validation failed')
+          if len(re.findall(r'</style>',v25,flags=re.I))!=1:raise SystemExit('v25 CSS closing-tag validation failed')
+
+          Path('dist').mkdir(exist_ok=True)
+          Path('dist/index.html').write_text(v25)
+          print('Official v25 checksum verified:',EXPECTED_V25)
           PY
 
       - name: Validate JavaScript and responsive contracts
@@ -94,17 +145,32 @@ jobs:
           import re
           html=Path('dist/index.html').read_text()
           scripts=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',html,flags=re.I|re.S)
-          Path('/tmp/v24-inline.js').write_text('\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100]))
+          Path('/tmp/v25-inline.js').write_text('\n'.join(s for s in scripts if s.strip() and 'application/ld+json' not in s[:100]))
           responsive=['name="viewport"','@media(max-width:760px)','split-dose-schedule-grid','v22-time-column-width-fix','v22-safari-time-width-fix','v22-split-time-alignment-height-fix','v22-desktop-split-field-height-match']
           missing=[x for x in responsive if x not in html]
           if missing:raise SystemExit('Responsive validation failed: '+', '.join(missing))
           PY
-          node --check /tmp/v24-inline.js
+          node --check /tmp/v25-inline.js
 
-      - name: Deploy v24 to Cloudflare Pages
+      - name: Deploy v25 direct file to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=peptide-planner --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote direct v25 index.html to repository root
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cp dist/index.html index.html
+          if git diff --quiet -- index.html; then
+            echo 'Repository root already contains direct v25 index.html.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Promote Peptide Planner v25 direct production index'
+          git push origin HEAD:main
