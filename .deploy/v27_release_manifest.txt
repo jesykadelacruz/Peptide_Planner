@@ -1,0 +1,44 @@
+Peptide Planner v27
+===================
+
+Validated v26 base SHA-256: f0a7c2ae5ddb89cf2ac12b588e6a3e7cfcc9cb40f940a27594ad7ce11df775e9
+Validated v27 SHA-256: b033cec77b8437b5f570f17dbb5536c0913a326dc50f64d7323faf936c3c6cd5
+Supplied GCash QR JPG SHA-256: ebd473817e80a84f0fa714f03ad560d0b9b10c16a29a7def1890e2e39f147904
+GitHub direct index commit: c327dd8b8a026e362e4efaddf3c0f9a49ca1ac4f
+Chromium regression run: https://github.com/jesykadelacruz/Peptide_Planner/actions/runs/33566054672
+
+Change scope from validated v26:
+- Release version v26 -> v27.
+- Replace only the embedded payment QR with the exact supplied 1053x2048 JPG.
+- Preserve the existing payment-proof upload, Admin/Owner attachment column, manual upload and Owner-only removal logic.
+- Preserve all other v26 application bytes and functions.
+
+Preserved and validated:
+- Supabase sign-in.
+- Account creation and backend signup.
+- Forgot Password and PASSWORD_RECOVERY flow.
+- Password update flow.
+- Cloud planner_state and planner_snapshots sync.
+- Knowledge Base cloud access.
+- Verified-only Today logic.
+- Dose/Units source-of-truth and split-unit logic.
+- Consolidated single production stylesheet.
+- Existing Owner/Admin access and payment-proof backend workflow.
+- No service-role or secret key in the client.
+
+Validation:
+- Exact requested-diff check: PASS.
+- JavaScript syntax: PASS.
+- Required auth/cloud/Supabase markers: PASS.
+- Desktop Chromium 1440x1000: PASS; no horizontal overflow.
+- Mobile Chromium 390x844: PASS; no horizontal overflow.
+- Payment QR intrinsic size 1053x2048: PASS.
+- Payment proof file input required: PASS.
+- Admin: View + Upload; no Remove: PASS.
+- Owner: View + Upload + Remove: PASS.
+
+Cloudflare Pages manual production package root:
+- index.html
+- _headers
+
+The one-time regression workflow was removed after the successful run.
