@@ -1,0 +1,21 @@
+{
+  "version": "v25",
+  "artifact": "Peptide_Planner_Mobile_v25.html",
+  "production_index_sha256": "0d15503cb5193e1fc96f6e58e4be880c84540cb99117e4ed62d97a6a8d4c3e17",
+  "production_index_bytes": 1932319,
+  "source": "authoritative uploaded Peptide_Planner_Mobile_v25_Production_Maturity.html",
+  "deployment": "direct single-file index.html",
+  "cloudflare_zip": "Peptide_Planner_v25_Cloudflare_Production.zip",
+  "validation": {
+    "javascript_syntax": "passed",
+    "desktop_chromium_1440x1000": "passed",
+    "mobile_chromium_390x844": "passed",
+    "horizontal_overflow": "none in tested desktop/mobile viewports",
+    "verified_only_today": "passed",
+    "dose_units_source_of_truth": "passed",
+    "css_single_production_style": "passed",
+    "supabase_edge_functions": "active",
+    "auth_and_cloud_contracts": "preserved"
+  },
+  "production_deployed": false
+}
