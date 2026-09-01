@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Peptide Planner v27.1</title>
+<title>Peptide Planner v27.2</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -2498,7 +2498,7 @@ body.access-locked>.app{display:none!important}
 .admin-access-overlay.hidden{display:none!important}
 .admin-access-dialog{width:min(980px,100%);max-height:min(90vh,900px);overflow:auto;background:#fff;border-radius:20px;border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.2);padding:20px}
 .admin-access-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px}
-.admin-access-head h2{margin:0}.admin-access-head p{margin:5px 0 0;color:var(--muted);font-size:.82rem}
+.admin-access-head h2{margin:0}.admin-access-head p{margin:5px 0 0;color:var(--muted);font-size:.82rem}#adminAccessClose{white-space:nowrap}
 .admin-invite-grid{display:grid;grid-template-columns:minmax(220px,1fr) 150px auto;gap:10px;align-items:end;margin-bottom:14px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#f8fbfa}
 .admin-invite-grid .btn{min-height:44px}
 .admin-member-table{width:100%;border-collapse:collapse;min-width:760px}.admin-member-table th,.admin-member-table td{padding:10px;border-bottom:1px solid var(--line);text-align:left;font-size:.76rem;vertical-align:middle}.admin-member-table th{background:#f5f8fb;color:#45546b;position:sticky;top:0}.admin-member-table select{min-height:36px;padding:6px 8px}.admin-member-actions{display:flex;gap:6px;flex-wrap:wrap}.admin-member-actions .btn{padding:6px 8px;font-size:.72rem}.admin-member-status{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:.68rem;font-weight:900;text-transform:capitalize}.admin-member-status.active{background:#edf9f2;color:#17603e}.admin-member-status.invited{background:#fff7e6;color:#684b00}.admin-member-status.revoked{background:#fff1f0;color:#7a1d16}
@@ -6179,7 +6179,7 @@ body.onboarding-dialog-open{overflow:hidden!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v27.1";
+const APP_VERSION="v27.2";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -8671,17 +8671,20 @@ function adminMemberRowHtml(m,owner){
     <td class="no-print"><div class="admin-page-actions">${actions||"—"}</div></td>
   </tr>`;
 }
-function renderAdminMembers(members=[]){
+function renderAdminMembers(members=[],signupRequests=[]){
   const owner=cloudAccess?.role==="owner";
   const combined=adminCombinedMembers(members);
   adminDashboardMembersCache=combined;
 
   const overlayBody=document.getElementById("adminAccessMembers");
   if(overlayBody){
-    overlayBody.innerHTML=combined.length?combined.map(m=>{
+    const memberRows=combined.map(m=>{
       const status=adminStatusLabel(m.status);
       return `<tr><td>${esc(m.email||"—")}</td><td><strong>${esc(m.role||"user")}</strong></td><td>${esc(status)}</td><td>${esc(accessDate(m.invited_at))}</td><td>${esc(accessDate(m.activated_at))}</td><td>${esc(accessDate(m.last_seen_at))}</td><td>Use Admin Dashboard</td></tr>`;
-    }).join(""):'<tr><td colspan="7" class="empty">No access records yet.</td></tr>';
+    });
+    const signupRows=(Array.isArray(signupRequests)?signupRequests:[]).filter(request=>request?.payment_proof_url).map(request=>`<tr><td>${esc(request.email||"—")}</td><td><strong>User</strong></td><td>Pending</td><td>${esc(accessDate(request.submitted_at))}</td><td>—</td><td>—</td><td><a class="proof-link" href="${esc(request.payment_proof_url)}" target="_blank" rel="noopener">View attachment</a></td></tr>`);
+    const rows=[...memberRows,...signupRows];
+    overlayBody.innerHTML=rows.length?rows.join(""):'<tr><td colspan="7" class="empty">No access records yet.</td></tr>';
   }
 
   const counts={active:0,pending:0,cancelled:0};
@@ -8714,7 +8717,7 @@ async function loadAdminAccess(){
   if(signupBody)signupBody.innerHTML='<tr><td colspan="6" class="empty">Loading…</td></tr>';
   try{
     const data=await adminAccessApi("list");
-    renderAdminMembers(data.members||[]);
+    renderAdminMembers(data.members||[],data.signup_requests||[]);
     renderAdminSignupRequests(data.signup_requests||[]);
     setAdminPageFeedback("");
   }catch(error){
@@ -9830,7 +9833,7 @@ function renderTodayInjections(){
   };
 
   const injections=calendarStackPlans()
-    .filter(plan=>planReadyForToday(plan))
+    .filter(plan=>!!plan.confirmed)
     .flatMap(plan=>{
       const schedule=scheduleForDate({...plan,enabled:true},selectedDay);
       if(!schedule.administration)return [];
