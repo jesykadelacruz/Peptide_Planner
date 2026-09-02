@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.006</title>
+<title>Peptide Planner v2026.0209.007</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6203,7 +6203,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.006";
+const APP_VERSION="v2026.0209.007";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11369,7 +11369,7 @@ function renderSimplePlanner(){
           <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
           <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
           <div class="simple-mini"><span>Dosage</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
-          <div class="simple-mini" title="Based on the current vial and the actual upcoming schedule, including dose changes, split doses, breaks and cycle boundaries."><span>Doses left in current vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
+          <div class="simple-mini" title="Based on the current vial and the actual upcoming schedule, including dose changes, split doses, breaks and cycle boundaries."><span>Dose left in vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
           <div class="simple-mini"><span>Cycle</span><strong>${plan.noCycle?"Continuous":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?"Starting Phase":`Cycle ${currentPosition?.sequence||"—"}`)}</strong></div>
           ${!plan.noCycle&&annualCycleCount?`<div class="simple-mini"><span>Current cycle count</span><strong>${annualCycleCount.current} of ${annualCycleCount.total}</strong></div>`:""}
           ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div>`:""}
@@ -11389,7 +11389,7 @@ function renderSimplePlanner(){
             <div><label>Route</label><select class="route-select" data-simple-field="route">${myPlanRouteOptions(plan.route||"",plan.kbRoutes||[])}</select></div>
             <div><label>Vial (mg)</label><input type="number" min="0" step="0.001" data-simple-field="vialMg" value="${esc(plan.vialMg||"")}"></div>
             <div><label>Water (mL)</label><input type="number" min="0" step="0.001" data-simple-field="bacWaterMl" value="${esc(plan.bacWaterMl||"")}"></div>
-            <div><label>Volume (mL)</label><input type="number" min="0" step="0.001" data-simple-field="finalMl" value="${esc(plan.finalMl||"")}"></div>
+            <div><label>Concentration (mg/mL)</label><input type="text" data-simple-concentration readonly value="${num(plan.vialMg)>0&&num(plan.bacWaterMl)>0?esc(round(num(plan.vialMg)/num(plan.bacWaterMl),3)):""}"></div><input type="hidden" data-simple-field="finalMl" value="${esc(plan.bacWaterMl||plan.finalMl||"")}">
 
             <div><label>Dispose by</label><div class="dispose-by-control"><input type="number" min="1" step="1" data-simple-dispose-value value="${esc(disposeByControlValue(plan))}" aria-label="Dispose by period"><select data-simple-dispose-unit aria-label="Dispose by unit"><option value="days" ${disposeByControlUnit(plan)==="days"?"selected":""}>Days</option><option value="weeks" ${disposeByControlUnit(plan)==="weeks"?"selected":""}>Weeks</option><option value="months" ${disposeByControlUnit(plan)==="months"?"selected":""}>Months</option></select></div></div>
             <div><label>Syringe</label><select data-simple-syringe>${plannerSyringePresetOptions(plan)}</select></div>
