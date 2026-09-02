@@ -1,0 +1,52 @@
+name: Apply Peptide Planner v2026.0209.018 cycle-scoped vial table patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify baseline
+        run: |
+          echo "01beca0a7a31b4381ad204a64c8870ef7520cb98d97bbf71fdeb18e5380a77d9  index.html" | sha256sum -c -
+      - name: Apply exact patch
+        run: |
+          base64 -d .deploy/v2026_0209_018.patch.xz.b64 | xz -d > /tmp/v018.patch
+          patch index.html < /tmp/v018.patch
+      - name: Validate production file
+        run: |
+          echo "c3be94f7647b98fcab550100df88ef3bf3017af9e426ca07d2d2992a442cc4ab  index.html" | sha256sum -c -
+          grep -Fq '<title>Peptide Planner v2026.0209.018</title>' index.html
+          grep -Fq '<th>Vial #</th><th>Dose (full dose)</th><th>Open</th><th>Finish</th><th>Status</th>' index.html
+          grep -Fq 'localDateISO(addDays(previousFinishDate,1))' index.html
+          grep -Fq '${plan.id}:cycle:${row.cycleNumber}:forecast:${row.forecastNumber}' index.html
+          grep -Fq 'if(plan&&!plan.noCycle)return null;' index.html
+          grep -Fq 'grid-template-areas:' index.html
+          grep -Fq '"vial status"' index.html
+          grep -Fq '"open finish"' index.html
+          grep -Fq 'data-cycle-phase-weekday' index.html
+          grep -Fqi 'supabase' index.html
+          grep -Fqi 'forgot password' index.html
+          python - <<'PY'
+          import re, pathlib
+          s=pathlib.Path('index.html').read_text()
+          scripts=re.findall(r'<script[^>]*>([\s\S]*?)</script>',s)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+      - name: Commit production update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Deploy Peptide Planner v2026.0209.018"
+          git push
