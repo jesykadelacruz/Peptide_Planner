@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.019</title>
+<title>Peptide Planner v2026.0209.020</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6713,7 +6713,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.019";
+const APP_VERSION="v2026.0209.020";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12147,7 +12147,7 @@ function renderPlanCyclePanels(plan){
             ${renderCycleConfigVialSchedule(plan,config,sequence)}
           </div>
 
-          ${sequence>1?`<div class="cycle-config-actions no-print"><button class="btn small" type="button" data-copy-starting-cycle="${sequence}">Copy from Starting Phase</button>${config.startAuto===false?`<button class="btn small" type="button" data-cycle-auto-date="${sequence}">Use calculated start date</button>`:""}</div>`:""}
+          ${sequence>1&&config.startAuto===false?`<div class="cycle-config-actions no-print"><button class="btn small" type="button" data-cycle-auto-date="${sequence}">Use calculated start date</button></div>`:""}
 
           <details class="cycle-dose-block cycle-subsection" data-cycle-subsection="dose-schedule" data-collapse-key="${esc(`${plan.id}:cycle-config:${sequence}:dose-schedule`)}"${detailOpenAttr(`${plan.id}:cycle-config:${sequence}:dose-schedule`,true)}>
             <summary class="cycle-subsection-summary"><strong>Dose schedule</strong></summary>
@@ -12170,6 +12170,7 @@ function renderPlanCyclePanels(plan){
               <div class="actions no-print"><button class="btn small" type="button" data-cycle-add-phase="${sequence}">Add dose phase</button></div>
             </div>
           </details>
+          ${sequence>1?`<div class="cycle-config-actions no-print"><button class="btn small" type="button" data-copy-starting-cycle="${sequence}">Copy from Starting Phase</button></div>`:""}
         </div>
       </details>`;
     }).join("")}</div>
