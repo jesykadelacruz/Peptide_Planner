@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Peptide Planner v27.2</title>
+<title>Peptide Planner v2026.1</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -28,7 +28,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-se
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 .app{max-width:1540px;margin:auto;padding:20px}
-.hero{background:linear-gradient(135deg,#1f675b,#2f8f7f 58%,#67ad83);color:#fff;border-radius:24px;padding:26px;box-shadow:var(--shadow)}
+.hero{background:linear-gradient(135deg,#a94f73,#c86f92 58%,#e3a0b7);color:#fff;border-radius:24px;padding:26px;box-shadow:var(--shadow)}
 .hero-row{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
 .hero h1{margin:0 0 8px;font-size:clamp(1.6rem,3vw,2.45rem);line-height:1.08}
 .hero p{margin:0;max-width:930px;color:rgba(255,255,255,.85)}
@@ -1560,7 +1560,7 @@ body.mobile-app{background:#eef7f2;font-size:15px;-webkit-font-smoothing:antiali
     display:grid!important;
     grid-template-columns:minmax(0,1fr) auto!important;
     grid-template-areas:
-      "title title"
+      "title check"
       "meta check"!important;
     gap:4px 10px!important;
     align-items:center!important;
@@ -1798,7 +1798,7 @@ body.mobile-app{background:#eef7f2;font-size:15px;-webkit-font-smoothing:antiali
 .mobile-app .today-injection-item{
   display:grid!important;
   grid-template-columns:minmax(0,1fr) auto!important;
-  grid-template-areas:"title title" "meta check"!important;
+  grid-template-areas:"title check" "meta check"!important;
   align-items:center!important;
   gap:2px 8px!important;
   min-height:0!important;
@@ -1906,7 +1906,7 @@ body.mobile-app .today-injection-list{display:grid!important;gap:5px!important}
 body.mobile-app .today-injection-item{
   display:grid!important;
   grid-template-columns:minmax(0,1fr) auto!important;
-  grid-template-areas:"title title" "meta check"!important;
+  grid-template-areas:"title check" "meta check"!important;
   gap:3px 8px!important;
   align-items:center!important;
   min-height:0!important;
@@ -2494,15 +2494,9 @@ body.access-locked>.app{display:none!important}
 .planner-owner-setup{margin-top:14px;padding:13px;border:1px solid #efd08b;border-radius:12px;background:#fff9ea}
 .planner-owner-setup.hidden{display:none!important}
 .cloud-role-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;background:#e8f6f0;color:#21664d;font-size:.68rem;font-weight:900;text-transform:capitalize}
-.admin-access-overlay{position:fixed;inset:0;z-index:1200;background:rgba(17,34,29,.55);display:grid;place-items:center;padding:20px}
-.admin-access-overlay.hidden{display:none!important}
-.admin-access-dialog{width:min(980px,100%);max-height:min(90vh,900px);overflow:auto;background:#fff;border-radius:20px;border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.2);padding:20px}
-.admin-access-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px}
-.admin-access-head h2{margin:0}.admin-access-head p{margin:5px 0 0;color:var(--muted);font-size:.82rem}#adminAccessClose{white-space:nowrap}
 .admin-invite-grid{display:grid;grid-template-columns:minmax(220px,1fr) 150px auto;gap:10px;align-items:end;margin-bottom:14px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#f8fbfa}
 .admin-invite-grid .btn{min-height:44px}
-.admin-member-table{width:100%;border-collapse:collapse;min-width:760px}.admin-member-table th,.admin-member-table td{padding:10px;border-bottom:1px solid var(--line);text-align:left;font-size:.76rem;vertical-align:middle}.admin-member-table th{background:#f5f8fb;color:#45546b;position:sticky;top:0}.admin-member-table select{min-height:36px;padding:6px 8px}.admin-member-actions{display:flex;gap:6px;flex-wrap:wrap}.admin-member-actions .btn{padding:6px 8px;font-size:.72rem}.admin-member-status{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:.68rem;font-weight:900;text-transform:capitalize}.admin-member-status.active{background:#edf9f2;color:#17603e}.admin-member-status.invited{background:#fff7e6;color:#684b00}.admin-member-status.revoked{background:#fff1f0;color:#7a1d16}
-@media(max-width:640px){.planner-access-gate{padding:14px}.planner-access-card{padding:19px;border-radius:17px}.planner-access-card .actions{grid-template-columns:1fr}.admin-access-overlay{padding:8px}.admin-access-dialog{padding:14px;border-radius:14px;max-height:96vh}.admin-invite-grid{grid-template-columns:1fr}.admin-invite-grid .btn{width:100%}}
+@media(max-width:640px){.planner-access-gate{padding:14px}.planner-access-card{padding:19px;border-radius:17px}.planner-access-card .actions{grid-template-columns:1fr}}
 
 /* ===== consolidated source: v10-ui-access-hardening ===== */
 /* v10 — presentation/access-screen hardening only; no planner feature logic changes */
@@ -2535,14 +2529,11 @@ table{border-collapse:separate;border-spacing:0}thead th{font-weight:700}tbody t
 #plannerAccessGate{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:100vh!important;z-index:2147483646!important;overflow:auto!important;overscroll-behavior:contain;isolation:isolate;opacity:1!important;background:linear-gradient(180deg,#f7fbf9 0%,#eef6f2 100%)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 #plannerAccessGate.hidden{display:none!important}
 #plannerAccessGate .planner-access-card{background:#fff!important;border:1px solid var(--ui-border)!important;border-radius:22px!important;box-shadow:0 24px 70px rgba(12,35,29,.18)!important}
-#adminAccessOverlay{background:rgba(19,45,38,.48)!important;backdrop-filter:blur(7px) saturate(.94);-webkit-backdrop-filter:blur(7px) saturate(.94)}
-#adminAccessOverlay .admin-access-dialog{border:1px solid rgba(255,255,255,.6)!important;border-radius:20px!important;box-shadow:var(--ui-shadow-md)!important}
-#adminAccessOverlay thead th{position:sticky;top:0;z-index:1;background:var(--ui-surface-soft)}
 @media(max-width:720px){
   body{font-size:15px}button,.button,.btn,[role="button"]{min-height:42px}
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea{font-size:16px!important}
-  #plannerAccessGate,#adminAccessOverlay{padding:12px!important;box-sizing:border-box}
-  #plannerAccessGate .planner-access-card,#adminAccessOverlay .admin-access-dialog{width:min(100%,680px)!important;max-width:100%!important;max-height:calc(100dvh - 24px)!important;overflow:auto;border-radius:17px!important}
+  #plannerAccessGate{padding:12px!important;box-sizing:border-box}
+  #plannerAccessGate .planner-access-card{width:min(100%,680px)!important;max-width:100%!important;max-height:calc(100dvh - 24px)!important;overflow:auto;border-radius:17px!important}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
@@ -4785,11 +4776,6 @@ body.onboarding-dialog-open{overflow:hidden!important}
 @media(max-width:760px){.signup-payment-qr{width:min(360px,100%)}}
 
 /* ===== v25 production-maturity additions ===== */
-.dose-source-indicator{display:block;margin-top:3px;color:var(--muted);font-size:.68rem;line-height:1.2;font-weight:700;white-space:nowrap}
-.verification-missing-list{margin:6px 0 0;padding-left:18px}
-.verification-missing-list li{margin:2px 0}
-
-
 /* Verification checkbox interaction only: standard checkbox size/alignment; no other field sizing changes. */
 .review-verify-block .confirmation{
   cursor:pointer;
@@ -4805,6 +4791,16 @@ body.onboarding-dialog-open{overflow:hidden!important}
   cursor:pointer!important;
   accent-color:var(--green);
 }
+
+/* ===== v2026.1 requested admin/header refinements ===== */
+.admin-status-pill.archived{background:#fff0ed;color:#8a382f}
+.admin-status-pill.rejected{background:#fff0ed;color:#8a382f}
+.admin-status-pill.approved{background:#eef5ff;color:#24496e}
+.admin-user-table .proof-link,.admin-all-users-table .proof-link{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--blue);font-size:.7rem;font-weight:850;text-decoration:none;white-space:nowrap}
+.admin-user-table .proof-link:hover,.admin-all-users-table .proof-link:hover{text-decoration:underline}
+.admin-all-users-table{min-width:760px}
+.admin-all-users-table th,.admin-all-users-table td{vertical-align:middle}
+.admin-duplicate-note{display:block;margin-top:3px;color:var(--red);font-size:.64rem;font-weight:850;line-height:1.2}
 </style>
 
 
@@ -4941,6 +4937,7 @@ body.onboarding-dialog-open{overflow:hidden!important}
         <div class="actions">
           <button id="plannerSignupPay" class="btn primary" type="button">Pay</button>
           <button id="plannerSignupCancel" class="btn danger" type="button">Cancel</button>
+          <button id="plannerSignupDuplicateReset" class="btn hidden" type="button">Reset password instead</button>
         </div>
         <div id="plannerSignupCancelConfirm" class="signup-cancel-confirm hidden">
           <strong>Are you sure you want to cancel?</strong>
@@ -5063,29 +5060,12 @@ body.onboarding-dialog-open{overflow:hidden!important}
 </div>
 
 
-<div id="adminAccessOverlay" class="admin-access-overlay hidden no-print" role="dialog" aria-modal="true" aria-labelledby="adminAccessTitle">
-  <div class="admin-access-dialog">
-    <div class="admin-access-head">
-      <div><div class="planner-access-brand">Access management</div><h2 id="adminAccessTitle">Admin Dashboard</h2><p id="adminAccessSubtitle">Invite users to complete sign-up and manage access.</p></div>
-      <button id="adminAccessClose" class="btn" type="button">Close</button>
-    </div>
-    <div class="admin-invite-grid">
-      <div><label for="adminInviteEmail">Email address</label><input id="adminInviteEmail" type="email" autocomplete="off" placeholder="name@example.com"></div>
-      <div><label for="adminInviteRole">Access role</label><select id="adminInviteRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
-      <button id="adminInviteSend" class="btn primary" type="button">Send access</button>
-    </div>
-    <div id="adminAccessMessage" class="alert info planner-access-message"></div>
-    <div id="adminAccessError" class="alert danger planner-access-message"></div>
-    <div class="actions" style="justify-content:flex-end;margin:10px 0"><button id="adminAccessRefresh" class="btn" type="button">Refresh</button></div>
-    <div class="table-wrap"><table class="admin-member-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Invited</th><th>Activated</th><th>Last active</th><th>Actions</th></tr></thead><tbody id="adminAccessMembers"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody></table></div>
-  </div>
-</div>
 
 <div class="app" id="plannerApp" hidden inert aria-hidden="true" style="display:none!important">
 <header class="hero">
   <div class="hero-row">
     <div>
-      <h1>Peptide Treatment Planner & Progress Tracker</h1>
+      <h1 id="plannerMainTitle">Peptide Planner</h1>
     </div>
   </div>
   <div class="notice"><strong>Important:</strong> use this tracker only with a verified prescription/dispensing label. Presets are editable reference drafts, not prescribing instructions. Confirm the product, route, dose, strength, preparation, schedule, storage/use-discard instructions and syringe/device with a qualified prescriber or pharmacist before enabling a plan.</div>
@@ -5102,7 +5082,7 @@ body.onboarding-dialog-open{overflow:hidden!important}
     <button id="cloudSignIn" class="btn" type="button">Sign in</button>
     <button id="cloudSignUp" class="btn primary" type="button">Create account</button>
     <button id="cloudSyncNow" class="btn hidden" type="button">Sync now</button>
-    <button id="cloudAdminOpen" class="btn hidden" type="button">Admin</button>
+    <button id="cloudAdminOpen" class="btn hidden" type="button">Admin Dashboard</button>
     <button id="cloudSignOut" class="btn hidden" type="button">Sign out</button>
   </div>
 </div>
@@ -6064,23 +6044,23 @@ body.onboarding-dialog-open{overflow:hidden!important}
     <div class="admin-dashboard-hero">
       <div>
         <h2 class="admin-dashboard-title">Admin Dashboard</h2>
-        <p class="admin-dashboard-sub">Invite users to complete sign-up, review registrations and maintain user contact details.</p>
+        <p class="admin-dashboard-sub">Review sign-up requests and manage approved account access according to your role.</p>
         <div class="admin-page-role-note" id="adminPageRoleNote">Administrator access</div>
       </div>
       <button class="btn no-print" id="adminPageRefresh" type="button">Refresh</button>
     </div>
   </div>
 
-  <div class="admin-dashboard-summary">
+  <div class="admin-dashboard-summary admin-owner-only">
     <div class="admin-summary-box"><span>Total users</span><strong id="adminCountTotal">0</strong></div>
     <div class="admin-summary-box"><span>Active</span><strong id="adminCountActive">0</strong></div>
     <div class="admin-summary-box"><span>Pending</span><strong id="adminCountPending">0</strong></div>
-    <div class="admin-summary-box"><span>Cancelled</span><strong id="adminCountCancelled">0</strong></div>
+    <div class="admin-summary-box"><span>Archived</span><strong id="adminCountArchived">0</strong></div>
   </div>
 
-  <div class="card admin-invite-card">
+  <div class="card admin-invite-card admin-owner-only">
     <h2>Add user / Send access</h2>
-    <div class="helper">Enter the user's name, email and phone number, then send an invitation. The email will ask them to complete sign-up and create their password. Owner can assign User or Admin; Admin can add Users only.</div>
+    <div class="helper">Owner-only account access tool. Enter the user's name, email and phone number, then send an invitation. The email will ask them to complete sign-up and create their password.</div>
 
     <div class="admin-user-form-grid" style="margin-top:12px">
       <div>
@@ -6111,24 +6091,23 @@ body.onboarding-dialog-open{overflow:hidden!important}
   <div class="card admin-signup-requests-card">
     <div class="protocol-head">
       <div>
-        <h2 style="margin:0">Payment sign-up requests</h2>
-        <div class="helper">Payment proof submitted through Sign Up is stored privately in the backend. Admin can view and upload proof; only Owner can remove proof. Approve sends account access; Reject closes the request.</div>
+        <h2 style="margin:0">Pending</h2>
+        <div class="helper">Review the submitted payment attachment. Payment is view only. Approve moves the applicant to Users; Reject closes the request without granting planner access.</div>
       </div>
       <span class="admin-signup-requests-meta" id="adminSignupRequestCount">0</span>
     </div>
     <div class="table-wrap" style="margin-top:10px">
       <table class="data admin-signup-request-table">
-        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Submitted</th><th>Payment proof</th><th class="no-print">Actions</th></tr></thead>
-        <tbody id="adminSignupRequests"><tr><td colspan="6" class="empty">No pending payment sign-up requests.</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Submitted</th><th>Payment</th><th class="no-print">Action</th></tr></thead>
+        <tbody id="adminSignupRequests"><tr><td colspan="6" class="empty">No pending sign-up requests.</td></tr></tbody>
       </table>
-      <input id="adminSignupProofFile" class="hidden" type="file" accept="image/jpeg,image/png,image/webp">
     </div>
   </div>
 
   <div id="adminPageMessage" class="alert info hidden"></div>
   <div id="adminPageError" class="alert danger hidden"></div>
 
-  <div class="card">
+  <div class="card admin-owner-only" id="adminUsersCard">
     <div class="admin-search-row">
       <div class="admin-search-field">
         <label for="adminUserSearch">Search users</label>
@@ -6140,7 +6119,7 @@ body.onboarding-dialog-open{overflow:hidden!important}
     <div class="protocol-head">
       <div>
         <h2 style="margin:0">Users</h2>
-        <div class="helper">Name and phone autosave as you type. Resend sends a password-reset email. Owner can change User/Admin roles; Admin can view roles but cannot change them.</div>
+        <div class="helper">Approved users only. Name and phone autosave. Owner can change User/Admin roles, archive access, view payment proof and resend password recovery.</div>
       </div>
     </div>
 
@@ -6152,10 +6131,10 @@ body.onboarding-dialog-open{overflow:hidden!important}
             <th>Email</th>
             <th>Phone</th>
             <th>Status</th>
-            <th>Activated</th>
-            <th>Last active</th>
+            <th>Activated Date</th>
             <th>Role</th>
-            <th class="no-print">Actions</th>
+            <th>Proof of Payment</th>
+            <th class="no-print">Action</th>
           </tr>
         </thead>
         <tbody id="adminPageMembers">
@@ -6163,9 +6142,20 @@ body.onboarding-dialog-open{overflow:hidden!important}
         </tbody>
       </table>
     </div>
+  </div>
 
-    <div class="alert info admin-page-note">
-      <strong>Account records:</strong> Users, roles, access status and payment sign-up requests are loaded from the live backend. Name and phone autosave directly to the backend; Resend uses the live password-recovery flow.
+  <div class="card admin-owner-only" id="adminAllUsersCard">
+    <div class="protocol-head">
+      <div>
+        <h2 style="margin:0">All Users</h2>
+        <div class="helper">Consolidated accepted, rejected, active and archived records. Historical duplicate identities are shown once and flagged under the name.</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data admin-all-users-table">
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead>
+        <tbody id="adminAllUsers"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+      </table>
     </div>
   </div>
 </section>
@@ -6179,7 +6169,7 @@ body.onboarding-dialog-open{overflow:hidden!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v27.2";
+const APP_VERSION="v2026.1";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -7103,8 +7093,6 @@ function configuredVerificationPhases(plan){
   const phases=configs.flatMap(config=>Array.isArray(config.phases)?config.phases:[]).filter(Boolean);
   return phases.length?phases:(Array.isArray(plan.phases)?plan.phases:[]).filter(Boolean);
 }
-function phaseSourceLabel(plan,phase){return inferPhaseDoseEntryMode(plan,phase)==="units"?"Units":"Dose"}
-function doseSourceIndicatorHtml(plan,phase){return `<small class="dose-source-indicator">Source: ${phaseSourceLabel(plan,phase)}</small>`}
 function planVerificationCompleteness(plan){
   const missing=[];
   if(!String(plan?.name||"").trim())missing.push("product/treatment name");
@@ -8162,6 +8150,7 @@ function setPlannerAccessMode(mode){
   document.getElementById("plannerAccessSignup")?.classList.toggle("hidden",plannerAccessMode!=="signup"||!!cloudUser);
   setPlannerAccessFeedback("");
   setSignupFeedback("");
+  plannerSignupDuplicateResetVisibility(false);
   renderSignupPreviewState();
 }
 function renderSignupPreviewState(){
@@ -8182,23 +8171,61 @@ function renderSignupPreviewState(){
   if(payName)payName.textContent=record?.name||name?.value||"—";
   if(payEmail)payEmail.textContent=record?.email||email?.value||"—";
 }
-function plannerSignupContinueToPayment(){
+async function plannerSignupCheckDuplicate(name,email,mobile){
+  const response=await fetch(`${SUPABASE_URL}/functions/v1/planner-signup-public`,{
+    method:"POST",
+    headers:{apikey:SUPABASE_PUBLISHABLE_KEY,"Content-Type":"application/json"},
+    body:JSON.stringify({action:"check_duplicate",name,email,mobile})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok&&response.status!==409)throw new Error(result?.error||`Unable to check account details (${response.status}).`);
+  return result||{};
+}
+function plannerSignupDuplicateResetVisibility(show){document.getElementById("plannerSignupDuplicateReset")?.classList.toggle("hidden",!show)}
+async function plannerSignupContinueToPayment(){
   const name=String(document.getElementById("plannerSignupName")?.value||"").trim();
   const email=String(document.getElementById("plannerSignupEmail")?.value||"").trim().toLowerCase();
   const mobile=String(document.getElementById("plannerSignupMobile")?.value||"").trim();
+  plannerSignupDuplicateResetVisibility(false);
   if(!name||!email||!mobile){setSignupFeedback("Enter your name, email and mobile number.","error");return}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setSignupFeedback("Enter a valid email address.","error");return}
   const digits=mobile.replace(/\D/g,"");
   if(digits.length<8){setSignupFeedback("Enter a valid mobile number.","error");return}
-  const signupRecord={name,email,mobile,status:"payment",createdAt:new Date().toISOString()};saveSignupPreview(signupRecord);
-  document.getElementById("plannerSignupCancelConfirm")?.classList.add("hidden");
-  setSignupFeedback("");
-  renderSignupPreviewState();
+  const button=document.getElementById("plannerSignupPay");if(button)button.disabled=true;
+  setSignupFeedback("Checking account details…");
+  try{
+    const duplicate=await plannerSignupCheckDuplicate(name,email,mobile);
+    if(duplicate?.duplicate){
+      setSignupFeedback(duplicate?.error||"An account or sign-up record already exists for these details.","error");
+      plannerSignupDuplicateResetVisibility(true);
+      return;
+    }
+    const signupRecord={name,email,mobile,status:"payment",createdAt:new Date().toISOString()};saveSignupPreview(signupRecord);
+    document.getElementById("plannerSignupCancelConfirm")?.classList.add("hidden");
+    setSignupFeedback("");
+    renderSignupPreviewState();
+  }catch(error){setSignupFeedback(error?.message||"Unable to check account details. Please try again.","error")}
+  finally{if(button)button.disabled=false}
 }
+async function plannerSignupResetPassword(){
+  const email=String(document.getElementById("plannerSignupEmail")?.value||"").trim().toLowerCase();
+  if(!email){setSignupFeedback("Enter your email address first.","error");return}
+  if(!cloudClient){setSignupFeedback("Password recovery is unavailable right now.","error");return}
+  const button=document.getElementById("plannerSignupDuplicateReset");if(button)button.disabled=true;
+  try{
+    let {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:PASSWORD_RESET_REDIRECT_URL});
+    if(error&&/redirect|redirect_to|not allowed/i.test(String(error?.message||""))){({error}=await cloudClient.auth.resetPasswordForEmail(email))}
+    if(error)throw error;
+    setSignupFeedback("If an approved account exists for that email, a password reset link has been sent.");
+  }catch(error){setSignupFeedback(error?.message||"Unable to send the reset email.","error")}
+  finally{if(button)button.disabled=false}
+}
+
 function plannerSignupAskCancel(){
   document.getElementById("plannerSignupCancelConfirm")?.classList.remove("hidden");
 }
 function plannerSignupCancelConfirmed(){
+  plannerSignupDuplicateResetVisibility(false);
   plannerPaymentScreenshotFile=null;
   saveSignupPreview(null);
   ["plannerSignupName","plannerSignupEmail","plannerSignupMobile"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
@@ -8206,6 +8233,7 @@ function plannerSignupCancelConfirmed(){
   setPlannerAccessMode("signin");
 }
 function plannerSignupBackToDetails(){
+  plannerSignupDuplicateResetVisibility(false);
   plannerPaymentScreenshotFile=null;
   const proof=document.getElementById("plannerPaymentScreenshot");if(proof)proof.value="";
   const proofState=document.getElementById("plannerPaymentScreenshotState");
@@ -8278,7 +8306,7 @@ async function plannerSignupPaid(){
       body:form
     });
     const result=await response.json().catch(()=>({}));
-    if(!response.ok||result?.error)throw new Error(result?.error||`Unable to submit payment proof (${response.status}).`);
+    if(!response.ok||result?.error){if(result?.duplicate)plannerSignupDuplicateResetVisibility(true);throw new Error(result?.error||`Unable to submit payment proof (${response.status}).`)};
     saveSignupPreview({
       ...record,
       status:"pending",
@@ -8403,12 +8431,12 @@ function renderPlannerAccessGate({message="",error="",ownerSetup=false}={}){
 }
 async function currentPlannerAccess({activateInvite=!plannerInviteLinkActive()}={}){
   if(!cloudClient||!cloudUser)return null;
-  let {data,error}=await cloudClient.from("planner_access_members").select("user_id,email,role,status,activated_at,last_seen_at").eq("user_id",cloudUser.id).maybeSingle();
+  let {data,error}=await cloudClient.from("planner_access_members").select("user_id,email,name,phone,role,status,activated_at,last_seen_at").eq("user_id",cloudUser.id).maybeSingle();
   if(error)throw error;
   if(data?.status==="invited"&&activateInvite){
     const activated=await cloudClient.rpc("planner_activate_invite");
     if(activated.error)throw activated.error;
-    ({data,error}=await cloudClient.from("planner_access_members").select("user_id,email,role,status,activated_at,last_seen_at").eq("user_id",cloudUser.id).maybeSingle());
+    ({data,error}=await cloudClient.from("planner_access_members").select("user_id,email,name,phone,role,status,activated_at,last_seen_at").eq("user_id",cloudUser.id).maybeSingle());
     if(error)throw error;
   }
   return data||null;
@@ -8486,20 +8514,18 @@ function accessDate(value){if(!value)return "—";const d=new Date(value);return
 
 let adminDashboardMembersCache=[];
 let adminSignupRequestsCache=[];
+let adminSignupHistoryCache=[];
+function accessDateOnly(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?"—":d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"2-digit"})}
 function renderAdminSignupRequests(requests=[]){
   adminSignupRequestsCache=Array.isArray(requests)?requests:[];
-  const owner=cloudAccess?.role==="owner";
   const body=document.getElementById("adminSignupRequests"),count=document.getElementById("adminSignupRequestCount");
   if(count)count.textContent=String(adminSignupRequestsCache.length);
   if(!body)return;
   body.innerHTML=adminSignupRequestsCache.length?adminSignupRequestsCache.map(request=>{
     const hasProof=!!request.payment_proof_url;
-    const uploadLabel=hasProof?(owner?"Replace attachment":"Upload new attachment"):"Upload attachment";
-    const proof=`<div class="signup-request-proof-cell">
-      ${hasProof?`<a class="proof-link" href="${esc(request.payment_proof_url)}" target="_blank" rel="noopener">View attachment</a><span class="signup-request-file">${esc(request.payment_proof_name||"")}</span>`:`<span class="helper">No attachment available</span>`}
-      <button class="btn small" type="button" data-signup-proof-upload data-signup-request-id="${esc(request.id)}">${uploadLabel}</button>
-      ${owner&&hasProof?`<button class="btn small danger" type="button" data-signup-proof-remove data-signup-request-id="${esc(request.id)}">Remove attachment</button>`:""}
-    </div>`;
+    const proof=hasProof
+      ? `<div class="signup-request-proof-cell"><a class="proof-link" href="${esc(request.payment_proof_url)}" target="_blank" rel="noopener">View attachment</a><span class="signup-request-file">${esc(request.payment_proof_name||"")}</span></div>`
+      : `<span class="helper">No attachment available</span>`;
     const approveDisabled=hasProof?"":' disabled title="Payment proof is required before approval"';
     return `<tr>
       <td>${esc(request.name||"—")}</td>
@@ -8509,84 +8535,25 @@ function renderAdminSignupRequests(requests=[]){
       <td>${proof}</td>
       <td class="no-print"><div class="signup-request-actions"><button class="btn small primary" type="button" data-signup-request-action="approve" data-signup-request-id="${esc(request.id)}"${approveDisabled}>Approve</button><button class="btn small danger" type="button" data-signup-request-action="reject" data-signup-request-id="${esc(request.id)}">Reject</button></div></td>
     </tr>`;
-  }).join(""):'<tr><td colspan="6" class="empty">No pending payment sign-up requests.</td></tr>';
-}
-let adminSignupProofRequestId="";
-function chooseAdminSignupProof(requestId){
-  const input=document.getElementById("adminSignupProofFile");
-  if(!input||!requestId)return;
-  adminSignupProofRequestId=String(requestId);
-  input.value="";
-  input.click();
-}
-async function uploadAdminSignupProof(requestId,file){
-  if(!requestId||!file)return;
-  if(!["image/jpeg","image/png","image/webp"].includes(String(file.type||"").toLowerCase())){
-    setAdminPageFeedback("Payment attachment must be JPG, PNG or WEBP.","error");return;
-  }
-  if(file.size>8*1024*1024){setAdminPageFeedback("Payment attachment must be 8 MB or smaller.","error");return}
-  try{
-    const {data,error}=await cloudClient.auth.getSession();
-    if(error)throw error;
-    const token=data?.session?.access_token;
-    if(!token)throw new Error("Your admin session has expired. Sign in again.");
-    const form=new FormData();
-    form.append("request_id",requestId);
-    form.append("payment_proof",file,file.name||"payment-proof");
-    setAdminPageFeedback("Uploading payment attachment…");
-    const response=await fetch(`${SUPABASE_URL}/functions/v1/planner-signup-admin-proof`,{
-      method:"POST",
-      headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${token}`},
-      body:form
-    });
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok||result?.error)throw new Error(result?.error||`Unable to upload attachment (${response.status}).`);
-    setAdminPageFeedback("Payment attachment uploaded.");
-    await loadAdminAccess();
-  }catch(error){setAdminPageFeedback(error?.message||"Unable to upload payment attachment.","error")}
-}
-async function removeAdminSignupProof(requestId,button){
-  if(!requestId)return;
-  if(cloudAccess?.role!=="owner"){
-    setAdminPageFeedback("Only the Owner can remove a payment attachment.","error");
-    return;
-  }
-  if(!confirm("Remove this payment attachment? The sign-up request will remain pending and cannot be approved until a proof is uploaded again."))return;
-  if(button)button.disabled=true;
-  try{
-    const {data,error}=await cloudClient.auth.getSession();
-    if(error)throw error;
-    const token=data?.session?.access_token;
-    if(!token)throw new Error("Your Owner session has expired. Sign in again.");
-    const form=new FormData();
-    form.append("request_id",requestId);
-    form.append("action","remove");
-    setAdminPageFeedback("Removing payment attachment…");
-    const response=await fetch(`${SUPABASE_URL}/functions/v1/planner-signup-admin-proof`,{
-      method:"POST",
-      headers:{apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${token}`},
-      body:form
-    });
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok||result?.error)throw new Error(result?.error||`Unable to remove attachment (${response.status}).`);
-    setAdminPageFeedback("Payment attachment removed.");
-    await loadAdminAccess();
-  }catch(error){setAdminPageFeedback(error?.message||"Unable to remove payment attachment.","error")}
-  finally{if(button)button.disabled=false}
+  }).join(""):'<tr><td colspan="6" class="empty">No pending sign-up requests.</td></tr>';
 }
 
 async function adminSignupRequestAction(action,requestId,button){
   if(!requestId||!["approve","reject"].includes(action))return;
-  if(action==="reject"&&!confirm("Reject this payment sign-up request?"))return;
+  if(!["owner","admin"].includes(cloudAccess?.role||"")){setAdminPageFeedback("Administrator access required.","error");return}
+  if(action==="reject"&&!confirm("Reject this sign-up request?"))return;
   if(button)button.disabled=true;
   try{
     const result=await adminAccessApi(action==="approve"?"approve_signup":"reject_signup",{request_id:requestId});
-    setAdminPageFeedback(action==="approve"?(result?.emailSent?`Approved. Account access email sent to ${result.email}.`:`Approved. Account access is active for ${result.email}.`):"Payment sign-up request rejected.");
+    setAdminPageFeedback(action==="approve"?(result?.emailSent?`Approved. Account access email sent to ${result.email}.`:`Approved. Account access is active for ${result.email}.`):"Sign-up request rejected.");
     await loadAdminAccess();
   }catch(error){setAdminPageFeedback(error?.message||"Unable to update the sign-up request.","error")}
   finally{if(button)button.disabled=false}
 }
 function adminNormalizedText(value){return String(value||"").trim().toLowerCase()}
+function adminNormalizedName(value){return String(value||"").trim().replace(/\s+/g," ").toLowerCase()}
+function adminNormalizedEmail(value){return String(value||"").trim().toLowerCase()}
+function adminNormalizedPhone(value){return String(value||"").replace(/\D/g,"")}
 function adminFilterMembers(members,query){
   const needle=adminNormalizedText(query);
   if(!needle)return members;
@@ -8595,31 +8562,23 @@ function adminFilterMembers(members,query){
     return fields.some(value=>adminNormalizedText(value).includes(needle));
   });
 }
-function renderAdminDashboardTable(){
-  const owner=cloudAccess?.role==="owner";
-  const pageBody=document.getElementById("adminPageMembers");
-  if(!pageBody)return;
-  const query=document.getElementById("adminUserSearch")?.value||"";
-  const filtered=adminFilterMembers(adminDashboardMembersCache,query);
-  pageBody.innerHTML=filtered.length
-    ?filtered.map(m=>adminMemberRowHtml(m,owner)).join("")
-    :'<tr><td colspan="8" class="admin-empty-filter">No users match your search.</td></tr>';
-  const meta=document.getElementById("adminSearchMeta");
-  if(meta)meta.textContent=query?`${filtered.length} of ${adminDashboardMembersCache.length} users`:`${adminDashboardMembersCache.length} users`;
-}
-
 function adminStatusKey(status){
   const value=String(status||"").toLowerCase();
   if(value==="active")return "active";
-  if(value==="revoked"||value==="cancelled")return "cancelled";
+  if(value==="revoked"||value==="cancelled"||value==="archived")return "archived";
+  if(value==="rejected")return "rejected";
+  if(value==="approved")return "approved";
   return "pending";
 }
 function adminStatusLabel(status){
   const key=adminStatusKey(status);
-  return key==="active"?"Active":key==="cancelled"?"Cancelled":"Pending";
+  return key==="active"?"Active":key==="archived"?"Archived":key==="rejected"?"Rejected":key==="approved"?"Approved":"Pending activation";
 }
-function adminCombinedMembers(members=[]){
-  return (members||[]).map(member=>({...member,_source:"backend"}));
+function adminCombinedMembers(members=[]){return (members||[]).map(member=>({...member,_source:"backend"}))}
+function adminPaymentProofForMember(member){
+  const userId=String(member?.user_id||"");
+  const email=adminNormalizedEmail(member?.email);
+  return adminSignupHistoryCache.find(request=>String(request?.status||"").toLowerCase()==="approved"&&request?.payment_proof_url&&(String(request?.invited_user_id||"")===userId||(email&&adminNormalizedEmail(request?.email)===email)))||null;
 }
 function adminMemberRowHtml(m,owner){
   const email=String(m.email||"");
@@ -8629,100 +8588,139 @@ function adminMemberRowHtml(m,owner){
   const statusKey=adminStatusKey(rawStatus);
   const role=String(m.role||"user");
   const memberKey=String(m.user_id||email);
+  const proof=adminPaymentProofForMember(m);
 
-  const editableName=`<input class="admin-inline-field" type="text"
-    value="${esc(name)}"
-    placeholder="Name"
-    data-admin-edit-name="${esc(memberKey)}"
-    data-admin-edit-email="${esc(email)}"
->`;
-
-  const editablePhone=`<input class="admin-inline-field" type="tel"
-    value="${esc(phone)}"
-    placeholder="Phone"
-    inputmode="tel"
-    data-admin-edit-phone="${esc(memberKey)}"
-    data-admin-edit-email="${esc(email)}"
->`;
-
+  const editableName=owner?`<input class="admin-inline-field" type="text" value="${esc(name)}" placeholder="Name" data-admin-edit-name="${esc(memberKey)}" data-admin-edit-email="${esc(email)}"><span class="admin-auto-status" data-admin-autosave-status="${esc(email)}">Saved</span>`:esc(name||"—");
+  const editablePhone=owner?`<input class="admin-inline-field" type="tel" value="${esc(phone)}" placeholder="Phone" inputmode="tel" data-admin-edit-phone="${esc(memberKey)}" data-admin-edit-email="${esc(email)}">`:esc(phone||"—");
   const roleCell=role==="owner"
     ? `<span class="admin-role-readonly">Owner</span>`
     : owner
       ? `<select data-admin-page-role="${esc(m.user_id)}"><option value="user" ${role==="user"?"selected":""}>User</option><option value="admin" ${role==="admin"?"selected":""}>Admin</option></select>`
       : `<span class="admin-role-readonly">${esc(role)}</span>`;
+  const proofCell=proof?`<a class="proof-link" href="${esc(proof.payment_proof_url)}" target="_blank" rel="noopener">View attachment</a>`:"—";
 
   let actions="";
-  if(role!=="owner"){
-    if(statusKey!=="active"){
-      actions+=`<button class="btn small primary" type="button" data-admin-page-action="approve" data-admin-user-id="${esc(m.user_id)}">Approve</button>`;
-    }
-    actions+=`<button class="btn small danger" type="button" data-admin-page-action="remove" data-admin-user-id="${esc(m.user_id)}">Remove</button>`;
-    actions+=`<button class="btn small" type="button" title="Send password reset email" aria-label="Resend email and ask user to reset password" data-admin-page-action="resend" data-admin-user-id="${esc(m.user_id)}">Resend</button>`;
+  if(owner&&role!=="owner"){
+    actions+=`<button class="btn small danger" type="button" data-admin-page-action="archive" data-admin-user-id="${esc(m.user_id)}" ${statusKey==="archived"?'disabled title="Already archived"':""}>Archive</button>`;
+    actions+=`<button class="btn small" type="button" title="Send password reset email" aria-label="Resend password recovery email" data-admin-page-action="resend" data-admin-user-id="${esc(m.user_id)}">Resend</button>`;
   }
 
   return `<tr>
-    <td>${editableName}<span class="admin-auto-status" data-admin-autosave-status="${esc(email)}">Saved</span></td>
+    <td>${editableName}</td>
     <td>${esc(email||"—")}</td>
     <td>${editablePhone}</td>
     <td><span class="admin-status-pill ${statusKey}">${adminStatusLabel(rawStatus)}</span></td>
-    <td>${esc(accessDate(m.activated_at))}</td>
-    <td>${esc(accessDate(m.last_seen_at))}</td>
+    <td>${esc(accessDateOnly(m.activated_at))}</td>
     <td>${roleCell}</td>
+    <td>${proofCell}</td>
     <td class="no-print"><div class="admin-page-actions">${actions||"—"}</div></td>
   </tr>`;
 }
-function renderAdminMembers(members=[],signupRequests=[]){
+function renderAdminDashboardTable(){
   const owner=cloudAccess?.role==="owner";
-  const combined=adminCombinedMembers(members);
-  adminDashboardMembersCache=combined;
-
-  const overlayBody=document.getElementById("adminAccessMembers");
-  if(overlayBody){
-    const memberRows=combined.map(m=>{
-      const status=adminStatusLabel(m.status);
-      return `<tr><td>${esc(m.email||"—")}</td><td><strong>${esc(m.role||"user")}</strong></td><td>${esc(status)}</td><td>${esc(accessDate(m.invited_at))}</td><td>${esc(accessDate(m.activated_at))}</td><td>${esc(accessDate(m.last_seen_at))}</td><td>Use Admin Dashboard</td></tr>`;
-    });
-    const signupRows=(Array.isArray(signupRequests)?signupRequests:[]).filter(request=>request?.payment_proof_url).map(request=>`<tr><td>${esc(request.email||"—")}</td><td><strong>User</strong></td><td>Pending</td><td>${esc(accessDate(request.submitted_at))}</td><td>—</td><td>—</td><td><a class="proof-link" href="${esc(request.payment_proof_url)}" target="_blank" rel="noopener">View attachment</a></td></tr>`);
-    const rows=[...memberRows,...signupRows];
-    overlayBody.innerHTML=rows.length?rows.join(""):'<tr><td colspan="7" class="empty">No access records yet.</td></tr>';
+  const pageBody=document.getElementById("adminPageMembers");
+  if(!pageBody)return;
+  if(!owner){pageBody.innerHTML='<tr><td colspan="8" class="empty">Owner access required.</td></tr>';return}
+  const query=document.getElementById("adminUserSearch")?.value||"";
+  const filtered=adminFilterMembers(adminDashboardMembersCache,query);
+  pageBody.innerHTML=filtered.length
+    ?filtered.map(m=>adminMemberRowHtml(m,true)).join("")
+    :'<tr><td colspan="8" class="admin-empty-filter">No users match your search.</td></tr>';
+  const meta=document.getElementById("adminSearchMeta");
+  if(meta)meta.textContent=query?`${filtered.length} of ${adminDashboardMembersCache.length} users`:`${adminDashboardMembersCache.length} users`;
+}
+function adminEntityStatus(entity){
+  if(entity.member){
+    const key=adminStatusKey(entity.member.status);
+    if(key==="active")return "Active";
+    if(key==="archived")return "Archived";
+    return "Approved";
   }
+  if(entity.signups.some(item=>String(item.status||"").toLowerCase()==="approved"))return "Approved";
+  return "Rejected";
+}
+function adminStatusRank(status){return status==="Active"?5:status==="Archived"?4:status==="Approved"?3:status==="Rejected"?2:1}
+function adminConsolidatedAllUsers(members=[],signupHistory=[]){
+  const entities=new Map();
+  const ensure=key=>{if(!entities.has(key))entities.set(key,{key,member:null,signups:[],name:"",email:"",phone:""});return entities.get(key)};
+  (members||[]).forEach(member=>{
+    const key=`user:${member.user_id||adminNormalizedEmail(member.email)}`;
+    const entity=ensure(key);entity.member=member;entity.name=member.name||entity.name;entity.email=member.email||entity.email;entity.phone=member.phone||entity.phone;
+  });
+  (signupHistory||[]).filter(item=>String(item?.status||"").toLowerCase()!=="pending").forEach(request=>{
+    const key=request.invited_user_id?`user:${request.invited_user_id}`:`signup:${request.id}`;
+    const entity=ensure(key);entity.signups.push(request);entity.name=entity.name||request.name||"";entity.email=entity.email||request.email||"";entity.phone=entity.phone||request.mobile||"";
+  });
+  const list=[...entities.values()];
+  const parent=list.map((_,i)=>i);
+  const find=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i]}return i};
+  const union=(a,b)=>{a=find(a);b=find(b);if(a!==b)parent[b]=a};
+  [
+    ["name",adminNormalizedName],["email",adminNormalizedEmail],["phone",adminNormalizedPhone]
+  ].forEach(([field,normalizer])=>{
+    const seen=new Map();
+    list.forEach((entity,index)=>{const value=normalizer(entity[field]);if(!value)return;if(seen.has(value))union(index,seen.get(value));else seen.set(value,index)});
+  });
+  const groups=new Map();
+  list.forEach((entity,index)=>{const root=find(index);if(!groups.has(root))groups.set(root,[]);groups.get(root).push(entity)});
+  const rows=[];
+  groups.forEach(group=>{
+    const duplicateFields=[];
+    [["name",adminNormalizedName],["email",adminNormalizedEmail],["phone",adminNormalizedPhone]].forEach(([field,normalizer])=>{
+      const counts=new Map();group.forEach(entity=>{const value=normalizer(entity[field]);if(value)counts.set(value,(counts.get(value)||0)+1)});if([...counts.values()].some(count=>count>1))duplicateFields.push(field);
+    });
+    const ranked=[...group].sort((a,b)=>adminStatusRank(adminEntityStatus(b))-adminStatusRank(adminEntityStatus(a))||Number(!!b.member)-Number(!!a.member));
+    const primary=ranked[0]||{};
+    const row={name:primary.name||"",email:primary.email||"",phone:primary.phone||"",status:adminEntityStatus(primary),duplicateFields};
+    ranked.slice(1).forEach(entity=>{row.name=row.name||entity.name||"";row.email=row.email||entity.email||"";row.phone=row.phone||entity.phone||""});
+    rows.push(row);
+  });
+  return rows.sort((a,b)=>(a.name||a.email||"").localeCompare(b.name||b.email||""));
+}
+function adminDuplicateLabel(fields=[]){
+  const labels=fields.map(field=>field==="phone"?"phone":field);
+  if(!labels.length)return "";
+  if(labels.length===1)return `Duplicate ${labels[0]}`;
+  if(labels.length===2)return `Duplicate ${labels[0]} and ${labels[1]}`;
+  return `Duplicate ${labels[0]}, ${labels[1]} and ${labels[2]}`;
+}
+function renderAdminAllUsers(){
+  const body=document.getElementById("adminAllUsers");if(!body)return;
+  if(cloudAccess?.role!=="owner"){body.innerHTML='<tr><td colspan="4" class="empty">Owner access required.</td></tr>';return}
+  const rows=adminConsolidatedAllUsers(adminDashboardMembersCache,adminSignupHistoryCache);
+  body.innerHTML=rows.length?rows.map(row=>`<tr><td><strong>${esc(row.name||"—")}</strong>${row.duplicateFields.length?`<small class="admin-duplicate-note">${esc(adminDuplicateLabel(row.duplicateFields))}</small>`:""}</td><td>${esc(row.email||"—")}</td><td>${esc(row.phone||"—")}</td><td>${esc(row.status)}</td></tr>`).join(""):'<tr><td colspan="4" class="empty">No account history yet.</td></tr>';
+}
+function renderAdminMembers(members=[],signupRequests=[],signupHistory=[]){
+  const owner=cloudAccess?.role==="owner";
+  adminDashboardMembersCache=owner?adminCombinedMembers(members):[];
+  adminSignupHistoryCache=owner&&Array.isArray(signupHistory)?signupHistory:[];
+  document.querySelectorAll("#admin .admin-owner-only").forEach(element=>element.classList.toggle("hidden",!owner));
 
-  const counts={active:0,pending:0,cancelled:0};
-  combined.forEach(m=>counts[adminStatusKey(m.status)]++);
-  const total=document.getElementById("adminCountTotal");
-  const a=document.getElementById("adminCountActive"),p=document.getElementById("adminCountPending"),c=document.getElementById("adminCountCancelled");
-  if(total)total.textContent=combined.length;
-  if(a)a.textContent=counts.active;
-  if(p)p.textContent=counts.pending;
-  if(c)c.textContent=counts.cancelled;
+  const active=adminDashboardMembersCache.filter(m=>adminStatusKey(m.status)==="active").length;
+  const archived=adminDashboardMembersCache.filter(m=>adminStatusKey(m.status)==="archived").length;
+  const total=document.getElementById("adminCountTotal"),a=document.getElementById("adminCountActive"),p=document.getElementById("adminCountPending"),r=document.getElementById("adminCountArchived");
+  if(total)total.textContent=String(adminDashboardMembersCache.length);
+  if(a)a.textContent=String(active);
+  if(p)p.textContent=String(Array.isArray(signupRequests)?signupRequests.length:0);
+  if(r)r.textContent=String(archived);
 
   const note=document.getElementById("adminPageRoleNote");
-  if(note)note.textContent=owner
-    ?"Owner Dashboard · manage Users/Admins, roles and access"
-    :"Admin Dashboard · manage Users; roles are read-only";
-
-  const inviteRole=document.getElementById("adminPageInviteRole");
-  if(inviteRole){
-    if(!owner)inviteRole.value="user";
-    inviteRole.disabled=!owner;
-  }
-
-  renderAdminDashboardTable();
+  if(note)note.textContent=owner?"Owner Dashboard · full account and access management":"Admin Dashboard · Pending sign-up review only";
+  renderAdminSignupRequests(signupRequests||[]);
+  if(owner){renderAdminDashboardTable();renderAdminAllUsers()}
 }
 async function loadAdminAccess(){
   if(!cloudAccess||!["owner","admin"].includes(cloudAccess.role))return;
-  const overlayBody=document.getElementById("adminAccessMembers"),pageBody=document.getElementById("adminPageMembers"),signupBody=document.getElementById("adminSignupRequests");
-  if(overlayBody)overlayBody.innerHTML='<tr><td colspan="7" class="empty">Loading…</td></tr>';
-  if(pageBody)pageBody.innerHTML='<tr><td colspan="8" class="empty">Loading…</td></tr>';
+  const pageBody=document.getElementById("adminPageMembers"),signupBody=document.getElementById("adminSignupRequests"),allBody=document.getElementById("adminAllUsers");
+  if(pageBody&&cloudAccess.role==="owner")pageBody.innerHTML='<tr><td colspan="8" class="empty">Loading…</td></tr>';
   if(signupBody)signupBody.innerHTML='<tr><td colspan="6" class="empty">Loading…</td></tr>';
+  if(allBody&&cloudAccess.role==="owner")allBody.innerHTML='<tr><td colspan="4" class="empty">Loading…</td></tr>';
   try{
     const data=await adminAccessApi("list");
-    renderAdminMembers(data.members||[],data.signup_requests||[]);
-    renderAdminSignupRequests(data.signup_requests||[]);
+    renderAdminMembers(data.members||[],data.signup_requests||[],data.signup_history||[]);
     setAdminPageFeedback("");
   }catch(error){
-    renderAdminMembers([]);renderAdminSignupRequests([]);
-    setAdminFeedback(error?.message||"Unable to load access records.","error");
+    renderAdminMembers([],[],[]);
     setAdminPageFeedback(error?.message||"Unable to load backend access records.","error");
   }
 }
@@ -8736,13 +8734,13 @@ function setAdminPageFeedback(message,type="info"){
   if(target){target.textContent=message;target.classList.remove("hidden")}
 }
 async function sendAdminPageInvite(){
-  if(!cloudAccess||!["owner","admin"].includes(cloudAccess.role))return;
+  if(cloudAccess?.role!=="owner"){setAdminPageFeedback("Only the Owner can add users or send access.","error");return}
 
   const name=String(document.getElementById("adminPageInviteName")?.value||"").trim();
   const email=String(document.getElementById("adminPageInviteEmail")?.value||"").trim().toLowerCase();
   const phone=String(document.getElementById("adminPageInvitePhone")?.value||"").trim();
   const select=document.getElementById("adminPageInviteRole");
-  const role=cloudAccess.role==="owner"?String(select?.value||"user"):"user";
+  const role=String(select?.value||"user");
 
   if(!name){setAdminPageFeedback("Enter the user's name.","error");return}
   if(!email){setAdminPageFeedback("Enter an email address.","error");return}
@@ -8761,7 +8759,7 @@ async function sendAdminPageInvite(){
       const input=document.getElementById(id);
       if(input)input.value="";
     });
-    if(select&&cloudAccess.role==="owner")select.value="user";
+    if(select)select.value="user";
 
     await loadAdminAccess();
   }catch(error){
@@ -8772,6 +8770,7 @@ async function sendAdminPageInvite(){
 }
 
 async function autosaveAdminInlineContact(field){
+  if(cloudAccess?.role!=="owner")return;
   const row=field?.closest?.("tr");if(!row)return;
   const memberKey=String(field?.dataset?.adminEditName||field?.dataset?.adminEditPhone||"");
   const email=String(field?.dataset?.adminEditEmail||"").trim().toLowerCase();if(!email||!memberKey)return;
@@ -8787,6 +8786,7 @@ async function autosaveAdminInlineContact(field){
 
 
 async function sendAdminPasswordResetEmail(userId){
+  if(cloudAccess?.role!=="owner")throw new Error("Only the Owner can resend password recovery for Users.");
   const member=adminDashboardMembersCache.find(item=>String(item.user_id||"")===String(userId||""));
   const email=String(member?.email||"").trim().toLowerCase();
   if(!email)throw new Error("Unable to identify the user's email address.");
@@ -8797,6 +8797,9 @@ async function sendAdminPasswordResetEmail(userId){
 }
 
 async function adminPageAction(action,userId,button){
+  if(cloudAccess?.role!=="owner"){setAdminPageFeedback("Only the Owner can action Users.","error");return}
+  if(!["archive","resend"].includes(action))return;
+  if(action==="archive"&&!confirm("Archive this user? They will be signed out and lose planner access immediately."))return;
   if(button)button.disabled=true;
   try{
     if(action==="resend"){
@@ -8804,36 +8807,29 @@ async function adminPageAction(action,userId,button){
       setAdminPageFeedback(`Password reset email sent to ${email}. The user will be asked to create a new password.`);
       return;
     }
-    const backendAction=action==="approve"?"restore":"revoke";
-    await adminAccessApi(backendAction,{user_id:userId});
-    setAdminPageFeedback(action==="approve"?"User approved.":"User access removed.");
+    await adminAccessApi("revoke",{user_id:userId});
+    setAdminPageFeedback("User archived. Planner access has been revoked and active sessions were signed out.");
     await loadAdminAccess();
   }catch(error){
     setAdminPageFeedback(error?.message||"Unable to update the user.","error");
   }finally{if(button)button.disabled=false}
 }
 
-async function openAdminAccess(){
-  if(!cloudAccess||!["owner","admin"].includes(cloudAccess.role))return;
-  const select=document.getElementById("adminInviteRole");if(select){select.value="user";select.disabled=cloudAccess.role!=="owner"}
-  const subtitle=document.getElementById("adminAccessSubtitle");if(subtitle)subtitle.textContent=cloudAccess.role==="owner"?"Owner access: invite users or admins, change roles, revoke and restore access.":"Admin access: invite and manage users.";
-  setAdminFeedback("");document.getElementById("adminAccessOverlay")?.classList.remove("hidden");await loadAdminAccess();
+function plannerFirstName(value){return String(value||"").trim().replace(/\s+/g," ").split(" ")[0]||""}
+function renderPlannerHeader(){
+  const title=document.getElementById("plannerMainTitle");if(!title)return;
+  const profileName=typeof state!=="undefined"?state?.profile?.name:"";
+  const firstName=plannerFirstName(cloudAccess?.name||profileName||"");
+  title.textContent=firstName?`Peptide Planner - ${firstName}`:"Peptide Planner";
 }
-async function sendAdminInvite(){
-  const email=String(document.getElementById("adminInviteEmail")?.value||"").trim();const role=String(document.getElementById("adminInviteRole")?.value||"user");
-  if(!email){setAdminFeedback("Enter an email address.","error");return}
-  const button=document.getElementById("adminInviteSend");if(button)button.disabled=true;
-  try{const result=await adminAccessApi("invite",{email,role});setAdminFeedback(result.emailSent?`Sign-up invitation sent to ${result.email}. The user must create a password to activate access.`:`Access is active for ${result.email}.`);const input=document.getElementById("adminInviteEmail");if(input)input.value="";await loadAdminAccess()}
-  catch(error){setAdminFeedback(error?.message||"Unable to send access.","error")}
-  finally{if(button)button.disabled=false}
-}
-
 function renderCloudAccount(){
   const email=document.getElementById("cloudAccountEmail"),signIn=document.getElementById("cloudSignIn"),signUp=document.getElementById("cloudSignUp"),signOut=document.getElementById("cloudSignOut"),sync=document.getElementById("cloudSyncNow"),admin=document.getElementById("cloudAdminOpen"),roleBadge=document.getElementById("cloudRoleBadge");
   if(email)email.textContent=cloudUser?.email||"Not signed in";
+  renderPlannerHeader();
   const active=!!(cloudUser&&cloudAccess?.status==="active");
   signIn?.classList.toggle("hidden",!!cloudUser);signUp?.classList.add("hidden");signOut?.classList.toggle("hidden",!cloudUser);sync?.classList.toggle("hidden",!active);
   const canAdmin=active&&["owner","admin"].includes(cloudAccess?.role);admin?.classList.toggle("hidden",!canAdmin);document.getElementById("adminTabButton")?.classList.toggle("hidden",!canAdmin);
+  const owner=active&&cloudAccess?.role==="owner";document.querySelectorAll("#admin .admin-owner-only").forEach(element=>element.classList.toggle("hidden",!owner));
   if(roleBadge){roleBadge.textContent=active?cloudAccess.role:"";roleBadge.classList.toggle("hidden",!active)}
   if(!active)setCloudSyncStatus(cloudClient?(cloudUser?"Access locked":"Sign in required"):"Cloud unavailable",cloudClient?"":"error");
 }
@@ -8967,11 +8963,12 @@ async function initCloudServices(){
   if(cloudInitialised)return;cloudInitialised=true;
   try{if(window.supabase?.createClient)cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}catch(error){console.error("Supabase client failed to initialise",error)}
   const pendingSignup=signupPreviewRecord();if(pendingSignup?.status==="pending")plannerAccessMode="signup";renderCloudAccount();setPlannerLocked(true);renderPlannerAccessGate();
-  document.getElementById("cloudSignIn")?.addEventListener("click",()=>showCloudAuth("signin"));document.getElementById("cloudSignUp")?.addEventListener("click",()=>showCloudAuth("signup"));document.getElementById("cloudSignOut")?.addEventListener("click",signOutCloud);document.getElementById("cloudSyncNow")?.addEventListener("click",()=>reconcileCloudState());document.getElementById("cloudAdminOpen")?.addEventListener("click",openAdminAccess);document.getElementById("cloudAuthClose")?.addEventListener("click",hideCloudAuth);document.getElementById("cloudAuthSwitch")?.addEventListener("click",()=>showCloudAuth(cloudAuthMode==="signin"?"signup":"signin"));document.getElementById("cloudForgotPassword")?.addEventListener("click",()=>showCloudAuth("reset"));document.getElementById("cloudAuthSubmit")?.addEventListener("click",submitCloudAuth);document.getElementById("cloudAuthPassword")?.addEventListener("keydown",event=>{if(event.key==="Enter")submitCloudAuth()});document.getElementById("cloudAuthConfirmPassword")?.addEventListener("keydown",event=>{if(event.key==="Enter")submitCloudAuth()});document.getElementById("cloudAuthEmail")?.addEventListener("keydown",event=>{if(event.key==="Enter"&&cloudAuthMode==="reset")submitCloudAuth()});document.getElementById("cloudAuthOverlay")?.addEventListener("click",event=>{if(event.target?.id==="cloudAuthOverlay"&&cloudAuthMode!=="recovery")hideCloudAuth()});
+  document.getElementById("cloudSignIn")?.addEventListener("click",()=>showCloudAuth("signin"));document.getElementById("cloudSignUp")?.addEventListener("click",()=>showCloudAuth("signup"));document.getElementById("cloudSignOut")?.addEventListener("click",signOutCloud);document.getElementById("cloudSyncNow")?.addEventListener("click",()=>reconcileCloudState());document.getElementById("cloudAdminOpen")?.addEventListener("click",()=>activateTab("admin"));document.getElementById("cloudAuthClose")?.addEventListener("click",hideCloudAuth);document.getElementById("cloudAuthSwitch")?.addEventListener("click",()=>showCloudAuth(cloudAuthMode==="signin"?"signup":"signin"));document.getElementById("cloudForgotPassword")?.addEventListener("click",()=>showCloudAuth("reset"));document.getElementById("cloudAuthSubmit")?.addEventListener("click",submitCloudAuth);document.getElementById("cloudAuthPassword")?.addEventListener("keydown",event=>{if(event.key==="Enter")submitCloudAuth()});document.getElementById("cloudAuthConfirmPassword")?.addEventListener("keydown",event=>{if(event.key==="Enter")submitCloudAuth()});document.getElementById("cloudAuthEmail")?.addEventListener("keydown",event=>{if(event.key==="Enter"&&cloudAuthMode==="reset")submitCloudAuth()});document.getElementById("cloudAuthOverlay")?.addEventListener("click",event=>{if(event.target?.id==="cloudAuthOverlay"&&cloudAuthMode!=="recovery")hideCloudAuth()});
   
   document.getElementById("plannerAccessTabSignIn")?.addEventListener("click",()=>setPlannerAccessMode("signin"));
   document.getElementById("plannerAccessTabSignUp")?.addEventListener("click",()=>setPlannerAccessMode("signup"));
   document.getElementById("plannerSignupPay")?.addEventListener("click",plannerSignupContinueToPayment);
+  document.getElementById("plannerSignupDuplicateReset")?.addEventListener("click",plannerSignupResetPassword);
   document.getElementById("plannerSignupCancel")?.addEventListener("click",plannerSignupAskCancel);
   document.getElementById("plannerSignupPaymentCancel")?.addEventListener("click",()=>document.getElementById("plannerSignupPaymentCancelConfirm")?.classList.remove("hidden"));
   document.getElementById("plannerSignupCancelYes")?.addEventListener("click",plannerSignupCancelConfirmed);
@@ -9005,20 +9002,10 @@ async function initCloudServices(){
     adminPageAction(button.dataset.adminPageAction,button.dataset.adminUserId,button);
   });
   document.getElementById("adminSignupRequests")?.addEventListener("click",event=>{
-    const removeButton=event.target?.closest?.("[data-signup-proof-remove]");
-    if(removeButton){removeAdminSignupProof(removeButton.dataset.signupRequestId,removeButton);return}
-    const proofButton=event.target?.closest?.("[data-signup-proof-upload]");
-    if(proofButton){chooseAdminSignupProof(proofButton.dataset.signupRequestId);return}
     const button=event.target?.closest?.("[data-signup-request-action]");if(!button)return;
     adminSignupRequestAction(button.dataset.signupRequestAction,button.dataset.signupRequestId,button);
   });
-  document.getElementById("adminSignupProofFile")?.addEventListener("change",event=>{
-    const file=event.target?.files?.[0]||null;
-    const requestId=adminSignupProofRequestId;
-    adminSignupProofRequestId="";
-    if(file&&requestId)uploadAdminSignupProof(requestId,file);
-    event.target.value="";
-  });
+
   
   
 
@@ -9052,9 +9039,7 @@ async function initCloudServices(){
     }finally{select.disabled=false}
   });
 
-  document.getElementById("adminAccessClose")?.addEventListener("click",()=>document.getElementById("adminAccessOverlay")?.classList.add("hidden"));document.getElementById("adminAccessRefresh")?.addEventListener("click",loadAdminAccess);document.getElementById("adminInviteSend")?.addEventListener("click",sendAdminInvite);document.getElementById("adminInviteEmail")?.addEventListener("keydown",event=>{if(event.key==="Enter")sendAdminInvite()});document.getElementById("adminAccessOverlay")?.addEventListener("click",event=>{if(event.target?.id==="adminAccessOverlay")document.getElementById("adminAccessOverlay")?.classList.add("hidden")});
-  document.getElementById("adminAccessMembers")?.addEventListener("click",async event=>{const button=event.target?.closest?.("[data-admin-action]");if(!button)return;const action=button.dataset.adminAction,user_id=button.dataset.userId;if(!action||!user_id)return;button.disabled=true;try{await adminAccessApi(action,{user_id});setAdminFeedback(action==="revoke"?"Access revoked.":action==="restore"?"Access restored.":"Access email sent.");await loadAdminAccess()}catch(error){setAdminFeedback(error?.message||"Unable to update access.","error")}finally{button.disabled=false}});
-  document.getElementById("adminAccessMembers")?.addEventListener("change",async event=>{const select=event.target?.closest?.("[data-admin-role]");if(!select)return;const user_id=select.dataset.adminRole,role=select.value;select.disabled=true;try{await adminAccessApi("set_role",{user_id,role});setAdminFeedback("Role updated.");await loadAdminAccess()}catch(error){setAdminFeedback(error?.message||"Unable to update role.","error");await loadAdminAccess()}finally{select.disabled=false}});
+
   if(!cloudClient){setPlannerAccessFeedback("Cloud service is unavailable. The planner remains locked.","error");return}
   try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();await verifyPlannerAccess({silent:true})}catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
   cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const nextUser=session?.user||null;if(event==="SIGNED_OUT"){cloudUser=null;cloudAccess=null;setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return}cloudUser=nextUser;renderCloudAccount();if(event==="PASSWORD_RECOVERY"){const allowed=await verifyPlannerAccess();if(allowed)showCloudAuth("recovery");return}if(nextUser){await verifyPlannerAccess({silent:true})}},0)});
@@ -9875,8 +9860,8 @@ function renderTodayInjections(){
           ? `<div class="today-injection-site ${item.rotationRoute}">${item.rotationRoute==="subq"?"SubQ":"IM"} rotation · ${esc(item.rotationSite)}</div>`
           :"";
         return `<div class="today-injection-item ${item.completed?"completed":""}" style="--plan-color:${planMeta(item.plan).color}">
-          <div class="today-injection-title">${esc(cycleStackName(item.plan))} - ${esc(time)}</div>
-          <div class="today-injection-meta">${esc(units)} · ${esc(routeText)}</div>
+          <div class="today-injection-title">${esc(time)} | ${esc(cycleStackName(item.plan))} | ${esc(units)}</div>
+          <div class="today-injection-meta">${esc(item.rotationSite||"Rotation not available")} | ${esc(routeText)}</div>
           <div class="today-injection-time">${esc(time)}</div>
           <div class="today-injection-main">
             <strong><span class="dot" style="background:${planMeta(item.plan).color}"></span>${esc(cycleStackName(item.plan))}</strong>
@@ -10992,7 +10977,7 @@ function renderContinuousDoseSchedule(plan){
             <td><input type="number" min="1" step="1" data-simple-phase="${i}" data-simple-phase-field="endWeek" value="${esc(ph.endWeek)}" placeholder="Ongoing"></td>
             <td class="phase-interval-col"><input type="number" min="1" step="1" data-simple-phase="${i}" data-simple-phase-field="intervalDays" value="${esc(phaseInterval??"")}" ${phaseDays.length?'disabled':''}></td>
             <td><input type="number" min="0" step="0.001" data-simple-phase="${i}" data-simple-phase-field="doseMg" value="${esc(ph.doseMg)}"></td>
-            <td><input type="number" min="0" step="0.01" data-simple-phase-units="${i}" value="${esc(totalUnits??"")}" aria-label="Total units">${doseSourceIndicatorHtml(plan,ph)}</td>
+            <td><input type="number" min="0" step="0.01" data-simple-phase-units="${i}" value="${esc(totalUnits??"")}" aria-label="Total units"></td>
             <td><div class="phase-weekdays">${WEEKDAYS.map((d,day)=>`<label class="weekday-check"><span>${d}</span><input type="checkbox" data-simple-phase-weekday="${i}" data-phase-weekday-day="${day}" ${phaseDays.includes(day)?"checked":""}></label>`).join("")}</div></td>
             <td><div class="split-dose-control"><label><input type="checkbox" data-simple-phase-split="${i}" ${ph.splitDose?"checked":""}>Split</label><span class="split-dose-parts">into <input type="number" min="2" max="10" step="1" data-simple-phase-split-parts="${i}" value="${esc(ph.splitParts||2)}" ${ph.splitDose?"":"disabled"}> parts</span>${ph.splitDose?`<div class="split-dose-times split-dose-schedule-grid"><div class="split-dose-schedule-head">Time</div><div class="split-dose-schedule-head">Split units</div>${Array.from({length:parts},(_,partIndex)=>`<input type="time" data-simple-phase-split-time="${i}" data-split-time-index="${partIndex}" aria-label="Split ${partIndex+1} time" value="${esc(splitTimes[partIndex]||(partIndex===0?plan.injectionTime:"")||"")}"><input type="number" min="0" step="0.01" data-simple-phase-split-unit="${i}" data-split-unit-index="${partIndex}" aria-label="Split ${partIndex+1} units" value="${esc(splitUnits[partIndex]??"")}">`).join("")}</div>`:""}</div></td>
             <td class="no-print"><button class="btn small danger" type="button" data-simple-remove-phase="${i}" ${phases.length<=1?'disabled':''}>Remove</button></td>
@@ -11008,7 +10993,7 @@ function renderCycleDoseRows(plan,config,sequence){
   const phases=(Array.isArray(config.phases)&&config.phases.length)?config.phases:[{startWeek:1,endWeek:Math.max(1,Number(config.activeWeeks)||1),doseMg:"",splitDose:false,splitParts:2,splitTimes:["",""]}];
   return phases.map((ph,i)=>{
     const parts=simplePhaseSplitParts(ph),splitTimes=Array.isArray(ph.splitTimes)?ph.splitTimes:[],splitUnits=phaseSplitUnitValues(plan,ph),phaseDays=(Array.isArray(ph.weekdays)?ph.weekdays:[]).map(Number),phaseInterval=phaseDays.length?null:(enteredPlanNumber(ph.intervalDays)??(config.scheduleMode==="interval"?enteredPlanNumber(config.intervalDays):null)),totalUnits=phaseResolvedUnits(plan,ph);
-    return `<tr><td><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="startWeek" value="${esc(ph.startWeek)}"></td><td><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="endWeek" value="${esc(ph.endWeek)}"></td><td class="phase-interval-col"><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="intervalDays" value="${esc(phaseInterval??"")}" ${phaseDays.length?'disabled aria-label="Manual weekday selection active"':''}></td><td><input type="number" min="0" step="0.001" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="doseMg" value="${esc(ph.doseMg??"")}"></td><td><input type="number" min="0" step="0.01" data-cycle-phase-units="${sequence}" data-cycle-phase-index="${i}" value="${esc(totalUnits??"")}" aria-label="Total units">${doseSourceIndicatorHtml(plan,ph)}</td><td><div class="phase-weekdays">${WEEKDAYS.map((d,day)=>`<label class="weekday-check"><span>${d}</span><input type="checkbox" data-cycle-phase-weekday="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-weekday-day="${day}" ${phaseDays.includes(day)?"checked":""}></label>`).join("")}</div></td><td><div class="split-dose-control"><label><input type="checkbox" data-cycle-phase-split="${sequence}" data-cycle-phase-index="${i}" ${ph.splitDose?"checked":""}>Split</label><span class="split-dose-parts">into <input type="number" min="2" max="10" step="1" data-cycle-phase-split-parts="${sequence}" data-cycle-phase-index="${i}" value="${esc(ph.splitParts||2)}" ${ph.splitDose?"":"disabled"}> parts</span>${ph.splitDose?`<div class="split-dose-times split-dose-schedule-grid"><div class="split-dose-schedule-head">Time</div><div class="split-dose-schedule-head">Split units</div>${Array.from({length:parts},(_,partIndex)=>`<input type="time" data-cycle-phase-split-time="${sequence}" data-cycle-phase-index="${i}" data-cycle-split-time-index="${partIndex}" aria-label="Split ${partIndex+1} time" value="${esc(splitTimes[partIndex]||(partIndex===0?config.injectionTime||"":"")||"")}"><input type="number" min="0" step="0.01" data-cycle-phase-split-unit="${sequence}" data-cycle-phase-index="${i}" data-cycle-split-unit-index="${partIndex}" aria-label="Split ${partIndex+1} units" value="${esc(splitUnits[partIndex]??"")}">`).join("")}</div>`:""}</div></td><td class="no-print"><button class="btn small danger" type="button" data-cycle-remove-phase="${sequence}" data-cycle-phase-index="${i}" ${phases.length<=1?'disabled':''}>Remove</button></td></tr>`;
+    return `<tr><td><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="startWeek" value="${esc(ph.startWeek)}"></td><td><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="endWeek" value="${esc(ph.endWeek)}"></td><td class="phase-interval-col"><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="intervalDays" value="${esc(phaseInterval??"")}" ${phaseDays.length?'disabled aria-label="Manual weekday selection active"':''}></td><td><input type="number" min="0" step="0.001" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="doseMg" value="${esc(ph.doseMg??"")}"></td><td><input type="number" min="0" step="0.01" data-cycle-phase-units="${sequence}" data-cycle-phase-index="${i}" value="${esc(totalUnits??"")}" aria-label="Total units"></td><td><div class="phase-weekdays">${WEEKDAYS.map((d,day)=>`<label class="weekday-check"><span>${d}</span><input type="checkbox" data-cycle-phase-weekday="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-weekday-day="${day}" ${phaseDays.includes(day)?"checked":""}></label>`).join("")}</div></td><td><div class="split-dose-control"><label><input type="checkbox" data-cycle-phase-split="${sequence}" data-cycle-phase-index="${i}" ${ph.splitDose?"checked":""}>Split</label><span class="split-dose-parts">into <input type="number" min="2" max="10" step="1" data-cycle-phase-split-parts="${sequence}" data-cycle-phase-index="${i}" value="${esc(ph.splitParts||2)}" ${ph.splitDose?"":"disabled"}> parts</span>${ph.splitDose?`<div class="split-dose-times split-dose-schedule-grid"><div class="split-dose-schedule-head">Time</div><div class="split-dose-schedule-head">Split units</div>${Array.from({length:parts},(_,partIndex)=>`<input type="time" data-cycle-phase-split-time="${sequence}" data-cycle-phase-index="${i}" data-cycle-split-time-index="${partIndex}" aria-label="Split ${partIndex+1} time" value="${esc(splitTimes[partIndex]||(partIndex===0?config.injectionTime||"":"")||"")}"><input type="number" min="0" step="0.01" data-cycle-phase-split-unit="${sequence}" data-cycle-phase-index="${i}" data-cycle-split-unit-index="${partIndex}" aria-label="Split ${partIndex+1} units" value="${esc(splitUnits[partIndex]??"")}">`).join("")}</div>`:""}</div></td><td class="no-print"><button class="btn small danger" type="button" data-cycle-remove-phase="${sequence}" data-cycle-phase-index="${i}" ${phases.length<=1?'disabled':''}>Remove</button></td></tr>`;
   }).join("");
 }
 
@@ -11159,7 +11144,7 @@ function renderSimplePlanner(){
              ${renderContinuousDoseSchedule(plan)}
            </div>`
         : renderPlanCyclePanels(plan)}
-      <div class="review-verify-block"><div class="setup-section-title review-title"><span>✓</span><div><strong>Review &amp; verify</strong><small>Confirm the treatment details before allowing the schedule to populate Today.</small></div></div><label class="confirmation"><input type="checkbox" data-simple-field="confirmed" ${plan.confirmed?"checked":""}><div>I verified the actual product, route, dose, strength, final volume, schedule, syringe/device and storage/use-discard instructions with my prescriber/pharmacist.</div></label>${!verification.valid?`<div class="alert warn"><strong>Verification incomplete.</strong> Complete the following before this treatment can populate Today:<ul class="verification-missing-list">${verification.missing.map(item=>`<li>${esc(item)}</li>`).join("")}</ul></div>`:""}</div>
+      <div class="review-verify-block"><div class="setup-section-title review-title"><span>✓</span><div><strong>Review &amp; verify</strong><small>Confirm the treatment details before allowing the schedule to populate Today.</small></div></div><label class="confirmation"><input type="checkbox" data-simple-field="confirmed" ${plan.confirmed?"checked":""}><div>I verified the actual product, route, dose, strength, final volume, schedule, syringe/device and storage/use-discard instructions with my prescriber/pharmacist.</div></label></div>
       <div class="simple-plan-actions no-print">${!plan.custom?`<button class="btn" type="button" data-simple-open-kb>View Knowledge Base record</button>`:""}<button class="btn danger" type="button" data-simple-remove>Remove from Treatments</button></div>
       ${plan.enabled&&!plan.confirmed?`<div class="alert warn">This plan is enabled but not confirmed. It will not populate Today until the verification box is checked.</div>`:""}
       <div class="alert ${status.status==="break"?"warn":"info"}">${esc(status.detail)}</div>
@@ -12645,6 +12630,7 @@ function routeInitialPlannerExperience(){
 }
 function renderAll({preserveView=true}={}){
   const view=preserveView?captureRenderView():null;
+  renderPlannerHeader();
   reconcileAllPlanStartDates();
   syncProfile();
   renderDashboard();
