@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.010</title>
+<title>Peptide Planner v2026.0209.011</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -3423,14 +3423,16 @@ body.onboarding-dialog-open{overflow:hidden!important}
 }
 #planner .simple-plan-body{padding:16px}
 #planner .simple-plan-summary{
-  display:grid;
-  gap:8px;
+  display:block!important;
   margin:11px 0
 }
 #planner .simple-plan-summary-row{
   display:grid;
   gap:8px;
   min-width:0
+}
+#planner .simple-plan-summary-row + .simple-plan-summary-row{
+  margin-top:8px
 }
 #planner .simple-plan-summary-row-primary{
   grid-template-columns:repeat(4,minmax(0,1fr))
@@ -3810,16 +3812,17 @@ body.onboarding-dialog-open{overflow:hidden!important}
 /* Responsive behavior mirrors the reference My Plan proportions
    instead of changing the treatment structure. */
 @media(max-width:1050px){
-  #planner .simple-plan-summary{grid-template-columns:1fr}
+  #planner .simple-plan-summary{display:block!important}
   #planner .simple-plan-summary-row-primary{grid-template-columns:repeat(2,minmax(0,1fr))}
   #planner .simple-plan-summary-row-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:640px){
-  #planner .simple-plan-summary{grid-template-columns:1fr}
-  #planner .simple-plan-summary-row-primary,
-  #planner .simple-plan-summary-row-metrics,
+  #planner .simple-plan-summary{display:block!important}
+  #planner .simple-plan-summary-row-primary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #planner .simple-plan-summary-row-metrics{grid-template-columns:repeat(6,minmax(0,1fr))}
+  #planner .simple-plan-summary-row-metrics > .simple-mini:nth-child(-n+2){grid-column:span 3}
+  #planner .simple-plan-summary-row-metrics > .simple-mini:nth-child(n+3){grid-column:span 2}
   #planner .simple-plan-summary-row-extra{grid-template-columns:repeat(2,minmax(0,1fr))}
-  #planner .simple-plan-summary-row-metrics > .simple-mini:last-child{grid-column:1/-1}
   #planner .peptide-settings-body{
     padding:9px
   }
@@ -6209,7 +6212,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.010";
+const APP_VERSION="v2026.0209.011";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11395,6 +11398,9 @@ function renderSimplePlanner(){
     const verification=planVerificationCompleteness(plan);
     const enabledReady=plan.enabled&&planReadyForToday(plan);
     const cycleWindow=currentCycleWindow(plan),cycleUsage=cycleVialUsage(plan,cycleWindow.valid&&!cycleWindow.ongoing?cycleWindow.number:1),vialPerCycle=currentVialPerCycle(plan,cycleUsage,new Date());
+    const initialCyclePeriod=plan.noCycle?null:protocolPeriodForSequence(plan,1);
+    const initialCycleStart=plan.noCycle?(plan.startDate?fmtDate(plan.startDate):"Not set"):(initialCyclePeriod?.valid?fmtDate(initialCyclePeriod.start):(plan.startDate?fmtDate(plan.startDate):"Not set"));
+    const initialCycleEnd=plan.noCycle?(plan.endDate?fmtDate(plan.endDate):"Ongoing"):(initialCyclePeriod?.valid?fmtDate(initialCyclePeriod.activeEnd):"—");
     const annualCycleCount=currentAnnualCycleCount(plan,new Date());
     const fullCycleEnd=calculatedFullCycleEndDate(plan);
     const kbCategory=String(plan.category||kbReferenceRowValue(plan,"Category")||"").trim();
@@ -11410,8 +11416,8 @@ function renderSimplePlanner(){
         </div>
         <div class="simple-plan-summary">
           <div class="simple-plan-summary-row simple-plan-summary-row-primary">
-            <div class="simple-mini"><span>${cycleWindow.valid&&!cycleWindow.ongoing?(cycleWindow.number>1?`Cycle ${cycleWindow.number} start`:"Starting Phase start"):"Start"}</span><strong>${cycleWindow.valid?fmtDate(cycleWindow.start):(plan.startDate?fmtDate(plan.startDate):"Not set")}</strong></div>
-            <div class="simple-mini"><span>${cycleWindow.valid&&!cycleWindow.ongoing?(cycleWindow.number>1?`Cycle ${cycleWindow.number} treatment end`:"Starting Phase treatment end"):"End"}</span><strong>${cycleWindow.valid?(cycleWindow.ongoing?(cycleWindow.end?fmtDate(cycleWindow.end):"Ongoing"):fmtDate(cycleWindow.activeEnd)):"—"}</strong></div>
+            <div class="simple-mini"><span>Initial Cycle Start</span><strong>${initialCycleStart}</strong></div>
+            <div class="simple-mini"><span>Initial Cycle End</span><strong>${initialCycleEnd}</strong></div>
             <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
             <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
           </div>
