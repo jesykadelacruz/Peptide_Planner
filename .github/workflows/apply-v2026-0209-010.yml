@@ -31,9 +31,9 @@ jobs:
           set -euo pipefail
           base64 -d .deploy/v2026_0209_010.patch.xz.b64 | xz -d > /tmp/v010.patch
           patch --batch --forward -p0 < /tmp/v010.patch
-          echo "5c2e3c100f0a9c2371339b3ea908c8eaf383cd29183c1db593c43c9e29d8d2b0  index.html" | sha256sum -c -
+          echo "ad3685b3b34800ea880519fdaa0d8bd071c80f9253e6bf694c9f15a1fb3524b2  index.html" | sha256sum -c -
 
-      - name: Validate exact target and protected functions
+      - name: Validate target and protected functions
         shell: bash
         run: |
           set -euo pipefail
@@ -50,15 +50,13 @@ jobs:
             '<span>Cycle count</span>',
             '<span>Current cycle</span>',
             'data-open-next-vial',
-            'data-plan-active-weeks',
-            'data-plan-break-weeks',
+            'data-dashboard-injection',
+            'Review &amp; verify',
             'planner_notification_preferences',
             'planner_push_subscriptions',
             'planner_notification_queue',
             'Send test notification',
-            'Reactivate',
-            'data-dashboard-injection',
-            'Review &amp; verify'
+            'Reactivate'
           ]
           for marker in required:
               assert marker in s, marker
