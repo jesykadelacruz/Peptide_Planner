@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.009</title>
+<title>Peptide Planner v2026.0209.010</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -3424,9 +3424,22 @@ body.onboarding-dialog-open{overflow:hidden!important}
 #planner .simple-plan-body{padding:16px}
 #planner .simple-plan-summary{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:8px;
   margin:11px 0
+}
+#planner .simple-plan-summary-row{
+  display:grid;
+  gap:8px;
+  min-width:0
+}
+#planner .simple-plan-summary-row-primary{
+  grid-template-columns:repeat(4,minmax(0,1fr))
+}
+#planner .simple-plan-summary-row-metrics{
+  grid-template-columns:repeat(5,minmax(0,1fr))
+}
+#planner .simple-plan-summary-row-extra{
+  grid-template-columns:repeat(2,minmax(0,1fr))
 }
 
 /* Add treatment card: match reference card treatment styling only */
@@ -3797,14 +3810,16 @@ body.onboarding-dialog-open{overflow:hidden!important}
 /* Responsive behavior mirrors the reference My Plan proportions
    instead of changing the treatment structure. */
 @media(max-width:1050px){
-  #planner .simple-plan-summary{
-    grid-template-columns:repeat(2,minmax(0,1fr))
-  }
+  #planner .simple-plan-summary{grid-template-columns:1fr}
+  #planner .simple-plan-summary-row-primary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #planner .simple-plan-summary-row-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:640px){
-  #planner .simple-plan-summary{
-    grid-template-columns:1fr
-  }
+  #planner .simple-plan-summary{grid-template-columns:1fr}
+  #planner .simple-plan-summary-row-primary,
+  #planner .simple-plan-summary-row-metrics,
+  #planner .simple-plan-summary-row-extra{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #planner .simple-plan-summary-row-metrics > .simple-mini:last-child{grid-column:1/-1}
   #planner .peptide-settings-body{
     padding:9px
   }
@@ -6194,7 +6209,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.009";
+const APP_VERSION="v2026.0209.010";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11394,20 +11409,21 @@ function renderSimplePlanner(){
           <div class="simple-plan-toggle-status"><span class="status-pill ${plan.stackStatus==="active"?"active":"pending"}">${esc(stackStatusLabel(plan.stackStatus))}</span></div>
         </div>
         <div class="simple-plan-summary">
-          <div class="simple-mini"><span>${cycleWindow.valid&&!cycleWindow.ongoing?(cycleWindow.number>1?`Cycle ${cycleWindow.number} start`:"Starting Phase start"):"Start"}</span><strong>${cycleWindow.valid?fmtDate(cycleWindow.start):(plan.startDate?fmtDate(plan.startDate):"Not set")}</strong></div>
-          <div class="simple-mini"><span>${cycleWindow.valid&&!cycleWindow.ongoing?(cycleWindow.number>1?`Cycle ${cycleWindow.number} treatment end`:"Starting Phase treatment end"):"End"}</span><strong>${cycleWindow.valid?(cycleWindow.ongoing?(cycleWindow.end?fmtDate(cycleWindow.end):"Ongoing"):fmtDate(cycleWindow.activeEnd)):"—"}</strong></div>
-          
-          <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
-          <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
-          <div class="simple-mini"><span>Dosage</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
-          <div class="simple-mini" title="Uses the current vial opened date and only administrations marked Done. Missed or unchecked scheduled doses do not consume vial inventory."><span>Dose left in vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:esc(dosesLeft.reason||"—")}</strong></div>
-          <div class="simple-mini"><span>Cycle</span><strong>${plan.noCycle?"Continuous":annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:"0 of "+planCyclesPerYear(plan)}</strong></div>
-          ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div>`:""}
-          ${plan.noCycle
-            ? `<div class="simple-mini"><span>Estimated vial duration</span><strong>${cycleUsage.valid&&cycleUsage.mode==="ongoing"?formatVialDuration(cycleUsage.weeksPerVial,true):esc(cycleUsage.reason||"Needs dose and preparation")}</strong></div>
-               <div class="simple-mini"><span>Current vial basis</span><strong>${cycleUsage.valid&&cycleUsage.mode==="ongoing"?`${cycleUsage.injectionsPerVial} injections/vial · ${cycleUsage.unitsPerInjection} units/injection`:"—"}</strong></div>`
-            : `<div class="simple-mini"><span>Vial per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
-                 <div class="simple-mini"><span>Cycle usage</span><strong>${cycleUsage.valid?`${cycleUsage.injections} injections · ${cycleUsage.totalUnits} units`:esc(cycleUsage.reason||"—")}</strong></div>`}
+          <div class="simple-plan-summary-row simple-plan-summary-row-primary">
+            <div class="simple-mini"><span>${cycleWindow.valid&&!cycleWindow.ongoing?(cycleWindow.number>1?`Cycle ${cycleWindow.number} start`:"Starting Phase start"):"Start"}</span><strong>${cycleWindow.valid?fmtDate(cycleWindow.start):(plan.startDate?fmtDate(plan.startDate):"Not set")}</strong></div>
+            <div class="simple-mini"><span>${cycleWindow.valid&&!cycleWindow.ongoing?(cycleWindow.number>1?`Cycle ${cycleWindow.number} treatment end`:"Starting Phase treatment end"):"End"}</span><strong>${cycleWindow.valid?(cycleWindow.ongoing?(cycleWindow.end?fmtDate(cycleWindow.end):"Ongoing"):fmtDate(cycleWindow.activeEnd)):"—"}</strong></div>
+            <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
+            <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
+          </div>
+          <div class="simple-plan-summary-row simple-plan-summary-row-metrics">
+            <div class="simple-mini"><span>Dose (units)</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
+            <div class="simple-mini" title="Uses the current vial opened date and only administrations marked Done. Missed or unchecked scheduled doses do not consume vial inventory."><span>Dose left in vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:esc(dosesLeft.reason||"—")}</strong></div>
+            <div class="simple-mini"><span>Vials per cycle</span><strong>${plan.noCycle?"—":(vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs"))}</strong></div>
+            <div class="simple-mini"><span>Cycle count</span><strong>${plan.noCycle?"—":(annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`)}</strong></div>
+            <div class="simple-mini"><span>Current cycle</span><strong>${plan.noCycle?"Continuous":currentPosition?.beforeStart?"Not started":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?"Starting Phase":`Cycle ${currentPosition?.sequence||"—"}`)}</strong></div>
+          </div>
+          ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-plan-summary-row simple-plan-summary-row-extra"><div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div></div>`:""}
+          ${plan.noCycle?`<div class="simple-plan-summary-row simple-plan-summary-row-extra"><div class="simple-mini"><span>Estimated vial duration</span><strong>${cycleUsage.valid&&cycleUsage.mode==="ongoing"?formatVialDuration(cycleUsage.weeksPerVial,true):esc(cycleUsage.reason||"Needs dose and preparation")}</strong></div><div class="simple-mini"><span>Current vial basis</span><strong>${cycleUsage.valid&&cycleUsage.mode==="ongoing"?`${cycleUsage.injectionsPerVial} injections/vial · ${cycleUsage.unitsPerInjection} units/injection`:"—"}</strong></div></div>`:""}
         </div>
       </summary>
       <div class="simple-plan-body">
