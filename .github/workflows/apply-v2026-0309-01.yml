@@ -1,0 +1,84 @@
+name: Apply Peptide Planner v2026.0309.01
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0309-01.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard current production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = "0b2ad8bd2f97f399f156d3eed5884946e520c44e"
+          test "$(git hash-object peptide-planner-sw.js)" = "72a79c7852835bac75cf34712e2639b27b0b5281"
+
+      - name: Apply approved v2026.0309.01 transform
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d .deploy/v2026_0309_01.transform.py.xz.b64 | xz -d > /tmp/v2026_0309_01.py
+          python /tmp/v2026_0309_01.py
+
+      - name: Validate exact production target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum index.html | awk '{print $1}')" = "8b532a65898327e39b3c95d6b7b100d29ad9efa53867ccef7a299edec6da1738"
+          test "$(git hash-object index.html)" = "d46b0608462e3abcb1ffa547cead8cb8362f4a1b"
+          test "$(grep -o 'v2026.0309.01' index.html | wc -l)" = "3"
+          ! grep -q 'v2026.0209.022' index.html
+          test "$(grep -o 'data-admin-page-action-select' index.html | wc -l)" = "2"
+          test "$(grep -o '<option value="archive"' index.html | wc -l)" = "1"
+          test "$(grep -o '<option value="delete"' index.html | wc -l)" = "1"
+          test "$(grep -o '<option value="password"' index.html | wc -l)" = "1"
+          test "$(grep -o '<option value="resend"' index.html | wc -l)" = "1"
+          grep -q 'async function adminPageAction(action,userId,control)' index.html
+          grep -q 'same_password' index.html
+          grep -q 'function renderContinuousVialSchedule' index.html
+          grep -q 'data-continuous-vial-open-date' index.html
+          grep -q 'continuous:dose-schedule' index.html
+          test "$(grep -o 'data-cycle-phase-weekday' index.html | wc -l)" = "3"
+          grep -q 'Forgot password' index.html
+          grep -q 'Create account' index.html
+          grep -q 'supabase.createClient' index.html
+          grep -q 'reconcileCloudState' index.html
+          grep -q 'registerPlannerPwaServiceWorker' index.html
+          ! grep -q 'planner-push-send' index.html
+          ! grep -q 'plannerNotificationCard' index.html
+          ! grep -q 'Notification.requestPermission' index.html
+          grep -Fq '<select data-cycle-config-field="scheduleMode" data-cycle-sequence="${sequence}"><option value="interval" ${config.scheduleMode!=="weekdays"?"selected":""}>Every N days</option><option value="weekdays" ${config.scheduleMode==="weekdays"?"selected":""}>Choose weekdays</option></select>' index.html
+          node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('index.html','utf8');
+          const scripts=[...s.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
+          if(!scripts.length) throw new Error('No inline scripts found');
+          scripts.forEach((js,i)=>fs.writeFileSync(`/tmp/planner-${i}.js`,js));
+          console.log(`Validated ${scripts.length} inline scripts for syntax next.`);
+          NODE
+          for f in /tmp/planner-*.js; do node --check "$f"; done
+          ! grep -q "addEventListener('push'" peptide-planner-sw.js
+          ! grep -q 'showNotification' peptide-planner-sw.js
+
+      - name: Commit production index
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Deploy Peptide Planner v2026.0309.01'
+          git push origin HEAD:main
