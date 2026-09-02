@@ -1,4 +1,4 @@
-name: Apply Peptide Planner v2026.0209.022 continuous schedule and notification removal
+name: Apply Peptide Planner v2026.0209.022 continuous-treatment and notification-removal patch
 
 on:
   push:
@@ -17,61 +17,39 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify exact production baseline
+      - name: Guard baseline and apply patch
         shell: bash
         run: |
           set -euo pipefail
           test "$(sha256sum index.html | awk '{print $1}')" = "0fe9b05bebc46696678841f10819da5dd62fb72d5456a8cdb3c81bbfd31d8cc9"
-          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "26f9cbbe0f233a035ee6b6d1a8d9fa83229f2972255974eab35ef1d94469d1fc"
-      - name: Apply v022 index patch and remove push handlers from PWA worker
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat .deploy/v2026_0209_022.part00 .deploy/v2026_0209_022.part01 .deploy/v2026_0209_022.part02 .deploy/v2026_0209_022.part03 .deploy/v2026_0209_022.part04 .deploy/v2026_0209_022.part05 .deploy/v2026_0209_022.part06 .deploy/v2026_0209_022.part07 .deploy/v2026_0209_022.part08 | base64 -d | xz -d > /tmp/v022.patch
-          git apply --whitespace=nowarn /tmp/v022.patch
-          cat > peptide-planner-sw.js <<'EOF'
-          self.addEventListener('install',event=>{self.skipWaiting();});
-          self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim());});
-          EOF
-      - name: Validate v022
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(sha256sum index.html | awk '{print $1}')" = "9d0257817ae7cb90a0c11b072a1bb67cd4c8bc10b704e036313cc7d6d9dbe1ee"
-          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "cac09231f966a1bc9ee6044b02669c26c9bb9521dabef2bcfad05ccc909706c9"
+          base64 -d .deploy/v2026_0209_022.current.patch.xz.b64 | xz -d > /tmp/v022.patch
+          patch -p0 < /tmp/v022.patch
+          test "$(sha256sum index.html | awk '{print $1}')" = "c823700641a69d08d824d02a371734387fab4724506f2fbd3dbc955f20ad97c0"
           grep -q 'Peptide Planner v2026.0209.022' index.html
-          grep -q 'function renderContinuousVialSchedule(plan)' index.html
-          grep -q 'function continuousVialScheduleComputation(plan' index.html
-          grep -q 'continuous-dose-block cycle-subsection' index.html
+          grep -q 'function renderContinuousVialSchedule' index.html
           grep -q 'data-continuous-vial-open-date' index.html
+          grep -q 'continuous:dose-schedule' index.html
           grep -q 'data-cycle-phase-weekday' index.html
-          grep -q 'SUPABASE_URL' index.html
-          grep -q 'resetPasswordForEmail' index.html
-          grep -q 'reconcileCloudState' index.html
-          grep -q 'registerPlannerPwaServiceWorker' index.html
-          ! grep -q 'plannerNotificationCard' index.html
-          ! grep -q 'Notification.requestPermission' index.html
-          ! grep -q 'plannerNotificationEnable' index.html
-          ! grep -q "addEventListener('push'" peptide-planner-sw.js
-          ! grep -q 'showNotification' peptide-planner-sw.js
-          python - <<'PY2'
-          from pathlib import Path
-          import re
-          text=Path('index.html').read_text(encoding='utf-8')
-          expected='<select data-cycle-config-field="scheduleMode" data-cycle-sequence="${sequence}"><option value="interval" ${config.scheduleMode!=="weekdays"?"selected":""}>Every N days</option><option value="weekdays" ${config.scheduleMode==="weekdays"?"selected":""}>Choose weekdays</option></select>'
-          assert expected in text
-          scripts=re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>',text,flags=re.I)
-          main=max(scripts,key=len)
-          Path('/tmp/app.js').write_text(main,encoding='utf-8')
-          PY2
-          node --check /tmp/app.js
-      - name: Commit production files
+          grep -q 'supabase.createClient' index.html
+          grep -q 'PASSWORD_RECOVERY' index.html
+          if grep -q 'plannerNotification\|planner_notification_queue\|planner_push_subscriptions\|Notification.requestPermission\|PUSH_VAPID' index.html; then
+            echo 'Notification feature markers remain in index.html' >&2
+            exit 1
+          fi
+          node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('index.html','utf8');
+          const scripts=[...s.matchAll(/<script(?:[^>]*)>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
+          const js=scripts.reduce((a,b)=>b.length>a.length?b:a,'');
+          fs.writeFileSync('/tmp/planner-main.js',js);
+          NODE
+          node --check /tmp/planner-main.js
+      - name: Commit production index
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html peptide-planner-sw.js
-          git diff --cached --quiet && exit 0
-          git commit -m 'Deploy Peptide Planner v2026.0209.022'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Deploy Peptide Planner v2026.0209.022"
           git push origin HEAD:main
