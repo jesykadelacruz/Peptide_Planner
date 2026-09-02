@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.003</title>
+<title>Peptide Planner v2026.0209.004</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6153,7 +6153,7 @@ body.mobile-app .hero{padding:15px 18px!important}
     <div class="protocol-head">
       <div>
         <h2 style="margin:0">Users</h2>
-        <div class="helper">Approved users only. Name and phone autosave. Owner can change User/Admin roles, archive access, view payment proof and resend password recovery.</div>
+        <div class="helper">Approved users only. Name and phone autosave. Owner can change User/Admin roles, archive or reactivate access, view payment proof and resend password recovery.</div>
       </div>
     </div>
 
@@ -6203,7 +6203,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.003";
+const APP_VERSION="v2026.0209.004";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -8638,7 +8638,9 @@ function adminMemberRowHtml(m,owner){
 
   let actions="";
   if(owner&&role!=="owner"){
-    actions+=`<button class="btn small danger" type="button" data-admin-page-action="archive" data-admin-user-id="${esc(m.user_id)}" ${statusKey==="archived"?'disabled title="Already archived"':""}>Archive</button>`;
+    actions+=statusKey==="archived"
+      ?`<button class="btn small primary" type="button" data-admin-page-action="reactivate" data-admin-user-id="${esc(m.user_id)}">Reactivate</button>`
+      :`<button class="btn small danger" type="button" data-admin-page-action="archive" data-admin-user-id="${esc(m.user_id)}">Archive</button>`;
     actions+=`<button class="btn small" type="button" title="Send password reset email" aria-label="Resend password recovery email" data-admin-page-action="resend" data-admin-user-id="${esc(m.user_id)}">Resend</button>`;
   }
 
@@ -8835,13 +8837,20 @@ async function sendAdminPasswordResetEmail(userId){
 
 async function adminPageAction(action,userId,button){
   if(cloudAccess?.role!=="owner"){setAdminPageFeedback("Only the Owner can action Users.","error");return}
-  if(!["archive","resend"].includes(action))return;
+  if(!["archive","reactivate","resend"].includes(action))return;
   if(action==="archive"&&!confirm("Archive this user? They will be signed out and lose planner access immediately."))return;
+  if(action==="reactivate"&&!confirm("Reactivate this user? Their existing account and planner data will be preserved and access will be restored."))return;
   if(button)button.disabled=true;
   try{
     if(action==="resend"){
       const email=await sendAdminPasswordResetEmail(userId);
       setAdminPageFeedback(`Password reset email sent to ${email}. The user will be asked to create a new password.`);
+      return;
+    }
+    if(action==="reactivate"){
+      await adminAccessApi("restore",{user_id:userId});
+      setAdminPageFeedback("User reactivated. Existing account and planner data were preserved and planner access has been restored.");
+      await loadAdminAccess();
       return;
     }
     await adminAccessApi("revoke",{user_id:userId});
@@ -9251,7 +9260,6 @@ function nextIncompleteAdministration(plan,at=new Date()){
 }
 function currentVialDosesLeft(plan,at=new Date()){
   const vialMg=num(plan?.vialMg);if(!(vialMg>0))return {valid:false,reason:"Enter vial strength"};
-  const next=nextIncompleteAdministration(plan,at);if(!next?.doseMg)return {valid:false,reason:"No upcoming dose"};
   const records=(state.administrations||[])
     .filter(record=>record?.planId===plan.id&&record?.status==="Administered"&&String(record?.dateTime||""))
     .map(record=>({record,date:new Date(record.dateTime),mg:administrationConsumedMg(plan,record)}))
@@ -9267,9 +9275,30 @@ function currentVialDosesLeft(plan,at=new Date()){
       const used=Math.min(remaining,need);remaining=round(remaining-used,6);need=round(need-used,6);
     }
   }
-  if(openedAt&&discardAt&&at>=discardAt)return {valid:true,doses:0,remainingMg:0,nextDoseMg:next.doseMg,expired:true};
-  const doses=Math.max(0,Math.floor((remaining+1e-9)/next.doseMg));
-  return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg:next.doseMg,expired:false,openedAt,discardAt};
+  if(openedAt&&discardAt&&at>=discardAt)return {valid:true,doses:0,remainingMg:0,expired:true,openedAt,discardAt};
+
+  const startDay=new Date(at.getFullYear(),at.getMonth(),at.getDate());
+  let doses=0,nextDoseMg=null,forecastOpenedAt=openedAt?new Date(openedAt):null,forecastDiscardAt=discardAt?new Date(discardAt):null,foundUpcoming=false;
+  for(let offset=0;offset<=3650;offset++){
+    const day=addDays(startDay,offset),date=localDateISO(day),schedule=scheduleForDate({...plan,enabled:true},day);
+    if(!schedule?.administration)continue;
+    const administrations=(schedule.administrations&&schedule.administrations.length)?schedule.administrations:[{partKey:"",doseMg:schedule.doseMg,units:schedule.units,time:plan.injectionTime||""}];
+    for(const administration of administrations){
+      const partKey=administration.partKey||"";
+      if(injectionDone(plan.id,date,partKey))continue;
+      const doseMg=num(administration.doseMg);if(!(doseMg>0))continue;
+      const time=administration.time||plan.injectionTime||"";
+      if(offset===0&&time){const when=new Date(`${date}T${time}:00`);if(!Number.isNaN(when.getTime())&&when<at)continue}
+      foundUpcoming=true;if(nextDoseMg==null)nextDoseMg=doseMg;
+      if(!forecastOpenedAt){forecastOpenedAt=new Date(day);forecastDiscardAt=disposeDateFromOpen(plan,forecastOpenedAt)}
+      if(forecastDiscardAt&&day>=forecastDiscardAt)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"discard"};
+      if(remaining+1e-9<doseMg)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"amount"};
+      remaining=round(remaining-doseMg,6);doses+=1;
+      if(remaining<=0.0000001)return {valid:true,doses,remainingMg:0,nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"amount"};
+    }
+  }
+  if(!foundUpcoming)return {valid:false,reason:"No upcoming dose"};
+  return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"schedule"};
 }
 function injectionKey(planId,date,partKey=""){
   const base=`${planId}|${trackingDateISO(date)}`;
@@ -11314,7 +11343,7 @@ function renderSimplePlanner(){
           <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
           <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
           <div class="simple-mini"><span>Dosage</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
-          <div class="simple-mini" title="Based on the current vial, completed administrations and the next scheduled administration."><span>Doses left</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
+          <div class="simple-mini" title="Based on the current vial and the actual upcoming schedule, including dose changes, split doses, breaks and cycle boundaries."><span>Doses left</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
           <div class="simple-mini"><span>Cycle</span><strong>${plan.noCycle?"Continuous":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?"Starting Phase":`Cycle ${currentPosition?.sequence||"—"}`)}</strong></div>
           ${!plan.noCycle&&annualCycleCount?`<div class="simple-mini"><span>Current cycle count</span><strong>${annualCycleCount.current} of ${annualCycleCount.total}</strong></div>`:""}
           ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div>`:""}
