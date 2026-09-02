@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.004</title>
+<title>Peptide Planner v2026.0209.005</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6203,7 +6203,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.004";
+const APP_VERSION="v2026.0209.005";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -8878,9 +8878,9 @@ function renderPlannerNotificationControls(){
 }
 async function registerPlannerNotificationServiceWorker(){
   if(!plannerNotificationSupported())return null;
-  if(plannerNotificationRegistration)return plannerNotificationRegistration;
-  plannerNotificationRegistration=await navigator.serviceWorker.register("./peptide-planner-sw.js",{scope:"./"});
-  await navigator.serviceWorker.ready;return plannerNotificationRegistration;
+  if(plannerNotificationRegistration){try{await plannerNotificationRegistration.update()}catch(_){}return plannerNotificationRegistration}
+  plannerNotificationRegistration=await navigator.serviceWorker.register("./peptide-planner-sw.js",{scope:"./",updateViaCache:"none"});
+  await navigator.serviceWorker.ready;try{await plannerNotificationRegistration.update()}catch(_){}return plannerNotificationRegistration;
 }
 async function loadPlannerNotificationPreferences(){
   plannerNotificationPreferences={enabled:false,reminderMinutes:30,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||""};
@@ -8957,13 +8957,39 @@ async function disablePlannerNotifications(){
   }catch(error){console.error("Disable notifications failed",error);setPlannerNotificationStatus(error?.message||"Unable to disable notifications.","error")}
   finally{renderPlannerNotificationControls()}
 }
+function plannerNotificationSystemHint(){
+  const ua=navigator.userAgent||"";
+  if(/Macintosh|Mac OS X/i.test(ua)&&/Chrome\//i.test(ua))return "If no banner appeared, open macOS System Settings → Notifications → Google Chrome and allow notifications/banners.";
+  return "If no system banner appeared, allow notifications for this browser in your operating-system notification settings.";
+}
+async function waitForPlannerTestNotification(eventKey,timeoutMs=75000){
+  const started=Date.now();
+  while(Date.now()-started<timeoutMs){
+    const {data,error}=await cloudClient.from("planner_notification_queue").select("status,last_error,sent_at").eq("user_id",cloudUser.id).eq("event_key",eventKey).maybeSingle();
+    if(error)throw error;
+    if(data?.status&&data.status!=="pending")return data;
+    await new Promise(resolve=>setTimeout(resolve,2000));
+  }
+  return {status:"pending",last_error:null,sent_at:null};
+}
 async function queuePlannerTestNotification(){
   if(!plannerNotificationPreferences.enabled||Notification.permission!=="granted"){setPlannerNotificationStatus("Enable notifications first.","error");return}
+  const button=document.getElementById("plannerNotificationTest");if(button)button.disabled=true;
   try{
+    const registration=await registerPlannerNotificationServiceWorker();
+    if(!registration)throw new Error("Notification service worker is unavailable.");
+    const subscription=await registration.pushManager.getSubscription();if(!subscription)throw new Error("No active push subscription was found. Disable and re-enable notifications, then try again.");
+    await storePushSubscription(subscription);
+    await registration.showNotification("Peptide Planner",{body:"Immediate test — browser notification display is connected.",tag:`peptide-planner-local-test-${Date.now()}`,renotify:true,data:{url:"./"}});
     const now=new Date(),key=`test|${cloudUser.id}|${Date.now()}`;
-    const {error}=await cloudClient.from("planner_notification_queue").insert({user_id:cloudUser.id,event_key:key,plan_id:null,scheduled_at:now.toISOString(),remind_at:now.toISOString(),title:"Peptide Planner",body:"Test notification — your treatment reminders are connected.",url:"./",event_type:"test",status:"pending"});if(error)throw error;
-    setPlannerNotificationStatus("Test notification queued. It should arrive within about one minute.","success");
-  }catch(error){setPlannerNotificationStatus(error?.message||"Unable to queue the test notification.","error")}
+    const {error}=await cloudClient.from("planner_notification_queue").insert({user_id:cloudUser.id,event_key:key,plan_id:null,scheduled_at:now.toISOString(),remind_at:now.toISOString(),title:"Peptide Planner",body:"Remote test — scheduled treatment reminders are connected.",url:"./",event_type:"test",status:"pending"});if(error)throw error;
+    setPlannerNotificationStatus("Immediate test requested. Checking remote push delivery…","info");
+    const result=await waitForPlannerTestNotification(key);
+    if(result.status==="sent")setPlannerNotificationStatus(`Remote push sent successfully. ${plannerNotificationSystemHint()}`,"success");
+    else if(result.status==="skipped")setPlannerNotificationStatus(`Remote push was not delivered: ${result.last_error||"delivery was skipped"}.`,"error");
+    else setPlannerNotificationStatus("Remote push is still pending after 75 seconds. Check the notification sender/queue and try again.","error");
+  }catch(error){setPlannerNotificationStatus(error?.message||"Unable to test notifications.","error")}
+  finally{renderPlannerNotificationControls()}
 }
 async function initialisePlannerNotifications(){
   if(!cloudUser||cloudAccess?.status!=="active")return;
