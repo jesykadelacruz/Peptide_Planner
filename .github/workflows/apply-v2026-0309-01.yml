@@ -83,4 +83,4 @@ jobs:
           git commit -m 'Deploy Peptide Planner v2026.0309.01'
           git push origin HEAD:main
 
-# retry 3: exact approved target
+# retry 4: payload confirmed present
