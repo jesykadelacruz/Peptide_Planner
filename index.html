@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.005</title>
+<title>Peptide Planner v2026.0209.006</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6203,7 +6203,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.005";
+const APP_VERSION="v2026.0209.006";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11369,7 +11369,7 @@ function renderSimplePlanner(){
           <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
           <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
           <div class="simple-mini"><span>Dosage</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
-          <div class="simple-mini" title="Based on the current vial and the actual upcoming schedule, including dose changes, split doses, breaks and cycle boundaries."><span>Doses left</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
+          <div class="simple-mini" title="Based on the current vial and the actual upcoming schedule, including dose changes, split doses, breaks and cycle boundaries."><span>Doses left in current vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
           <div class="simple-mini"><span>Cycle</span><strong>${plan.noCycle?"Continuous":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?"Starting Phase":`Cycle ${currentPosition?.sequence||"—"}`)}</strong></div>
           ${!plan.noCycle&&annualCycleCount?`<div class="simple-mini"><span>Current cycle count</span><strong>${annualCycleCount.current} of ${annualCycleCount.total}</strong></div>`:""}
           ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div>`:""}
