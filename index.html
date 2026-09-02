@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Peptide Planner v2026.1</title>
+<title>Peptide Planner v2026.0209.001</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -28,7 +28,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-se
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 .app{max-width:1540px;margin:auto;padding:20px}
-.hero{background:linear-gradient(135deg,#a94f73,#c86f92 58%,#e3a0b7);color:#fff;border-radius:24px;padding:26px;box-shadow:var(--shadow)}
+.hero{background:linear-gradient(135deg,#1f675b,#2f8f7f 58%,#67ad83);color:#fff;border-radius:24px;padding:26px;box-shadow:var(--shadow)}
 .hero-row{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
 .hero h1{margin:0 0 8px;font-size:clamp(1.6rem,3vw,2.45rem);line-height:1.08}
 .hero p{margin:0;max-width:930px;color:rgba(255,255,255,.85)}
@@ -4792,7 +4792,7 @@ body.onboarding-dialog-open{overflow:hidden!important}
   accent-color:var(--green);
 }
 
-/* ===== v2026.1 requested admin/header refinements ===== */
+/* ===== v2026.0209.001 requested admin/header refinements ===== */
 .admin-status-pill.archived{background:#fff0ed;color:#8a382f}
 .admin-status-pill.rejected{background:#fff0ed;color:#8a382f}
 .admin-status-pill.approved{background:#eef5ff;color:#24496e}
@@ -4801,6 +4801,12 @@ body.onboarding-dialog-open{overflow:hidden!important}
 .admin-all-users-table{min-width:760px}
 .admin-all-users-table th,.admin-all-users-table td{vertical-align:middle}
 .admin-duplicate-note{display:block;margin-top:3px;color:var(--red);font-size:.64rem;font-weight:850;line-height:1.2}
+
+/* ===== v2026.0209.001 post-v2026.1 presentation adjustments ===== */
+body.mobile-app .hero{padding:15px 18px!important}
+#safety .journey-step{align-items:center!important;text-align:center!important}
+#safety .journey-step>span:last-child{flex:1;text-align:center!important}
+@media(max-width:900px){body.mobile-app .hero{padding:9px 11px!important}}
 </style>
 
 
@@ -5082,7 +5088,6 @@ body.onboarding-dialog-open{overflow:hidden!important}
     <button id="cloudSignIn" class="btn" type="button">Sign in</button>
     <button id="cloudSignUp" class="btn primary" type="button">Create account</button>
     <button id="cloudSyncNow" class="btn hidden" type="button">Sync now</button>
-    <button id="cloudAdminOpen" class="btn hidden" type="button">Admin Dashboard</button>
     <button id="cloudSignOut" class="btn hidden" type="button">Sign out</button>
   </div>
 </div>
@@ -6169,7 +6174,7 @@ body.onboarding-dialog-open{overflow:hidden!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.1";
+const APP_VERSION="v2026.0209.001";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -8825,6 +8830,7 @@ function renderPlannerHeader(){
 function renderCloudAccount(){
   const email=document.getElementById("cloudAccountEmail"),signIn=document.getElementById("cloudSignIn"),signUp=document.getElementById("cloudSignUp"),signOut=document.getElementById("cloudSignOut"),sync=document.getElementById("cloudSyncNow"),admin=document.getElementById("cloudAdminOpen"),roleBadge=document.getElementById("cloudRoleBadge");
   if(email)email.textContent=cloudUser?.email||"Not signed in";
+  const accountEmail=document.getElementById("accountCurrentEmail");if(accountEmail)accountEmail.textContent=cloudUser?.email||"Not signed in";
   renderPlannerHeader();
   const active=!!(cloudUser&&cloudAccess?.status==="active");
   signIn?.classList.toggle("hidden",!!cloudUser);signUp?.classList.add("hidden");signOut?.classList.toggle("hidden",!cloudUser);sync?.classList.toggle("hidden",!active);
