@@ -1,0 +1,87 @@
+name: Apply Peptide Planner v2026.0209.021 dose-left consistency patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0209-021.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact v020 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum index.html | awk '{print $1}')" = "cf89666fa92362225e10554cb493c23e8ef61ac98cfe355974bb9c719d59d12e"
+
+      - name: Apply exact v021 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d .deploy/v2026_0209_021.patch.xz.b64 | xz -dc > /tmp/v021.patch
+          git apply --check /tmp/v021.patch
+          git apply /tmp/v021.patch
+
+      - name: Verify target and protected scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum index.html | awk '{print $1}')" = "0fe9b05bebc46696678841f10819da5dd62fb72d5456a8cdb3c81bbfd31d8cc9"
+          grep -q '<title>Peptide Planner v2026.0209.021</title>' index.html
+          grep -q 'const APP_VERSION="v2026.0209.021"' index.html
+          grep -q 'function scheduledAdministrationRecorded(planId,date,partKey="")' index.html
+          grep -q 'if(scheduledAdministrationRecorded(plan.id,date,partKey))continue;' index.html
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text()
+          required={
+            'data-cycle-phase-weekday':3,
+            'Forgot password':1,
+            'Create account':5,
+            'data-cycle-config-field="injectionTime"':6,
+            'data-simple-dispose-value':3,
+            'data-simple-dispose-unit':2,
+            'Dose schedule':11,
+          }
+          for marker,count in required.items():
+              actual=s.count(marker)
+              if actual!=count:
+                  raise SystemExit(f'{marker}: expected {count}, got {actual}')
+          if s.count('function scheduledAdministrationRecorded(')!=1:
+              raise SystemExit('dose-left helper count mismatch')
+          if s.count('if(scheduledAdministrationRecorded(plan.id,date,partKey))continue;')!=1:
+              raise SystemExit('dose-left authoritative check count mismatch')
+          PY
+
+      - name: Validate inline JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('index.html','utf8');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).sort((a,b)=>b.length-a.length);
+          if(!scripts.length) process.exit(2);
+          fs.writeFileSync('/tmp/peptide-planner-inline.js',scripts[0]);
+          NODE
+          node --check /tmp/peptide-planner-inline.js
+
+      - name: Commit production index
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Peptide Planner v2026.0209.021 dose-left consistency'
+          git push origin main
