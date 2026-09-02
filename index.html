@@ -9287,9 +9287,10 @@ function openedVialRecordsForPlan(plan,at=new Date()){
     .sort((a,b)=>a.date-b.date||Number(a.record?.vialNumber||0)-Number(b.record?.vialNumber||0)||String(a.record?.id||"").localeCompare(String(b.record?.id||"")));
 }
 function currentOpenedVialRecord(plan,at=new Date()){
-  const closed=new Set(["Finished","Discarded","On hold"]);
-  const opened=openedVialRecordsForPlan(plan,at).filter(item=>!closed.has(String(item.record?.status||"")));
-  return opened.length?opened[opened.length-1]:null;
+  const opened=openedVialRecordsForPlan(plan,at);
+  if(!opened.length)return null;
+  const latest=opened[opened.length-1],closed=new Set(["Finished","Discarded","On hold"]);
+  return closed.has(String(latest.record?.status||""))?null:latest;
 }
 function currentVialDosesLeft(plan,at=new Date()){
   const planVialMg=num(plan?.vialMg);if(!(planVialMg>0))return {valid:false,reason:"Enter vial strength"};
