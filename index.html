@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Peptide Planner v2026.0209.001</title>
+<title>Peptide Planner v2026.0209.002</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6174,7 +6174,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.001";
+const APP_VERSION="v2026.0209.002";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11150,7 +11150,7 @@ function renderSimplePlanner(){
              ${renderContinuousDoseSchedule(plan)}
            </div>`
         : renderPlanCyclePanels(plan)}
-      <div class="review-verify-block"><div class="setup-section-title review-title"><span>✓</span><div><strong>Review &amp; verify</strong><small>Confirm the treatment details before allowing the schedule to populate Today.</small></div></div><label class="confirmation"><input type="checkbox" data-simple-field="confirmed" ${plan.confirmed?"checked":""}><div>I verified the actual product, route, dose, strength, final volume, schedule, syringe/device and storage/use-discard instructions with my prescriber/pharmacist.</div></label></div>
+      <div class="review-verify-block"><label class="confirmation"><input type="checkbox" data-simple-field="confirmed" ${plan.confirmed?"checked":""}><div><strong>Review &amp; verify</strong> I verified the actual product, route, dose, strength, final volume, schedule, syringe/device and storage/use-discard instructions with my prescriber/pharmacist.</div></label></div>
       <div class="simple-plan-actions no-print">${!plan.custom?`<button class="btn" type="button" data-simple-open-kb>View Knowledge Base record</button>`:""}<button class="btn danger" type="button" data-simple-remove>Remove from Treatments</button></div>
       ${plan.enabled&&!plan.confirmed?`<div class="alert warn">This plan is enabled but not confirmed. It will not populate Today until the verification box is checked.</div>`:""}
       <div class="alert ${status.status==="break"?"warn":"info"}">${esc(status.detail)}</div>
