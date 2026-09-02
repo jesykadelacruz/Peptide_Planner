@@ -1,0 +1,86 @@
+name: Apply Peptide Planner v2026.0209.011 overview patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0209-011.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify current production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ad3685b3b34800ea880519fdaa0d8bd071c80f9253e6bf694c9f15a1fb3524b2  index.html" | sha256sum -c -
+
+      - name: Apply exact v2026.0209.011 overview patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d .deploy/v2026_0209_011.patch.xz.b64 | xz -d > /tmp/v011.patch
+          patch --batch --forward -p0 < /tmp/v011.patch
+          echo "c140d6265f0a3e3ae5071d7cf385ed851e33d169b975002b1dd678a021e025f9  index.html" | sha256sum -c -
+
+      - name: Validate overview and protected functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text()
+          required=[
+            'Peptide Planner v2026.0209.011',
+            'const APP_VERSION="v2026.0209.011";',
+            '<span>Initial Cycle Start</span>',
+            '<span>Initial Cycle End</span>',
+            '<span>Schedule</span>',
+            '<span>Route</span>',
+            '<span>Dose (units)</span>',
+            '<span>Dose left in vial</span>',
+            '<span>Vials per cycle</span>',
+            '<span>Cycle count</span>',
+            '<span>Current cycle</span>',
+            'Review &amp; verify',
+            'data-dashboard-injection',
+            'planner_notification_preferences',
+            'planner_push_subscriptions',
+            'planner_notification_queue',
+            'Send test notification',
+            'Reactivate',
+            'data-open-next-vial',
+            'data-plan-active-weeks',
+            'data-plan-break-weeks'
+          ]
+          for marker in required:
+              assert marker in s, marker
+          assert '<span>Cycle usage</span>' not in s
+          assert '#planner .simple-plan-summary{\n  display:block!important;' in s
+          assert '#planner .simple-plan-summary-row-metrics > .simple-mini:nth-child(-n+2){grid-column:span 3}' in s
+          assert '#planner .simple-plan-summary-row-metrics > .simple-mini:nth-child(n+3){grid-column:span 2}' in s
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
+          Path('/tmp/planner-inline.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/planner-inline.js
+
+      - name: Commit production index
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "jesykadelacruz"
+          git config user.email "84807985+jesykadelacruz@users.noreply.github.com"
+          git add index.html
+          git commit -m "Deploy Peptide Planner v2026.0209.011"
+          git push origin HEAD:main
