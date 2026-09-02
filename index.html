@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.016</title>
+<title>Peptide Planner v2026.0209.017</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -5153,6 +5153,149 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   line-height:1!important;
 }
 
+
+/* v2026.0209.017 vial schedule alignment: desktop centered, mobile responsive */
+@media(min-width:761px){
+  #planner .cycle-vial-line{
+    align-items:center;
+  }
+  #planner .cycle-vial-number,
+  #planner .cycle-vial-status-wrap{
+    align-self:center;
+  }
+}
+@media(max-width:760px){
+  body.mobile-app #planner .cycle-vial-line{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    grid-template-areas:
+      "vial status"
+      "open finish"!important;
+    gap:7px 8px!important;
+    align-items:end!important;
+  }
+  body.mobile-app #planner .cycle-vial-number{
+    grid-area:vial!important;
+    min-height:28px!important;
+    font-size:1rem!important;
+    line-height:1.1!important;
+    align-items:center!important;
+  }
+  body.mobile-app #planner .cycle-vial-status-wrap{
+    grid-area:status!important;
+    min-height:28px!important;
+    justify-content:flex-end!important;
+    align-items:center!important;
+  }
+  body.mobile-app #planner .cycle-vial-status{
+    width:auto!important;
+    max-width:100%!important;
+    min-height:28px!important;
+    padding:4px 9px!important;
+    font-size:.68rem!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+  }
+  body.mobile-app #planner .cycle-vial-date-field:nth-of-type(1){grid-area:open!important}
+  body.mobile-app #planner .cycle-vial-date-field:nth-of-type(2){grid-area:finish!important}
+  body.mobile-app #planner .cycle-vial-date-field{
+    min-width:0!important;
+    width:100%!important;
+    gap:4px!important;
+  }
+  body.mobile-app #planner .cycle-vial-date-field > span{
+    font-size:.66rem!important;
+    line-height:1.1!important;
+  }
+  body.mobile-app #planner .cycle-vial-date-field input[type="date"]{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:46px!important;
+    min-height:46px!important;
+    max-height:46px!important;
+    padding:0 7px!important;
+    font-size:14px!important;
+    box-sizing:border-box!important;
+    -webkit-min-logical-width:0!important;
+  }
+  body.mobile-app #planner .cycle-vial-schedule-row{
+    padding:8px!important;
+  }
+}
+@media(max-width:390px){
+  body.mobile-app #planner .cycle-vial-line{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:6px!important;
+  }
+  body.mobile-app #planner .cycle-vial-date-field input[type="date"]{
+    font-size:13px!important;
+    padding:0 5px!important;
+  }
+}
+@media(max-width:340px){
+  body.mobile-app #planner .cycle-vial-line{
+    grid-template-columns:1fr!important;
+    grid-template-areas:
+      "vial"
+      "status"
+      "open"
+      "finish"!important;
+  }
+  body.mobile-app #planner .cycle-vial-status-wrap{
+    justify-content:flex-start!important;
+  }
+}
+
+/* v2026.0209.017 mobile Cycle Settings field alignment */
+@media(max-width:760px){
+  body.mobile-app #planner .cycle-config-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    column-gap:8px!important;
+    row-gap:9px!important;
+    align-items:end!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(1),
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(2),
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(3),
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(4){
+    grid-column:auto!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  body.mobile-app #planner .cycle-config-grid>.cycle-vial-schedule-field{
+    grid-column:1/-1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(-n+4) input:not([type="checkbox"]),
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(-n+4) select{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:46px!important;
+    min-height:46px!important;
+    max-height:46px!important;
+    block-size:46px!important;
+    box-sizing:border-box!important;
+    margin:0!important;
+    -webkit-min-logical-width:0!important;
+  }
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(-n+4) input[type="date"],
+  body.mobile-app #planner .cycle-config-grid>div:nth-child(-n+4) input[type="time"]{
+    padding-left:10px!important;
+    padding-right:10px!important;
+  }
+}
+
 </style>
 
 
@@ -6548,7 +6691,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.016";
+const APP_VERSION="v2026.0209.017";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11375,7 +11518,8 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
   const maxRows=Math.max(200,requested+20);
   while(index<=maxRows){
     const {record,forecastOpening}=cycleVialScheduleRecordAt(plan,cycleUsage,cycleNumber,index,used,cycleRecords);
-    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):(previousFinish||"");
+    const previousFinishDate=index>1&&previousFinish?parseISO(previousFinish):null;
+    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):(previousFinishDate?localDateISO(addDays(previousFinishDate,1)):(previousFinish||""));
     const legacyManualOpen=!!(record&&record.scheduleOpenAuto==null&&record.startDate);
     const legacyManualFinish=!!(record&&record.scheduleFinishAuto==null&&record.finishDate);
     const manualOpen=!!(record&&(record.scheduleOpenAuto===false||legacyManualOpen));
@@ -13870,7 +14014,7 @@ initCloudServices();
 
 <!-- v27 production-maturity release: verified-only Today, live backend signup/payment, explicit Dose/Units source-of-truth, consolidated CSS, direct single-file production index -->
 
-<!-- v2026.0209.016: Cycle Settings schedules are collapsible; vial count/add/remove corrected; summary Dose left/Vials per cycle linked to active/completed cycle vial schedule; Dose schedule weekdays unchanged -->
+<!-- v2026.0209.017: Cycle Settings layout alignment repaired; next vial opens the day after previous Date Finish; Dose schedule weekdays unchanged -->
 <!-- v26 HTML-only preview: configurable Starting Phase + Cycle 2..N model; maintenance cycle removed from planner UI -->
 
 <!-- v27 preview: cycle setup uses color-only status; green current, yellow pending, gray completed; no round markers or extra labels -->
