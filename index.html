@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.013</title>
+<title>Peptide Planner v2026.0209.014</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -4983,6 +4983,36 @@ body.mobile-app .hero{padding:15px 18px!important}
 #planner .cycle-vial-schedule-actions{
   margin-top:8px;
 }
+/* ===== v2026.0209.014 vial status only ===== */
+#planner .cycle-vial-schedule-head,
+#planner .cycle-vial-schedule-row{
+  grid-template-columns:72px minmax(0,1fr) minmax(0,1fr) 130px;
+}
+#planner .cycle-vial-status-cell{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-width:0;
+}
+#planner .cycle-vial-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:76px;
+  min-height:30px;
+  padding:5px 9px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  font-size:.72rem;
+  font-weight:850;
+  line-height:1;
+  white-space:nowrap;
+  box-sizing:border-box;
+}
+#planner .cycle-vial-status-pending{background:#fff7e6;color:#684b00;border-color:#ead79d}
+#planner .cycle-vial-status-open{background:#edf9f2;color:#17603e;border-color:#b9dec8}
+#planner .cycle-vial-status-completed{background:#f0f2f3;color:#626a70;border-color:#d7dcdf}
 
 @media(max-width:760px){
   body.mobile-app #planner .cycle-vial-schedule{
@@ -5030,6 +5060,10 @@ body.mobile-app .hero{padding:15px 18px!important}
     padding:0 9px!important;
   }
   body.mobile-app #planner .cycle-vial-opened-cell{
+    min-height:46px;
+    align-self:end;
+  }
+  body.mobile-app #planner .cycle-vial-status-cell{
     min-height:46px;
     align-self:end;
   }
@@ -6438,7 +6472,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.013";
+const APP_VERSION="v2026.0209.014";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11135,6 +11169,12 @@ function currentVialPerCycle(plan,cycleUsage,at=new Date()){
   return {valid:true,current:opened.length,total};
 }
 
+function cycleVialScheduleStatus(openDate,finishDate,at=new Date()){
+  const today=localDateISO(at);
+  if(finishDate&&today>=finishDate)return "Completed";
+  if(openDate&&today>=openDate)return "Open";
+  return "Pending";
+}
 function cycleVialScheduleRows(plan,cycleUsage,requestedTotal=null){
   if(!plan||plan.noCycle||!cycleUsage?.valid||cycleUsage.mode!=="cycle")return [];
   const cycleNumber=Math.max(1,Math.floor(num(cycleUsage.cycleNumber)||1));
@@ -11148,6 +11188,7 @@ function cycleVialScheduleRows(plan,cycleUsage,requestedTotal=null){
   const period=protocolPeriodForSequence(plan,cycleNumber);
   const periodStart=period?.valid?localDateISO(period.start):"";
   const periodEnd=period?.valid?localDateISO(period.fullEnd||period.activeEnd):"";
+  const finishByVial=new Map((cycleUsage.lastDoses||[]).map(item=>[Number(item.vialNumber),item?.date?localDateISO(item.date):""]));
   const cycleRecords=(state.vialRecords||[])
     .filter(record=>record?.planId===plan.id&&(record.source==="manual"||record.forecastActive||recordHasActualActivity(record)))
     .filter(record=>{
@@ -11156,6 +11197,7 @@ function cycleVialScheduleRows(plan,cycleUsage,requestedTotal=null){
     })
     .sort((a,b)=>String(a.needDate||a.startDate||"9999-12-31").localeCompare(String(b.needDate||b.startDate||"9999-12-31"))||Number(a.vialNumber||9999)-Number(b.vialNumber||9999));
   const used=new Set();
+  let previousFinish="";
   return Array.from({length:total},(_,offset)=>{
     const relativeIndex=offset+1;
     const forecastOpening=forecastOpenings[offset]||null;
@@ -11169,7 +11211,27 @@ function cycleVialScheduleRows(plan,cycleUsage,requestedTotal=null){
       if(record)used.add(record.id);
     }
     const projected=forecastOpening?.date||cycleUsage.openings?.[offset]?.date||null;
-    return {index:relativeIndex,cycleNumber,record,forecastNumber:forecastOpening?.number||null,projectedDate:projected?localDateISO(projected):""};
+    const calculatedOpenDate=relativeIndex===1?periodStart:previousFinish;
+    const calculatedFinishDate=finishByVial.get(relativeIndex)||"";
+    const legacyManualOpen=!!(record&&record.scheduleOpenAuto==null&&record.startDate);
+    const legacyManualFinish=!!(record&&record.scheduleFinishAuto==null&&record.finishDate);
+    const manualOpen=!!(record&&(record.scheduleOpenAuto===false||legacyManualOpen));
+    const manualFinish=!!(record&&(record.scheduleFinishAuto===false||legacyManualFinish));
+    const openDate=manualOpen?String(record.startDate||""):calculatedOpenDate;
+    const finishDate=manualFinish?String(record.finishDate||""):calculatedFinishDate;
+    previousFinish=finishDate||"";
+    return {
+      index:relativeIndex,
+      cycleNumber,
+      record,
+      forecastNumber:forecastOpening?.number||null,
+      projectedDate:projected?localDateISO(projected):"",
+      calculatedOpenDate,
+      calculatedFinishDate,
+      openDate,
+      finishDate,
+      status:cycleVialScheduleStatus(openDate,finishDate)
+    };
   });
 }
 function ensureCycleVialScheduleRecord(plan,cycleUsage,index,requestedTotal=null){
@@ -11195,6 +11257,9 @@ function ensureCycleVialScheduleRecord(plan,cycleUsage,index,requestedTotal=null
       purchaseDate:"",
       receivedDate:"",
       startDate:"",
+      finishDate:"",
+      scheduleOpenAuto:true,
+      scheduleFinishAuto:true,
       budDate:"",
       budAuto:true,
       vialMg:plan.vialMg||"",
@@ -11209,6 +11274,9 @@ function ensureCycleVialScheduleRecord(plan,cycleUsage,index,requestedTotal=null
     state.vialRecords.push(record);
   }else{
     record=createManualVialRecord(plan);
+    record.finishDate="";
+    record.scheduleOpenAuto=true;
+    record.scheduleFinishAuto=true;
     record.needDate=row?.projectedDate||"";
     record.needDateAuto=false;
     record.cycleLabel=`Cycle ${row?.cycleNumber||cycleUsage?.cycleNumber||1} · Vial ${Number(index)||1}`;
@@ -11239,14 +11307,14 @@ function renderCycleConfigVialSchedule(plan,config,sequence){
   const rowCount=cycleConfigVialScheduleCount(config,calculatedUsage);
   const rows=cycleVialScheduleRows(plan,usage,rowCount);
   return `<div class="span-2 cycle-vial-schedule-field">
-    <label>Schedule of vials</label>
+    <label>Vial Schedule</label>
     ${rows.length?`<div class="cycle-vial-schedule">
-      <div class="cycle-vial-schedule-head" aria-hidden="true"><span>Vial #</span><span>Date Opened</span><span>Date Finished</span><span>Opened</span></div>
+      <div class="cycle-vial-schedule-head" aria-hidden="true"><span>Vial #</span><span>Date Open</span><span>Date Finished</span><span>Status</span></div>
       ${rows.map(row=>`<div class="cycle-vial-schedule-row" data-cycle-vial-row="${row.index}">
         <div class="cycle-vial-schedule-cell"><span class="cycle-vial-mobile-label">Vial #</span><strong>${row.index}</strong></div>
-        <div class="cycle-vial-schedule-cell"><span class="cycle-vial-mobile-label">Date Opened</span><input type="date" aria-label="Vial ${row.index} date opened" data-cycle-vial-open-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.record?.startDate||"")}"></div>
-        <div class="cycle-vial-schedule-cell"><span class="cycle-vial-mobile-label">Date Finished</span><input type="date" aria-label="Vial ${row.index} date finished" data-cycle-vial-finish-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.record?.finishDate||"")}"></div>
-        <div class="cycle-vial-schedule-cell cycle-vial-opened-cell"><span class="cycle-vial-mobile-label">Opened</span><label class="cycle-vial-opened-check"><input type="checkbox" aria-label="Vial ${row.index} opened" data-cycle-vial-opened="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" ${row.record?.startDate?"checked":""}></label>${row.index>required&&row.index===rowCount?`<button class="btn small danger cycle-vial-remove no-print" type="button" data-cycle-remove-vial="${sequence}" data-cycle-vial-index="${row.index}">Remove</button>`:""}</div>
+        <div class="cycle-vial-schedule-cell"><span class="cycle-vial-mobile-label">Date Open</span><input type="date" aria-label="Vial ${row.index} date open" data-cycle-vial-open-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.openDate||"")}"></div>
+        <div class="cycle-vial-schedule-cell"><span class="cycle-vial-mobile-label">Date Finished</span><input type="date" aria-label="Vial ${row.index} date finished" data-cycle-vial-finish-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.finishDate||"")}"></div>
+        <div class="cycle-vial-schedule-cell cycle-vial-status-cell"><span class="cycle-vial-mobile-label">Status</span><span class="cycle-vial-status cycle-vial-status-${row.status.toLowerCase()}">${esc(row.status)}</span>${row.index>required&&row.index===rowCount?`<button class="btn small danger cycle-vial-remove no-print" type="button" data-cycle-remove-vial="${sequence}" data-cycle-vial-index="${row.index}">Remove</button>`:""}</div>
       </div>`).join("")}
     </div>`:`<div class="helper">${esc(calculatedUsage?.reason||"Complete the cycle dose and vial inputs to calculate the vial schedule.")}</div>`}
     <div class="actions cycle-vial-schedule-actions no-print"><button class="btn small" type="button" data-cycle-add-vial="${sequence}">Add vial</button></div>
@@ -11689,7 +11757,7 @@ function renderPlanCyclePanels(plan){
   const configs=ensurePlanCycleConfigs(plan);
   return `<div class="cycle-setup-section">
     <div class="cycle-setup-head">
-      <h3>Cycle setup</h3>
+      <h3>Cycle Settings</h3>
     </div>
     <div class="cycle-config-list">${configs.map((config,index)=>{
       const sequence=index+1,label=sequence===1?"Starting Phase":`Cycle ${sequence}`,key=`${plan.id}:cycle-config:${sequence}`,visualState=cycleSetupVisualState(config);
@@ -11807,7 +11875,6 @@ function renderSimplePlanner(){
             ${!plan.noCycle?`<div><label>On</label><input type="number" min="1" step="1" data-plan-active-weeks value="${esc(plan.activeWeeks||1)}"></div><div><label>Off</label><input type="number" min="0" step="1" data-plan-break-weeks value="${esc(plan.breakWeeks??0)}"></div>`:""}
             <div><label>Cycles/Year</label><input type="number" min="0" max="52" step="1" data-plan-cycles-per-year value="${plan.noCycle?0:esc(planCyclesPerYear(plan))}"></div>
           </div>
-          ${renderPeptideVialSchedule(plan,cycleUsage)}
         </div>
       </details>
 
@@ -11907,8 +11974,13 @@ function renderSimplePlanner(){
       if(!usage.valid)return;
       const rowCount=config?cycleConfigVialScheduleCount(config,calculatedUsage):null;
       let record=cycleVialScheduleRows(plan,usage,rowCount).find(item=>item.index===index)?.record||null;
-      if(control.value&&!record)record=ensureCycleVialScheduleRecord(plan,usage,index,rowCount);
-      if(record){record.startDate=control.value||"";record.statusAuto=true;updateVialRecordDerived(record,plan);}
+      if(!record)record=ensureCycleVialScheduleRecord(plan,usage,index,rowCount);
+      if(record){
+        record.startDate=control.value||"";
+        record.scheduleOpenAuto=!control.value;
+        record.statusAuto=true;
+        updateVialRecordDerived(record,plan);
+      }
       save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-vial-finish-date]").forEach(control=>control.addEventListener("change",()=>{
@@ -11916,8 +11988,11 @@ function renderSimplePlanner(){
       const config=cycleConfigForSequence(plan,Math.max(1,Number(control.dataset.cycleVialConfig)||cycleNumber));
       const calculatedUsage=cycleVialUsage(plan,cycleNumber),usage=cycleConfigVialScheduleUsage(plan,cycleNumber),rowCount=cycleConfigVialScheduleCount(config,calculatedUsage);
       let record=cycleVialScheduleRows(plan,usage,rowCount).find(item=>item.index===index)?.record||null;
-      if(control.value&&!record)record=ensureCycleVialScheduleRecord(plan,usage,index,rowCount);
-      if(record)record.finishDate=control.value||"";
+      if(!record)record=ensureCycleVialScheduleRecord(plan,usage,index,rowCount);
+      if(record){
+        record.finishDate=control.value||"";
+        record.scheduleFinishAuto=!control.value;
+      }
       save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-vial-opened]").forEach(control=>control.addEventListener("change",()=>{
