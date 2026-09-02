@@ -1,0 +1,49 @@
+name: Apply Peptide Planner v2026.0209.020 copy-button layout patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0209-020.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Verify baseline
+        run: |
+          test "$(sha256sum index.html | awk '{print $1}')" = "e522b1e0e4c224a02c2b360616e4fe9da4b0f5be44d939a6ac264bc68d802d1e"
+      - name: Apply patch
+        run: |
+          base64 -d .deploy/v2026_0209_020.patch.xz.b64 | xz -d > /tmp/v020.patch
+          patch --forward --batch -p0 < /tmp/v020.patch
+      - name: Validate target
+        run: |
+          test "$(sha256sum index.html | awk '{print $1}')" = "cf89666fa92362225e10554cb493c23e8ef61ac98cfe355974bb9c719d59d12e"
+          grep -q 'Peptide Planner v2026.0209.020' index.html
+          grep -q 'data-copy-starting-cycle' index.html
+          grep -q 'data-cycle-add-phase' index.html
+          grep -q 'SUPABASE_URL' index.html
+          grep -q 'cloudClient.auth' index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\\s[^>]*)?>(.*?)</script>', text, re.S|re.I)
+          Path('/tmp/app.js').write_text(max(scripts, key=len))
+          PY
+          node --check /tmp/app.js
+      - name: Commit production index
+        run: |
+          git config user.name "jesykadelacruz"
+          git config user.email "84807985+jesykadelacruz@users.noreply.github.com"
+          git add index.html
+          git commit -m "Peptide Planner v2026.0209.020 move copy button under dose schedule"
+          git push origin main
