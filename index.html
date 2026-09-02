@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.017</title>
+<title>Peptide Planner v2026.0209.018</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -5248,6 +5248,28 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   }
 }
 
+
+/* v2026.0209.018 desktop vial table; v017 mobile vial cards remain unchanged */
+#planner .cycle-vial-mobile-cards{display:none}
+#planner .cycle-vial-desktop-table-wrap{width:100%;min-width:0;overflow-x:auto}
+#planner .cycle-vial-desktop-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+#planner .cycle-vial-desktop-table th{padding:8px 10px;background:#f7faf8;border-bottom:1px solid var(--line);color:var(--muted);font-size:.72rem;font-weight:900;text-align:left;white-space:nowrap}
+#planner .cycle-vial-desktop-table td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;min-width:0}
+#planner .cycle-vial-desktop-table tbody tr:last-child td{border-bottom:0}
+#planner .cycle-vial-desktop-table .cycle-vial-col-number{width:100px}
+#planner .cycle-vial-desktop-table .cycle-vial-col-dose{width:135px}
+#planner .cycle-vial-desktop-table .cycle-vial-col-date{width:190px}
+#planner .cycle-vial-desktop-table .cycle-vial-col-status{width:215px}
+#planner .cycle-vial-table-number{font-size:1rem;font-weight:900;white-space:nowrap}
+#planner .cycle-vial-full-dose{font-weight:850}
+#planner .cycle-vial-table-date input[type="date"]{display:block;width:100%!important;min-width:0!important;max-width:100%!important;min-height:40px;height:40px;padding:7px 9px;box-sizing:border-box!important}
+#planner .cycle-vial-table-status{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+#planner .cycle-vial-table-status .cycle-vial-remove{flex:0 0 auto;padding:5px 7px;font-size:.7rem}
+@media(max-width:760px){
+  #planner .cycle-vial-desktop-table-wrap{display:none!important}
+  #planner .cycle-vial-mobile-cards{display:grid!important}
+}
+
 /* v2026.0209.017 mobile Cycle Settings field alignment */
 @media(max-width:760px){
   body.mobile-app #planner .cycle-config-grid{
@@ -6691,7 +6713,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.017";
+const APP_VERSION="v2026.0209.018";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -9817,6 +9839,7 @@ function currentScheduledVialRecord(plan,at=new Date(),cycleUsage=null){
 function currentOpenedVialRecord(plan,at=new Date()){
   const scheduled=currentScheduledVialRecord(plan,at);
   if(scheduled)return scheduled;
+  if(plan&&!plan.noCycle)return null;
   const opened=openedVialRecordsForPlan(plan,at);
   if(!opened.length)return null;
   const latest=opened[opened.length-1],closed=new Set(["Finished","Discarded","On hold"]);
@@ -11474,7 +11497,7 @@ function cycleVialScheduleRecordAt(plan,cycleUsage,cycleNumber,index,used,cycleR
   let record=(state.vialRecords||[]).find(item=>item?.planId===plan.id&&Number(item.scheduleCycleNumber)===cycleNumber&&Number(item.scheduleRowIndex)===index)||null;
   const forecastOpening=cycleUsage?.openings?.[index-1]||null;
   if(!record&&forecastOpening){
-    record=(state.vialRecords||[]).find(item=>item?.planId===plan.id&&item.source==="forecast"&&Number(item.forecastNumber)===Number(forecastOpening.number))||null;
+    record=(cycleRecords||[]).find(item=>!used.has(item.id)&&item.source==="forecast"&&Number(item.forecastNumber)===Number(forecastOpening.number))||null;
   }
   if(record)used.add(record.id);
   if(!record){
@@ -11485,27 +11508,27 @@ function cycleVialScheduleRecordAt(plan,cycleUsage,cycleNumber,index,used,cycleR
 }
 function simulateCycleVialWindow(events,startCursor,openDate,unitsPerVial,disposeDate,manualFinishDate=null){
   const open=parseISO(openDate),dispose=disposeDate?parseISO(disposeDate):null,manualFinish=manualFinishDate?parseISO(manualFinishDate):null;
-  if(!open)return {nextCursor:startCursor,finishDate:"",lastFullDoseDate:"",usedUnits:0,remainingUnits:unitsPerVial,reason:"No open date"};
-  let cursor=Math.max(0,startCursor),remaining=unitsPerVial,lastFullDoseDate="",usedUnits=0,reason="";
+  if(!open)return {nextCursor:startCursor,finishDate:"",lastFullDoseDate:"",usedUnits:0,fullDoseCount:0,remainingUnits:unitsPerVial,reason:"No open date"};
+  let cursor=Math.max(0,startCursor),remaining=unitsPerVial,lastFullDoseDate="",usedUnits=0,fullDoseCount=0,reason="";
   while(cursor<events.length&&events[cursor].date<open)cursor+=1;
   const firstEligibleCursor=cursor;
   while(cursor<events.length){
     const event=events[cursor];
     if(manualFinish&&event.date>manualFinish){reason="Manual finish";break;}
     if(!manualFinish&&dispose&&event.date>=dispose){reason="Disposal limit";break;}
-    if(event.units>unitsPerVial+0.000001)return {nextCursor:cursor,finishDate:openDate,lastFullDoseDate:"",usedUnits:0,remainingUnits:unitsPerVial,reason:"Dose exceeds vial capacity",invalid:true};
+    if(event.units>unitsPerVial+0.000001)return {nextCursor:cursor,finishDate:openDate,lastFullDoseDate:"",usedUnits:0,fullDoseCount:0,remainingUnits:unitsPerVial,reason:"Dose exceeds vial capacity",invalid:true};
     if(event.units>remaining+0.000001){reason="Vial capacity";break;}
-    remaining=round(remaining-event.units,6);usedUnits=round(usedUnits+event.units,6);lastFullDoseDate=event.dateISO;cursor+=1;
+    remaining=round(remaining-event.units,6);usedUnits=round(usedUnits+event.units,6);fullDoseCount+=1;lastFullDoseDate=event.dateISO;cursor+=1;
     if(remaining<=0.000001){reason="Vial capacity";break;}
   }
-  if(manualFinish)return {nextCursor:cursor,finishDate:manualFinishDate,lastFullDoseDate,usedUnits,remainingUnits:remaining,reason:reason||"Manual finish"};
-  if(reason==="Disposal limit")return {nextCursor:cursor,finishDate:disposeDate,lastFullDoseDate,usedUnits,remainingUnits:remaining,reason};
-  if(reason==="Vial capacity")return {nextCursor:cursor,finishDate:lastFullDoseDate||openDate,lastFullDoseDate,usedUnits,remainingUnits:remaining,reason};
+  if(manualFinish)return {nextCursor:cursor,finishDate:manualFinishDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason:reason||"Manual finish"};
+  if(reason==="Disposal limit")return {nextCursor:cursor,finishDate:disposeDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason};
+  if(reason==="Vial capacity")return {nextCursor:cursor,finishDate:lastFullDoseDate||openDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason};
   if(cursor>=events.length){
-    if(lastFullDoseDate)return {nextCursor:cursor,finishDate:lastFullDoseDate,lastFullDoseDate,usedUnits,remainingUnits:remaining,reason:"Last planned dose in cycle"};
-    return {nextCursor:cursor,finishDate:disposeDate||openDate,lastFullDoseDate:"",usedUnits:0,remainingUnits:remaining,reason:firstEligibleCursor>=events.length?"No later dose in cycle":"No planned dose"};
+    if(lastFullDoseDate)return {nextCursor:cursor,finishDate:lastFullDoseDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason:"Last planned dose in cycle"};
+    return {nextCursor:cursor,finishDate:disposeDate||openDate,lastFullDoseDate:"",usedUnits:0,fullDoseCount:0,remainingUnits:remaining,reason:firstEligibleCursor>=events.length?"No later dose in cycle":"No planned dose"};
   }
-  return {nextCursor:cursor,finishDate:lastFullDoseDate||disposeDate||openDate,lastFullDoseDate,usedUnits,remainingUnits:remaining,reason:reason||"Calculated"};
+  return {nextCursor:cursor,finishDate:lastFullDoseDate||disposeDate||openDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason:reason||"Calculated"};
 }
 function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
   if(!plan||plan.noCycle||!cycleUsage?.valid||cycleUsage.mode!=="cycle")return {valid:false,rows:[],required:0,reason:cycleUsage?.reason||"Complete the cycle dose and vial inputs to calculate the vial schedule."};
@@ -11541,7 +11564,7 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     rows.push({
       index,cycleNumber,record,forecastNumber:forecastOpening?.number||null,projectedDate:projected?localDateISO(projected):calculatedOpenDate,
       calculatedOpenDate,calculatedFinishDate:autoWindow.finishDate,openDate,finishDate,disposeDate,
-      unitsUsed:effectiveWindow.usedUnits,remainingUnits:effectiveWindow.remainingUnits,lastFullDoseDate:effectiveWindow.lastFullDoseDate,
+      unitsUsed:effectiveWindow.usedUnits,fullDoseCount:effectiveWindow.fullDoseCount,remainingUnits:effectiveWindow.remainingUnits,lastFullDoseDate:effectiveWindow.lastFullDoseDate,
       status:cycleVialScheduleStatus(openDate,finishDate),statusKey:cycleVialScheduleStatusKey(cycleVialScheduleStatus(openDate,finishDate)),autoRequired:rowRequired
     });
     const needMoreAutomatic=cursor<dosePlan.events.length;
@@ -11564,12 +11587,12 @@ function ensureCycleVialScheduleRecord(plan,cycleUsage,index,requestedTotal=null
   let record;
   if(row?.forecastNumber){
     record={
-      id:`${plan.id}:forecast:${row.forecastNumber}`,
+      id:`${plan.id}:cycle:${row.cycleNumber}:forecast:${row.forecastNumber}`,
       planId:plan.id,
       source:"forecast",
       forecastNumber:Number(row.forecastNumber),
       forecastActive:true,
-      vialNumber:Number(row.forecastNumber),
+      vialNumber:Number(row.index),
       needDate:row.projectedDate||row.calculatedOpenDate||"",
       needDateAuto:true,
       cycleLabel:row.projectedDate?vialCycleStage(plan,row.projectedDate):`Cycle ${row.cycleNumber}`,
@@ -11638,18 +11661,35 @@ function renderCycleConfigVialSchedule(plan,config,sequence){
   const forecastRequired=usage?.valid&&usage.mode==="cycle"?Math.max(0,Math.floor(num(usage.wholeVials)||0)):0;
   const required=Math.max(computed.required,forecastRequired),rowCount=rows.length;
   const key=`${plan.id}:cycle-config:${sequence}:vial-schedule`;
+  const dateOpenInput=row=>`<input type="date" aria-label="Vial ${row.index} date open" data-cycle-vial-open-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.openDate||"")}">`;
+  const dateFinishInput=row=>`<input type="date" aria-label="Vial ${row.index} date finish" data-cycle-vial-finish-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.finishDate||"")}">`;
+  const removeButton=row=>row.index>required?`<button class="btn small danger cycle-vial-remove" type="button" data-cycle-remove-vial="${sequence}" data-cycle-vial-index="${row.index}">Remove vial</button>`:"";
   return `<details class="span-2 cycle-vial-schedule-field cycle-subsection" data-cycle-subsection="vial-schedule" data-collapse-key="${esc(key)}"${detailOpenAttr(key,true)}>
     <summary class="cycle-subsection-summary"><strong>Vial Schedule</strong><span class="cycle-subsection-count">${rowCount}</span></summary>
     <div class="cycle-vial-schedule-body">
-      ${rows.length?`<div class="cycle-vial-schedule">
+      ${rows.length?`
+      <div class="cycle-vial-desktop-table-wrap">
+        <table class="cycle-vial-desktop-table">
+          <colgroup><col class="cycle-vial-col-number"><col class="cycle-vial-col-dose"><col class="cycle-vial-col-date"><col class="cycle-vial-col-date"><col class="cycle-vial-col-status"></colgroup>
+          <thead><tr><th>Vial #</th><th>Dose (full dose)</th><th>Open</th><th>Finish</th><th>Status</th></tr></thead>
+          <tbody>${rows.map(row=>`<tr data-cycle-vial-row="${row.index}">
+            <td><strong class="cycle-vial-table-number">Vial #${row.index}</strong></td>
+            <td><span class="cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</span></td>
+            <td class="cycle-vial-table-date">${dateOpenInput(row)}</td>
+            <td class="cycle-vial-table-date">${dateFinishInput(row)}</td>
+            <td><div class="cycle-vial-table-status"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span>${removeButton(row)}</div></td>
+          </tr>`).join("")}</tbody>
+        </table>
+      </div>
+      <div class="cycle-vial-schedule cycle-vial-mobile-cards">
         ${rows.map(row=>`<div class="cycle-vial-schedule-row" data-cycle-vial-row="${row.index}">
           <div class="cycle-vial-line">
             <strong class="cycle-vial-number">Vial #${row.index}</strong>
-            <label class="cycle-vial-date-field"><span>Date Open</span><input type="date" aria-label="Vial ${row.index} date open" data-cycle-vial-open-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.openDate||"")}"></label>
-            <label class="cycle-vial-date-field"><span>Date Finish</span><input type="date" aria-label="Vial ${row.index} date finish" data-cycle-vial-finish-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.finishDate||"")}"></label>
+            <label class="cycle-vial-date-field"><span>Date Open</span>${dateOpenInput(row)}</label>
+            <label class="cycle-vial-date-field"><span>Date Finish</span>${dateFinishInput(row)}</label>
             <div class="cycle-vial-status-wrap"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span></div>
           </div>
-          ${row.index>required?`<div class="cycle-vial-row-actions no-print"><button class="btn small danger cycle-vial-remove" type="button" data-cycle-remove-vial="${sequence}" data-cycle-vial-index="${row.index}">Remove vial</button></div>`:""}
+          ${row.index>required?`<div class="cycle-vial-row-actions no-print">${removeButton(row)}</div>`:""}
         </div>`).join("")}
       </div>`:`<div class="helper">${esc(computed.reason||"Complete the cycle dose and vial inputs to calculate the vial schedule.")}</div>`}
       <div class="actions cycle-vial-schedule-actions no-print"><button class="btn small" type="button" data-cycle-add-vial="${sequence}">Add vial</button></div>
