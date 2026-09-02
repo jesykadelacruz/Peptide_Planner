@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.018</title>
+<title>Peptide Planner v2026.0209.019</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6713,7 +6713,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.018";
+const APP_VERSION="v2026.0209.019";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -7250,9 +7250,8 @@ function maintenanceVialDurationUsage(plan,at=new Date()){
 function overviewScheduleText(plan,at=new Date()){
   const fullDayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],formatDays=days=>{const clean=[...new Set((days||[]).map(Number).filter(day=>day>=0&&day<=6))].sort((a,b)=>a-b);if(plannerArraysEqual(clean,[0,1,2,3,4,5,6]))return "Daily";if(plannerArraysEqual(clean,[1,2,3,4,5]))return "Weekdays";return clean.length?clean.map(day=>fullDayNames[day]).join(" / "):"Days not set";};
   if(plan.noCycle){if(plan.scheduleMode==="interval")return num(plan.intervalDays)?`Every ${Number(plan.intervalDays)} days`:"Interval not set";return formatDays(plan.weekdays||[]);}
-  const position=protocolPositionForDate(plan,at);if(!position.valid)return "Cycle schedule not set";if(position.washout)return "Break";if(position.ended)return "Cycles completed";
-  const config=cycleConfigForSequence(plan,position.sequence||1),week=Math.max(1,position.week||1),phaseDays=cyclePhaseWeekdays(config,week);
-  if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,week);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);
+  const config=cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
+  const phaseDays=cyclePhaseWeekdays(config,1);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,1);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);
 }
 function sortedPlans(){
   return [...(state.plans||[])].sort((a,b)=>{
