@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.020</title>
+<title>Peptide Planner v2026.0209.021</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6713,7 +6713,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.020";
+const APP_VERSION="v2026.0209.021";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -9844,6 +9844,18 @@ function currentOpenedVialRecord(plan,at=new Date()){
   const latest=opened[opened.length-1],closed=new Set(["Finished","Discarded","On hold"]);
   return closed.has(String(latest.record?.status||""))?null:latest;
 }
+function scheduledAdministrationRecorded(planId,date,partKey=""){
+  const targetDate=trackingDateISO(date),targetPart=String(partKey||"");
+  const exactSource=`completion|${planId}|${targetDate}${targetPart?`|${targetPart}`:""}`;
+  return (state.administrations||[]).some(record=>{
+    if(record?.planId!==planId||record?.status!=="Administered")return false;
+    if(String(record?.dateTime||"").slice(0,10)!==targetDate)return false;
+    const sourceKey=String(record?.sourceKey||"");
+    if(targetPart)return sourceKey===exactSource;
+    if(sourceKey.startsWith(`completion|${planId}|${targetDate}|split-`))return false;
+    return true;
+  });
+}
 function currentVialDosesLeft(plan,at=new Date()){
   const planVialMg=num(plan?.vialMg);if(!(planVialMg>0))return {valid:false,reason:"Enter vial strength"};
   const explicitCurrent=currentOpenedVialRecord(plan,at);
@@ -9873,7 +9885,7 @@ function currentVialDosesLeft(plan,at=new Date()){
     const administrations=(schedule.administrations&&schedule.administrations.length)?schedule.administrations:[{partKey:"",doseMg:schedule.doseMg,units:schedule.units,time:plan.injectionTime||""}];
     for(const administration of administrations){
       const partKey=administration.partKey||"";
-      if(injectionDone(plan.id,date,partKey))continue;
+      if(scheduledAdministrationRecorded(plan.id,date,partKey))continue;
       const doseMg=num(administration.doseMg);if(!(doseMg>0))continue;
       foundPlanned=true;if(nextDoseMg==null)nextDoseMg=doseMg;
       if(discardAt&&day>=discardAt)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt,discardAt,limitedBy:"discard",vialRecordId:explicitCurrent.record?.id||null};
