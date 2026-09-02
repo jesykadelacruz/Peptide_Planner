@@ -1,0 +1,79 @@
+name: Prepare v2026.0309.13 CDC manifest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prepare-v2026-0309-13-cdc.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Build guarded content-defined chunk manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          src = Path('index.html').read_bytes()
+          MIN_CHUNK = 2048
+          MAX_CHUNK = 8192
+          MASK = 0x0FFF
+
+          def gear(b):
+              x = b + 1
+              return ((x * 0x9E3779B1) ^ (x << 16)) & 0xFFFFFFFF
+
+          chunks = []
+          start = 0
+          h = 0
+          for i, b in enumerate(src):
+              h = ((h << 1) + gear(b)) & 0xFFFFFFFF
+              size = i + 1 - start
+              if size >= MIN_CHUNK and ((h & MASK) == 0 or size >= MAX_CHUNK):
+                  part = src[start:i+1]
+                  chunks.append((hashlib.sha256(part).hexdigest(), len(part)))
+                  start = i + 1
+                  h = 0
+          if start < len(src):
+              part = src[start:]
+              chunks.append((hashlib.sha256(part).hexdigest(), len(part)))
+
+          out = Path('.deploy/v2026_0309_13.base.cdc')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          lines = [
+              'FORMAT=PP_CDC_V1',
+              f'BASE_GIT_BLOB={__import__("subprocess").check_output(["git","hash-object","index.html"], text=True).strip()}',
+              f'BASE_SHA256={hashlib.sha256(src).hexdigest()}',
+              f'BASE_SIZE={len(src)}',
+              f'CHUNKS={len(chunks)}',
+          ]
+          lines += [f'{sha} {length}' for sha, length in chunks]
+          out.write_text('\n'.join(lines) + '\n')
+          print('\n'.join(lines[:5]))
+          PY
+
+      - name: Commit manifest only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .deploy/v2026_0309_13.base.cdc
+          if git diff --cached --quiet; then
+            echo 'Manifest already current.'
+            exit 0
+          fi
+          git commit -m 'Prepare guarded v2026.0309.13 delta manifest'
+          git push origin HEAD:main
