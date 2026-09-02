@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0209.007</title>
+<title>Peptide Planner v2026.0209.008</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6203,7 +6203,7 @@ body.mobile-app .hero{padding:15px 18px!important}
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0209.007";
+const APP_VERSION="v2026.0209.008";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -9284,24 +9284,47 @@ function nextIncompleteAdministration(plan,at=new Date()){
   }
   return null;
 }
+function openedVialRecordsForPlan(plan,at=new Date()){
+  const cutoff=new Date(at.getFullYear(),at.getMonth(),at.getDate(),23,59,59,999);
+  return (state.vialRecords||[])
+    .filter(record=>record?.planId===plan.id&&String(record?.startDate||"").trim())
+    .map(record=>({record,date:parseISO(record.startDate)}))
+    .filter(item=>item.date&&item.date<=cutoff)
+    .sort((a,b)=>a.date-b.date||Number(a.record?.vialNumber||0)-Number(b.record?.vialNumber||0)||String(a.record?.id||"").localeCompare(String(b.record?.id||"")));
+}
+function currentOpenedVialRecord(plan,at=new Date()){
+  const opened=openedVialRecordsForPlan(plan,at);
+  return opened.length?opened[opened.length-1]:null;
+}
 function currentVialDosesLeft(plan,at=new Date()){
-  const vialMg=num(plan?.vialMg);if(!(vialMg>0))return {valid:false,reason:"Enter vial strength"};
+  const planVialMg=num(plan?.vialMg);if(!(planVialMg>0))return {valid:false,reason:"Enter vial strength"};
+  const explicitCurrent=currentOpenedVialRecord(plan,at);
+  const vialMg=num(explicitCurrent?.record?.vialMg)>0?num(explicitCurrent.record.vialMg):planVialMg;
   const records=(state.administrations||[])
     .filter(record=>record?.planId===plan.id&&record?.status==="Administered"&&String(record?.dateTime||""))
     .map(record=>({record,date:new Date(record.dateTime),mg:administrationConsumedMg(plan,record)}))
     .filter(item=>!Number.isNaN(item.date.getTime())&&item.date<=at&&item.mg!=null&&item.mg>0)
     .sort((a,b)=>a.date-b.date);
   let remaining=vialMg,openedAt=null,discardAt=null;
-  const openVial=date=>{openedAt=new Date(date);remaining=vialMg;discardAt=disposeDateFromOpen(plan,openedAt)};
-  for(const item of records){
-    if(!openedAt||remaining<=0.0000001||(discardAt&&item.date>=discardAt))openVial(item.date);
-    let need=item.mg,safety=0;
-    while(need>0.0000001&&safety<100){
-      safety+=1;if(remaining<=0.0000001)openVial(item.date);
-      const used=Math.min(remaining,need);remaining=round(remaining-used,6);need=round(need-used,6);
+  if(explicitCurrent){
+    openedAt=new Date(explicitCurrent.date);
+    discardAt=parseISO(explicitCurrent.record?.budDate)||disposeDateFromOpen(plan,openedAt);
+    for(const item of records){
+      if(item.date<openedAt)continue;
+      remaining=round(Math.max(0,remaining-item.mg),6);
+    }
+  }else{
+    const openVial=date=>{openedAt=new Date(date);remaining=vialMg;discardAt=disposeDateFromOpen(plan,openedAt)};
+    for(const item of records){
+      if(!openedAt||remaining<=0.0000001||(discardAt&&item.date>=discardAt))openVial(item.date);
+      let need=item.mg,safety=0;
+      while(need>0.0000001&&safety<100){
+        safety+=1;if(remaining<=0.0000001)openVial(item.date);
+        const used=Math.min(remaining,need);remaining=round(remaining-used,6);need=round(need-used,6);
+      }
     }
   }
-  if(openedAt&&discardAt&&at>=discardAt)return {valid:true,doses:0,remainingMg:0,expired:true,openedAt,discardAt};
+  if(openedAt&&discardAt&&at>=discardAt)return {valid:true,doses:0,remainingMg:0,expired:true,openedAt,discardAt,vialRecordId:explicitCurrent?.record?.id||null};
 
   const startDay=new Date(at.getFullYear(),at.getMonth(),at.getDate());
   let doses=0,nextDoseMg=null,forecastOpenedAt=openedAt?new Date(openedAt):null,forecastDiscardAt=discardAt?new Date(discardAt):null,foundUpcoming=false;
@@ -9317,14 +9340,14 @@ function currentVialDosesLeft(plan,at=new Date()){
       if(offset===0&&time){const when=new Date(`${date}T${time}:00`);if(!Number.isNaN(when.getTime())&&when<at)continue}
       foundUpcoming=true;if(nextDoseMg==null)nextDoseMg=doseMg;
       if(!forecastOpenedAt){forecastOpenedAt=new Date(day);forecastDiscardAt=disposeDateFromOpen(plan,forecastOpenedAt)}
-      if(forecastDiscardAt&&day>=forecastDiscardAt)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"discard"};
-      if(remaining+1e-9<doseMg)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"amount"};
+      if(forecastDiscardAt&&day>=forecastDiscardAt)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"discard",vialRecordId:explicitCurrent?.record?.id||null};
+      if(remaining+1e-9<doseMg)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"amount",vialRecordId:explicitCurrent?.record?.id||null};
       remaining=round(remaining-doseMg,6);doses+=1;
-      if(remaining<=0.0000001)return {valid:true,doses,remainingMg:0,nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"amount"};
+      if(remaining<=0.0000001)return {valid:true,doses,remainingMg:0,nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"amount",vialRecordId:explicitCurrent?.record?.id||null};
     }
   }
   if(!foundUpcoming)return {valid:false,reason:"No upcoming dose"};
-  return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"schedule"};
+  return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt:forecastOpenedAt,discardAt:forecastDiscardAt,limitedBy:"schedule",vialRecordId:explicitCurrent?.record?.id||null};
 }
 function injectionKey(planId,date,partKey=""){
   const base=`${planId}|${trackingDateISO(date)}`;
@@ -10857,6 +10880,29 @@ function cycleVialUsage(plan,cycleNumber=1){
   const volumeUsed=totalUnits/unitsPerMl,vialsUsed=volumeUsed/finalMl,capacityWholeVials=vialsUsed>0?Math.ceil(vialsUsed-1e-9):0;
   return {valid:true,mode:"cycle",phase:period.kind,maintenanceCycle:period.maintenanceCycle,cycleNumber:requestedCycle,cycleStart,injections,totalUnits:round(totalUnits,2),volumeUsed:round(volumeUsed,3),vialsUsed:round(vialsUsed,2),capacityWholeVials,wholeVials:openedCount,discardDrivenExtraVials:Math.max(0,openedCount-capacityWholeVials),openings,lastDoses,frequency:cycleFrequencyText(usageSchedule)};
 }
+function currentVialPerCycle(plan,cycleUsage,at=new Date()){
+  if(!plan||plan.noCycle||!cycleUsage?.valid||cycleUsage.mode!=="cycle")return {valid:false};
+  const period=protocolPeriodForSequence(plan,cycleUsage.cycleNumber||1);
+  if(!period?.valid)return {valid:false};
+  const cycleStart=new Date(period.start),cycleEnd=new Date(period.fullEnd||period.activeEnd);
+  const opened=openedVialRecordsForPlan(plan,at).filter(item=>item.date>=cycleStart&&item.date<=cycleEnd);
+  let current=0;
+  if(opened.length){
+    const currentRecord=opened[opened.length-1].record;
+    const cycleRecords=(state.vialRecords||[])
+      .filter(record=>record?.planId===plan.id)
+      .map(record=>({record,needDate:parseISO(record.needDate),startDate:parseISO(record.startDate)}))
+      .filter(item=>(item.needDate&&item.needDate>=cycleStart&&item.needDate<=cycleEnd)||(item.startDate&&item.startDate>=cycleStart&&item.startDate<=cycleEnd))
+      .sort((a,b)=>(a.needDate||a.startDate)-(b.needDate||b.startDate)||Number(a.record?.vialNumber||0)-Number(b.record?.vialNumber||0));
+    const index=cycleRecords.findIndex(item=>item.record?.id===currentRecord.id);
+    current=index>=0?index+1:opened.length;
+  }else{
+    const projected=(cycleUsage.openings||[]).filter(opening=>opening?.date&&new Date(opening.date)<=at);
+    current=projected.length||((at>=cycleStart&&at<=cycleEnd)?1:0);
+  }
+  const total=Math.max(current,Math.max(1,Math.floor(num(cycleUsage.wholeVials)||0)));
+  return current>0?{valid:true,current,total}:{valid:false};
+}
 function calendarCycleVialForecast(plan){
   if(plan?.noCycle)return vialForecast(plan);
   const cycles=isSeparateCycleStack(plan)?[planCycleNumber(plan)]:Array.from({length:forecastIncludedCycleCount(plan)},(_,index)=>index+1);
@@ -11348,7 +11394,7 @@ function renderSimplePlanner(){
     const scheduleText=overviewScheduleText(plan);
     const verification=planVerificationCompleteness(plan);
     const enabledReady=plan.enabled&&planReadyForToday(plan);
-    const cycleWindow=currentCycleWindow(plan),cycleUsage=cycleVialUsage(plan,cycleWindow.valid&&!cycleWindow.ongoing?cycleWindow.number:1);
+    const cycleWindow=currentCycleWindow(plan),cycleUsage=cycleVialUsage(plan,cycleWindow.valid&&!cycleWindow.ongoing?cycleWindow.number:1),vialPerCycle=currentVialPerCycle(plan,cycleUsage,new Date());
     const annualCycleCount=currentAnnualCycleCount(plan,new Date());
     const fullCycleEnd=calculatedFullCycleEndDate(plan);
     const kbCategory=String(plan.category||kbReferenceRowValue(plan,"Category")||"").trim();
@@ -11369,14 +11415,14 @@ function renderSimplePlanner(){
           <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
           <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
           <div class="simple-mini"><span>Dosage</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
-          <div class="simple-mini" title="Based on the current vial and the actual upcoming schedule, including dose changes, split doses, breaks and cycle boundaries."><span>Dose left in vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
+          <div class="simple-mini" title="Based on the latest vial marked opened/in use and the actual upcoming schedule, including dose changes, split doses, breaks and cycle boundaries."><span>Dose left in vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:"—"}</strong></div>
           <div class="simple-mini"><span>Cycle</span><strong>${plan.noCycle?"Continuous":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?"Starting Phase":`Cycle ${currentPosition?.sequence||"—"}`)}</strong></div>
           ${!plan.noCycle&&annualCycleCount?`<div class="simple-mini"><span>Current cycle count</span><strong>${annualCycleCount.current} of ${annualCycleCount.total}</strong></div>`:""}
           ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div>`:""}
           ${plan.noCycle
             ? `<div class="simple-mini"><span>Estimated vial duration</span><strong>${cycleUsage.valid&&cycleUsage.mode==="ongoing"?formatVialDuration(cycleUsage.weeksPerVial,true):esc(cycleUsage.reason||"Needs dose and preparation")}</strong></div>
                <div class="simple-mini"><span>Current vial basis</span><strong>${cycleUsage.valid&&cycleUsage.mode==="ongoing"?`${cycleUsage.injectionsPerVial} injections/vial · ${cycleUsage.unitsPerInjection} units/injection`:"—"}</strong></div>`
-            : `<div class="simple-mini"><span>Vials used this cycle</span><strong>${cycleUsage.valid?`${cycleUsage.vialsUsed} used · ${cycleUsage.wholeVials} needed`:"Needs cycle inputs"}</strong></div>
+            : `<div class="simple-mini"><span>Vial per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`1 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
                  <div class="simple-mini"><span>Cycle usage</span><strong>${cycleUsage.valid?`${cycleUsage.injections} injections · ${cycleUsage.totalUnits} units`:esc(cycleUsage.reason||"—")}</strong></div>`}
         </div>
       </summary>
