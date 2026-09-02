@@ -1,3 +1,5 @@
+self.addEventListener('install',event=>{self.skipWaiting();});
+self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim());});
 self.addEventListener('push',event=>{
   let data={};
   try{data=event.data?event.data.json():{}}catch(_){data={body:event.data?event.data.text():''}}
@@ -5,7 +7,8 @@ self.addEventListener('push',event=>{
   const options={
     body:data.body||'You have a treatment reminder.',
     tag:data.tag||'peptide-planner-reminder',
-    renotify:false,
+    renotify:true,
+    silent:false,
     data:{url:data.url||'./'}
   };
   event.waitUntil(self.registration.showNotification(title,options));
