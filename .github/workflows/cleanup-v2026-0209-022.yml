@@ -1,0 +1,40 @@
+name: Cleanup Peptide Planner v2026.0209.022 deployment files
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cleanup-v2026-0209-022.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove temporary v022 deployment files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f \
+            .deploy/v2026_0209_022.patch.xz.b64 \
+            .deploy/v2026_0209_022.part00 \
+            .deploy/v2026_0209_022.part01 \
+            .deploy/v2026_0209_022.part02 \
+            .deploy/v2026_0209_022.part03 \
+            .deploy/v2026_0209_022.part04 \
+            .deploy/v2026_0209_022.part05 \
+            .deploy/v2026_0209_022.part06 \
+            .deploy/v2026_0209_022.part07 \
+            .deploy/v2026_0209_022.part08 \
+            .github/workflows/apply-v2026-0209-022.yml \
+            .github/workflows/cleanup-v2026-0209-022.yml
+          git commit -m 'Clean up v2026.0209.022 deployment files'
+          git push origin HEAD:main
