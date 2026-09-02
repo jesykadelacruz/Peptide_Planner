@@ -1,4 +1,5 @@
 name: Apply Peptide Planner v2026.0209.008 patch
+# retry 2: corrected patch paths
 
 on:
   push:
