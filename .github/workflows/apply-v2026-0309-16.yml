@@ -1,0 +1,83 @@
+name: Apply Peptide Planner v2026.0309.16
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0309-16.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, patch, and verify v16
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="08544c17a1e3f38bd90dbc735a8cd27592795eeec2bf6e1e57a36b3bd042a434"
+          TARGET_SHA="b811ca622f044a14e1e16efc52f3dae107ee1659417e1df90ec3dd5a0b8e7a71"
+          PAYLOAD_SHA="524a6b4ee8b66b4d6457a23058aaa828d012b42adef02227adc50e7511772371"
+          PATCH_SHA="55caa8fa56cea7d4ead4691c7207b2f31b5ae4200a37c416f3a3144744223cf7"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.16"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          echo "$PAYLOAD_SHA  .deploy/v2026_0309_16.patch.xz.b64" | sha256sum -c -
+          base64 -d .deploy/v2026_0309_16.patch.xz.b64 | xz -d > /tmp/v16.patch
+          echo "$PATCH_SHA  /tmp/v16.patch" | sha256sum -c -
+
+          patch --dry-run -p1 < /tmp/v16.patch
+          patch -p1 < /tmp/v16.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2210912
+          grep -Fq '<title>Peptide Planner v2026.0309.16</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.16";' index.html
+          grep -Fq '@media (min-width:901px){' index.html
+          grep -Fq '#planner .plan-overview-details > summary{cursor:default;pointer-events:none}' index.html
+          grep -Fq '#planner .plan-overview-details > summary::after{display:none!important}' index.html
+          grep -Fq '#planner .plan-overview-details > .planner-section-details-body{display:block!important}' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-number{font-weight:700!important}' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-date-field input[type="date"]{font-weight:400!important}' index.html
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text()
+          scripts = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.S|re.I)
+          Path('/tmp/v16-inline.js').write_text('\n'.join(scripts))
+          print('Inline scripts:', len(scripts))
+          PY
+          node --check /tmp/v16-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v16
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.16"
+          git push
