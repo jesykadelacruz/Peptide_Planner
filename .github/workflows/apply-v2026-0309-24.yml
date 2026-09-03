@@ -1,0 +1,105 @@
+name: Apply Peptide Planner v2026.0309.24
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0309-24.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, patch, and verify v24
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="9a595c7921d9ace268f1e3f0d0e3e52c7eeb2b6d7a52cb9564fb743a155f343d"
+          TARGET_SHA="e2ef872f1194b85bc00775afe95feb619a2e2edae94b453c57132b5a157a6a89"
+          PAYLOAD_SHA="6fdb1d42c71da2529fc4e5780025664bbcd410b7ca70aa24af039d1d4a084e84"
+          PATCH_SHA="f342a46c1d91c853bd7ca44d62f8ecf4e4562f6d9fd3dbf08a289cd5fd342832"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.24"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          echo "$PAYLOAD_SHA  .deploy/v2026_0309_24.patch.xz.b64" | sha256sum -c -
+          base64 -d .deploy/v2026_0309_24.patch.xz.b64 | xz -d > /tmp/v24.patch
+          echo "$PATCH_SHA  /tmp/v24.patch" | sha256sum -c -
+          patch --dry-run -p1 < /tmp/v24.patch
+          patch -p1 < /tmp/v24.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2225903
+          grep -Fq '<title>Peptide Planner v2026.0309.24</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.24";' index.html
+
+          # Keyword search exists only in the Treatments field guide.
+          grep -Fq 'id="treatmentFieldGuideSearch"' index.html
+          grep -Fq 'id="treatmentFieldGuideGrid"' index.html
+          grep -Fq 'Search Treatments field guide' index.html
+          grep -Fq 'Search by keyword, e.g. dose, vial, cycle or units' index.html
+          grep -Fq 'function filterTreatmentFieldGuide()' index.html
+          grep -Fq 'keywords.every(keyword=>searchable.includes(keyword))' index.html
+          grep -Fq 'No fields match' index.html
+
+          # Existing guide content and location remain intact.
+          grep -Fq '<summary>Treatments field guide</summary>' index.html
+          grep -Fq '<strong>Full Dose</strong>' index.html
+          grep -Fq '<strong>Cycle Dose</strong>' index.html
+          grep -Fq 'actual scheduled dose for each administration date' index.html
+
+          # Preserve Vial Schedule and core application functions.
+          grep -Fq '"open finish"' index.html
+          grep -Fq '"full cycle"' index.html
+          grep -Fq 'function vialDoseCountForDisplay' index.html
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+
+          python3 - <<'PY2'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          assert html.count('id="treatmentFieldGuideSearch"') == 1
+          assert html.count('id="treatmentFieldGuideGrid"') == 1
+          planner=html.index('<section id="planner" class="tab">')
+          progress=html.index('<section id="progress" class="tab">')
+          guide=html.index('<summary>Treatments field guide</summary>')
+          search=html.index('id="treatmentFieldGuideSearch"')
+          setup=html.index('id="simpleSetupCard"',planner)
+          assert planner < guide < search < setup < progress
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,flags=re.S|re.I)
+          assert len(scripts)==2
+          Path('/tmp/v24-inline.js').write_text('\n'.join(scripts))
+          print('Treatments field-guide keyword search verified')
+          PY2
+          node --check /tmp/v24-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v24
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.24"
+          git push
