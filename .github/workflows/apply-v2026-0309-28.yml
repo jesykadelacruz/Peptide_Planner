@@ -1,0 +1,101 @@
+name: Apply Peptide Planner v2026.0309.28
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0309-28.yml'
+      - '.deploy/v2026_0309_28.patch.xz.b64'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, patch, and verify v28
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="e2ef872f1194b85bc00775afe95feb619a2e2edae94b453c57132b5a157a6a89"
+          TARGET_SHA="b76d909f4b07114ef8d8f2e5dd4a8b49bd5d4dacc24e39affcf3fae31911b19d"
+          PAYLOAD_SHA="c1d2445268ee2e5692afafc8b03f9c6f02690553baa4273dccb277d940d8215d"
+          PATCH_SHA="603ad09bdedc07837be899176d72d186fa155c6697684bf0c373b1482c841965"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.28"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          echo "$PAYLOAD_SHA  .deploy/v2026_0309_28.patch.xz.b64" | sha256sum -c -
+          base64 -d .deploy/v2026_0309_28.patch.xz.b64 | xz -d > /tmp/v28.patch
+          echo "$PATCH_SHA  /tmp/v28.patch" | sha256sum -c -
+          patch --dry-run -p1 < /tmp/v28.patch
+          patch -p1 < /tmp/v28.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2369690
+          grep -Fq '<title>Peptide Planner v2026.0309.28</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.28";' index.html
+
+          # Simplified Account grouping.
+          test "$(grep -Foc 'class="reference-subnav account-simple-nav no-print" aria-label="Account sections"' index.html)" -eq 3
+          grep -Fq '>My Profile</button>' index.html
+          grep -Fq '>Help &amp; Setup</button>' index.html
+          grep -Fq '>My Progress</button>' index.html
+          grep -Fq '<summary>More Account Options</summary>' index.html
+          grep -Fq '<details class="optional-details account-profile-details" open>' index.html
+          grep -Fq 'class="card setup-journey-card hidden" id="setupJourneyCard"' index.html
+
+          # Preserve onboarding, auth, password recovery, cloud sync and treatment logic.
+          grep -Fq 'routeInitialPlannerExperience' index.html
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'plannerPasswordRecoveryLinkActive' index.html
+          grep -Fq 'cloudClient.rpc("planner_activate_invite")' index.html
+          grep -Fq 'function vialDoseCountForDisplay' index.html
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,flags=re.S|re.I)
+          assert len(scripts)==2
+          Path('/tmp/v28-inline.js').write_text('\n'.join(scripts))
+          ids=re.findall(r'\bid="([^"]+)"',html)
+          assert len(ids)==len(set(ids)), 'duplicate IDs detected'
+          progress=html.index('<section id="progress"')
+          account=html.index('<section id="safety"')
+          for field_id in ('quickWeight','currentBmi','quickTargetDisplay','progressPercent'):
+              pos=html.index(f'id="{field_id}"')
+              assert progress < pos < account, field_id
+          print('Account structure and IDs verified')
+          PY
+          node --check /tmp/v28-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v28
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.28"
+          git push origin HEAD:main
