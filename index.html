@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.30</title>
+<title>Peptide Planner v2026.0309.31</title>
+<!-- v2026.0309.31: Vial inventory integrity update: Dose left forecasts only future administrations from now, respects current vial finish/discard boundaries including the discard date, rejects planned-only vials as active inventory, flags active-vial preparation mismatches and off-schedule historical administrations without deleting history, and clarifies split-dose administration/day counts. -->
 <!-- v2026.0309.30: Dose-left inventory ignores obsolete auto-completion records that no longer match the scheduled split/unsplit structure for that date and preserves historical planned dose-to-units conversion; Current weight is read-only in My Progress and updates only through Add progress record; mobile Vial Schedule Full Dose/Cycle Dose values match Cycle Settings Start date/Time text size. -->
 <!-- v2026.0309.29: Treatments/Knowledge Base guides now match the compact Add Treatment collapsed format; Peptide Settings syringe field removed; Account order is My Profile, My Progress, Help & Setup; Backup and transfer plus Progress/Administration histories are collapsible; Goal Progress now includes a progress chart. -->
 <!-- v2026.0309.28: Account navigation simplified for non-technical users: My Profile, My Progress and Help & Setup; duplicate setup is hidden, progress metrics live in My Progress, and secondary account tools are grouped under More Account Options. -->
@@ -588,6 +589,9 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:24px 8px}
 .simple-mini{padding:10px;border:1px solid var(--line);border-radius:10px;background:#f7fbf9}
 .simple-mini span{display:block;font-size:.68rem;color:var(--muted);font-weight:750}
 .simple-mini strong{display:block;margin-top:3px;font-size:.88rem}
+.simple-vial-integrity-alert{margin-top:8px;padding:8px 10px;border:1px solid #efd08b;border-radius:10px;background:#fff9ea;color:#684b00;font-size:.74rem;line-height:1.35}
+.simple-vial-integrity-alert strong{font-weight:850}
+.simple-vial-integrity-alert .integrity-item+ .integrity-item{margin-top:3px}
 .simple-mini .cycle-end-control{
   position:relative;
   display:block;
@@ -6395,7 +6399,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
         <div><strong>Cycle End</strong><span>The final active date of the current or relevant treatment cycle.</span></div>
         <div><strong>Schedule</strong><span>How often the treatment is scheduled, based on the selected interval or weekdays.</span></div>
         <div><strong>Dose (units)</strong><span>The syringe-unit amount calculated for the scheduled dose using the prepared concentration and syringe calibration.</span></div>
-        <div><strong>Dose left in vial</strong><span>Estimated complete scheduled doses remaining in the actively used vial after administrations recorded as given.</span></div>
+        <div><strong>Dose left in vial</strong><span>Estimated future scheduled administrations remaining in the current physical vial after administrations recorded as given. Past missed dates are not counted; split schedules may also show the equivalent number of full treatment days.</span></div>
         <div><strong>Vials per cycle</strong><span>The current vial number compared with the total vials calculated for the cycle.</span></div>
         <div><strong>Cycle count</strong><span>How many cycles have started in the current annual plan compared with the configured cycles per year.</span></div>
         <div><strong>Current cycle</strong><span>The treatment phase that applies now, such as Starting Phase, a numbered cycle or Break.</span></div>
@@ -7146,7 +7150,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.30";
+const APP_VERSION="v2026.0309.31";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -10274,12 +10278,28 @@ function currentCycleVialScheduleRows(plan,at=new Date(),cycleUsage=null){
   const computed=config?cycleConfigVialScheduleComputation(plan,config,sequence):cycleVialScheduleComputation(plan,usage,null);
   return computed?.valid&&Array.isArray(computed.rows)?computed.rows:[];
 }
+function vialRecordHasPhysicalEvidence(record){
+  if(!record)return false;
+  const status=String(record.status||"");
+  return !!(String(record.startDate||"").trim()||String(record.receivedDate||"").trim()||String(record.purchaseDate||"").trim()||["Purchased","Received","In use","Finished","Discarded","On hold"].includes(status));
+}
+function vialRecordClosedByDate(record,at=new Date()){
+  const status=String(record?.status||"");
+  if(["Finished","Discarded","On hold"].includes(status))return true;
+  const finish=parseISO(record?.finishDate||"");
+  if(!finish)return false;
+  const finishEnd=new Date(finish.getFullYear(),finish.getMonth(),finish.getDate(),23,59,59,999);
+  return at>finishEnd;
+}
 function currentScheduledVialRecord(plan,at=new Date(),cycleUsage=null){
   const rows=plan?.noCycle?currentContinuousVialScheduleRows(plan,at):currentCycleVialScheduleRows(plan,at,cycleUsage);
   const active=[...rows].reverse().find(row=>row?.status==="Actively Using"&&row.openDate);
   if(!active)return null;
   const date=parseISO(active.openDate);if(!date)return null;
-  const source=active.record||{};
+  const source=active.record||null;
+  /* A calculated Vial Schedule row is not physical inventory by itself. It can be
+     used for Dose left only after the linked vial has purchase/receipt/open evidence. */
+  if(!vialRecordHasPhysicalEvidence(source)||vialRecordClosedByDate(source,at))return null;
   const record={
     ...source,
     id:source.id||(plan.noCycle?`${plan.id}:continuous:${active.index}`:`${plan.id}:cycle:${active.cycleNumber}:${active.index}`),
@@ -10294,11 +10314,9 @@ function currentScheduledVialRecord(plan,at=new Date(),cycleUsage=null){
 function currentOpenedVialRecord(plan,at=new Date()){
   const scheduled=currentScheduledVialRecord(plan,at);
   if(scheduled)return scheduled;
-  if(plan&&!plan.noCycle)return null;
-  const opened=openedVialRecordsForPlan(plan,at);
+  const opened=openedVialRecordsForPlan(plan,at).filter(item=>vialRecordHasPhysicalEvidence(item.record)&&!vialRecordClosedByDate(item.record,at));
   if(!opened.length)return null;
-  const latest=opened[opened.length-1],closed=new Set(["Finished","Discarded","On hold"]);
-  return closed.has(String(latest.record?.status||""))?null:latest;
+  return opened[opened.length-1];
 }
 function scheduledAdministrationRecorded(planId,date,partKey=""){
   const targetDate=trackingDateISO(date),targetPart=String(partKey||"");
@@ -10312,10 +10330,49 @@ function scheduledAdministrationRecorded(planId,date,partKey=""){
     return true;
   });
 }
+function historicalAdministrationScheduleFlags(plan,at=new Date()){
+  let offSchedule=0,obsoleteStructure=0;
+  (state.administrations||[]).forEach(record=>{
+    if(record?.planId!==plan?.id||record?.status!=="Administered"||!String(record?.sourceKey||"").startsWith(`completion|${plan.id}|`))return;
+    const dt=new Date(record.dateTime);if(Number.isNaN(dt.getTime())||dt>at)return;
+    const day=parseISO(String(record.dateTime||"").slice(0,10));if(!day)return;
+    const schedule=scheduleForDate({...plan,enabled:true},day);
+    if(!schedule?.administration){offSchedule+=1;return;}
+    if(!administrationMatchesScheduledStructure(plan,record))obsoleteStructure+=1;
+  });
+  return {offSchedule,obsoleteStructure};
+}
+function vialInventoryIntegrityIssues(plan,dosesLeft,at=new Date()){
+  const issues=[];
+  const current=dosesLeft?.currentVial||currentOpenedVialRecord(plan,at);
+  if(!current){
+    const scheduledRows=plan?.noCycle?currentContinuousVialScheduleRows(plan,at):currentCycleVialScheduleRows(plan,at);
+    const calculated=[...scheduledRows].reverse().find(row=>row?.status==="Actively Using"&&row.openDate);
+    if(calculated&&!vialRecordHasPhysicalEvidence(calculated.record))issues.push("Vial Schedule has a calculated active row, but no purchased/received/opened vial is linked to it. Dose-left is paused until the current vial is recorded.");
+  }else{
+    const record=current.record||{},planMg=num(plan?.vialMg),recordMg=num(record?.vialMg),planMl=num(plan?.finalMl),recordMl=num(record?.finalMl);
+    const mismatches=[];
+    if(planMg>0&&recordMg>0&&Math.abs(planMg-recordMg)>0.000001)mismatches.push(`strength ${recordMg} mg vs ${planMg} mg in Treatment Settings`);
+    if(planMl>0&&recordMl>0&&Math.abs(planMl-recordMl)>0.000001)mismatches.push(`final volume ${recordMl} mL vs ${planMl} mL in Treatment Settings`);
+    if(mismatches.length)issues.push(`Current vial preparation differs: ${mismatches.join("; ")}. Recorded administrations keep their historical dose-to-units conversion.`);
+  }
+  const flags=historicalAdministrationScheduleFlags(plan,at);
+  if(flags.offSchedule)issues.push(`${flags.offSchedule} historical auto-completion record${flags.offSchedule===1?" falls":"s fall"} outside the current schedule. ${flags.offSchedule===1?"It remains":"They remain"} in physical consumption because history is not rewritten automatically.`);
+  if(flags.obsoleteStructure)issues.push(`${flags.obsoleteStructure} obsolete split/unsplit auto-completion record${flags.obsoleteStructure===1?" is":"s are"} excluded from vial consumption.`);
+  return issues;
+}
+function doseLeftDisplayText(result){
+  if(!result?.valid)return String(result?.reason||"—");
+  const count=Number(result.doses)||0;
+  if(result.splitForecast&&result.fullFutureDays>0&&!result.partialFutureDay){
+    return `${count} administration${count===1?"":"s"} · ${result.fullFutureDays} full day${result.fullFutureDays===1?"":"s"}`;
+  }
+  return `${count} dose${count===1?"":"s"}`;
+}
 function currentVialDosesLeft(plan,at=new Date()){
   const planVialMg=num(plan?.vialMg);if(!(planVialMg>0))return {valid:false,reason:"Enter vial strength"};
   const explicitCurrent=currentOpenedVialRecord(plan,at);
-  if(!explicitCurrent)return {valid:false,reason:"Open vial"};
+  if(!explicitCurrent)return {valid:false,reason:"Open/current vial not recorded"};
   const vialMg=num(explicitCurrent?.record?.vialMg)>0?num(explicitCurrent.record.vialMg):planVialMg;
   const records=(state.administrations||[])
     .filter(record=>record?.planId===plan.id&&record?.status==="Administered"&&String(record?.dateTime||""))
@@ -10325,33 +10382,50 @@ function currentVialDosesLeft(plan,at=new Date()){
   let remaining=vialMg;
   const openedAt=new Date(explicitCurrent.date);
   const discardAt=parseISO(explicitCurrent.record?.budDate)||disposeDateFromOpen(plan,openedAt);
+  const finishAt=parseISO(explicitCurrent.record?.finishDate||explicitCurrent.scheduleRow?.finishDate||"");
   for(const item of records){
     if(item.date<openedAt)continue;
+    if(finishAt&&item.date>new Date(finishAt.getFullYear(),finishAt.getMonth(),finishAt.getDate(),23,59,59,999))continue;
     remaining=round(Math.max(0,remaining-item.mg),6);
   }
-  if(discardAt&&at>=discardAt)return {valid:true,doses:0,remainingMg:0,expired:true,openedAt,discardAt,vialRecordId:explicitCurrent.record?.id||null};
+  const currentRemainingMg=round(remaining,3);
+  const discardEnd=discardAt?new Date(discardAt.getFullYear(),discardAt.getMonth(),discardAt.getDate(),23,59,59,999):null;
+  if(discardEnd&&at>discardEnd)return {valid:true,doses:0,remainingMg:currentRemainingMg,currentRemainingMg,expired:true,openedAt,discardAt,finishAt,vialRecordId:explicitCurrent.record?.id||null,currentVial:explicitCurrent};
 
-  /* Inventory is advanced only by actual Administered records. A scheduled dose that
-     was not marked Done remains an unconsumed candidate even after its calendar date. */
-  const startDay=new Date(openedAt.getFullYear(),openedAt.getMonth(),openedAt.getDate());
-  let doses=0,nextDoseMg=null,foundPlanned=false;
+  /* Forecast starts now, not at Date Open. Past missed/unrecorded schedule slots are
+     not future doses. The current vial also stops at its scheduled Finish date and
+     includes administrations that fall on the discard date itself. */
+  const today=new Date(at.getFullYear(),at.getMonth(),at.getDate());
+  const startDay=today<openedAt?new Date(openedAt.getFullYear(),openedAt.getMonth(),openedAt.getDate()):today;
+  let doses=0,nextDoseMg=null,foundPlanned=false,fullFutureDays=0,partialFutureDay=false,splitForecast=false;
+  const returnResult=(limitedBy,extra={})=>({valid:true,doses,remainingMg:round(remaining,3),currentRemainingMg,nextDoseMg,expired:false,openedAt,discardAt,finishAt,limitedBy,vialRecordId:explicitCurrent.record?.id||null,currentVial:explicitCurrent,fullFutureDays,partialFutureDay,splitForecast,...extra});
   for(let offset=0;offset<=3650;offset++){
     const day=addDays(startDay,offset),date=localDateISO(day),schedule=scheduleForDate({...plan,enabled:true},day);
+    if(finishAt&&day>finishAt)return returnResult("finish");
+    if(discardAt&&day>discardAt)return returnResult("discard");
     if(!schedule?.administration)continue;
     const administrations=(schedule.administrations&&schedule.administrations.length)?schedule.administrations:[{partKey:"",doseMg:schedule.doseMg,units:schedule.units,time:plan.injectionTime||""}];
+    const candidates=[];
     for(const administration of administrations){
       const partKey=administration.partKey||"";
       if(scheduledAdministrationRecorded(plan.id,date,partKey))continue;
       const doseMg=num(administration.doseMg);if(!(doseMg>0))continue;
-      foundPlanned=true;if(nextDoseMg==null)nextDoseMg=doseMg;
-      if(discardAt&&day>=discardAt)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt,discardAt,limitedBy:"discard",vialRecordId:explicitCurrent.record?.id||null};
-      if(remaining+1e-9<doseMg)return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt,discardAt,limitedBy:"amount",vialRecordId:explicitCurrent.record?.id||null};
-      remaining=round(remaining-doseMg,6);doses+=1;
-      if(remaining<=0.0000001)return {valid:true,doses,remainingMg:0,nextDoseMg,expired:false,openedAt,discardAt,limitedBy:"amount",vialRecordId:explicitCurrent.record?.id||null};
+      const time=administration.time||plan.injectionTime||"";
+      if(day.getTime()===today.getTime()&&time){const when=new Date(`${date}T${time}:00`);if(!Number.isNaN(when.getTime())&&when<at)continue;}
+      candidates.push({...administration,partKey,doseMg});
     }
+    if(!candidates.length)continue;
+    foundPlanned=true;if(candidates.length>1)splitForecast=true;if(nextDoseMg==null)nextDoseMg=candidates[0].doseMg;
+    let completedToday=0;
+    for(const administration of candidates){
+      if(remaining+1e-9<administration.doseMg){partialFutureDay=completedToday>0||candidates.length>1;return returnResult("amount");}
+      remaining=round(remaining-administration.doseMg,6);doses+=1;completedToday+=1;
+      if(remaining<=0.0000001){if(completedToday===candidates.length)fullFutureDays+=1;else partialFutureDay=true;return returnResult("amount");}
+    }
+    if(completedToday===candidates.length)fullFutureDays+=1;
   }
-  if(!foundPlanned)return {valid:false,reason:"No scheduled dose"};
-  return {valid:true,doses,remainingMg:round(remaining,3),nextDoseMg,expired:false,openedAt,discardAt,limitedBy:"schedule",vialRecordId:explicitCurrent.record?.id||null};
+  if(!foundPlanned)return {valid:false,reason:"No future scheduled dose",currentRemainingMg,openedAt,discardAt,finishAt,vialRecordId:explicitCurrent.record?.id||null,currentVial:explicitCurrent};
+  return returnResult("schedule");
 }
 
 function injectionKey(planId,date,partKey=""){
@@ -12789,6 +12863,7 @@ function renderSimplePlanner(){
     const currentDose=currentPosition?.valid&&!currentPosition.washout&&!currentPosition.ended?(plan.noCycle?phaseDose(plan,Math.max(1,currentPosition.week||1)):cyclePhaseDose(cycleConfigForSequence(plan,currentPosition.sequence||1),Math.max(1,currentPosition.week||1))):phaseDose(plan,1);
     const dose=currentDose,calc=calcUnits(plan,dose),status=planStatus(plan);
     const dosesLeft=currentVialDosesLeft(plan,new Date());
+    const vialIntegrityIssues=vialInventoryIntegrityIssues(plan,dosesLeft,new Date());
     const scheduleText=overviewScheduleText(plan);
     const verification=planVerificationCompleteness(plan);
     const enabledReady=plan.enabled&&planReadyForToday(plan);
@@ -12819,12 +12894,13 @@ function renderSimplePlanner(){
             </div>
             <div class="simple-plan-summary-row ${plan.noCycle?"simple-plan-summary-row-extra":"simple-plan-summary-row-metrics"}">
               <div class="simple-mini"><span>Dose (units)</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
-              <div class="simple-mini" title="Uses the actively using vial from Vial Schedule and only administrations recorded as administered. Missed or unrecorded scheduled doses do not consume vial inventory."><span>Dose left in vial</span><strong>${dosesLeft.valid?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`:esc(dosesLeft.reason||"—")}</strong></div>
+              <div class="simple-mini" title="Uses the current physical vial, administrations recorded as administered, and future scheduled administrations only. Past missed dates do not count as doses left."><span>Dose left in vial</span><strong>${esc(doseLeftDisplayText(dosesLeft))}</strong></div>
               ${plan.noCycle?"":`<div class="simple-mini"><span>Vials per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
               <div class="simple-mini"><span>Cycle count</span><strong>${annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`}</strong></div>
               <div class="simple-mini"><span>Current cycle</span><strong>${currentPosition?.beforeStart?"Not started":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?"Starting Phase":`Cycle ${currentPosition?.sequence||"—"}`)}</strong></div>`}
             </div>
             ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-plan-summary-row simple-plan-summary-row-extra"><div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div></div>`:""}
+            ${vialIntegrityIssues.length?`<div class="simple-vial-integrity-alert"><strong>Vial check</strong>${vialIntegrityIssues.map(issue=>`<div class="integrity-item">${esc(issue)}</div>`).join("")}</div>`:""}
           </div>
         </div>
       </summary>
