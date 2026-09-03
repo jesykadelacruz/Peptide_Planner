@@ -47,7 +47,7 @@ jobs:
           grep -Fq 'class="simple-plan-inline-overview"' index.html
           ! grep -Fq '<summary>Overview</summary>' index.html
           grep -Fq 'Cycle Start' index.html
-          grep -Fq 'Next Cycle' index.html
+          grep -Fq 'Current cycle' index.html
           grep -Fq 'Peptide Settings' index.html
           grep -Fq 'Cycle Settings' index.html
           grep -Fq 'Forgot password' index.html
