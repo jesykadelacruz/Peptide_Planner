@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.16</title>
+<title>Peptide Planner v2026.0309.17</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6817,7 +6817,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.16";
+const APP_VERSION="v2026.0309.17";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12492,7 +12492,17 @@ function renderSimplePlanner(){
     const peptideSettingsDetail=card.querySelector("details.peptide-settings[data-collapse-key]");
     if(peptideSettingsDetail)peptideSettingsDetail.addEventListener("toggle",()=>saveDetailState(peptideSettingsDetail));
     const overviewDetail=card.querySelector("details.plan-overview-details[data-collapse-key]");
-    if(overviewDetail)overviewDetail.addEventListener("toggle",()=>saveDetailState(overviewDetail));
+    if(overviewDetail){
+      const desktopOverview=()=>window.matchMedia("(min-width: 901px)").matches;
+      if(desktopOverview())overviewDetail.open=true;
+      overviewDetail.addEventListener("toggle",()=>{
+        if(desktopOverview()){
+          if(!overviewDetail.open)overviewDetail.open=true;
+          return;
+        }
+        saveDetailState(overviewDetail);
+      });
+    }
     const cycleSettingsDetail=card.querySelector("details.cycle-settings-details[data-collapse-key]");
     if(cycleSettingsDetail)cycleSettingsDetail.addEventListener("toggle",()=>saveDetailState(cycleSettingsDetail));
     const vialScheduleDetail=card.querySelector("details.vial-schedule-settings[data-collapse-key]");
@@ -14304,6 +14314,7 @@ initCloudServices();
 <!-- v2026.0309.09: Cycles/Year is now the single standard treatment-mode control: Continuous or 1–52 cycles. Continuous treatments use the same Cycle Settings field layout and Dose Schedule renderer as cycled treatments. -->
 <!-- v2026.0309.10: Overview uses Cycle Start/Cycle End for the current or most recently active cycle. Continuous overview keeps Cycle Start, Cycle End, Schedule, Route, Dose and Dose left only. -->
 <!-- v2026.0309.15: Mobile Vial Schedule vial number is bold; date values remain regular on desktop and mobile. -->
+<!-- v2026.0309.17: Desktop Treatment Overview is forced open and visible as the full general-information summary; mobile Overview remains collapsible. -->
 <!-- v2026.0309.16: Desktop Overview remains permanently visible and is not collapsible; mobile Overview behavior is unchanged. -->
 <!-- v2026.0309.13: Vial Schedule date values use regular font weight. -->
 <!-- v2026.0309.12: Users and All Users admin sections are collapsible and persist their open/closed state. -->
