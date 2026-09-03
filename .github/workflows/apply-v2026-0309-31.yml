@@ -1,0 +1,45 @@
+name: Apply Peptide Planner v2026.0309.31
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.deploy/v2026_0309_31.patch'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-v31:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard, patch and verify v31
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA='0d2038b4abceb4f0909bae35677ab3d66e06f9458fd5be3f4e10cfa4396f5181'
+          TARGET_SHA='f7fe2b92166a305eecfeebf6501de0a27953558e5cf6a7f7f5ea7f390f9b370a'
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          test "$CURRENT_SHA" = "$BASE_SHA"
+          git apply --check .deploy/v2026_0309_31.patch
+          git apply .deploy/v2026_0309_31.patch
+          NEW_SHA="$(sha256sum index.html | awk '{print $1}')"
+          test "$NEW_SHA" = "$TARGET_SHA"
+          grep -q 'const APP_VERSION="v2026.0309.31";' index.html
+          grep -q '<title>Peptide Planner v2026.0309.31</title>' index.html
+
+      - name: Commit production index
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update Peptide Planner v2026.0309.31'
+          git push origin HEAD:main
