@@ -1,0 +1,108 @@
+name: Apply Peptide Planner v2026.0309.22
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0309-22.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, patch, and verify v22
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="40f6dea68c4b133b1ac5b58b380a97193cb5e281fa98565202b60f5d69d7b297"
+          TARGET_SHA="3445b2b8b78eb2cf525bbfb229e49134642501436fe4c0df3577f82b9cfad09b"
+          PAYLOAD_SHA="03997494fb77f3d52853e8976444eb73cbbdb6096cd31130dd0c8a85736da8f3"
+          PATCH_SHA="87fd7dfa2e57edb1ea15614c83128eeb720bd033b21d1f8ca10690685f1d9569"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.22"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          echo "$PAYLOAD_SHA  .deploy/v2026_0309_22.patch.xz.b64" | sha256sum -c -
+          base64 -d .deploy/v2026_0309_22.patch.xz.b64 | xz -d > /tmp/v22.patch
+          echo "$PATCH_SHA  /tmp/v22.patch" | sha256sum -c -
+          patch --dry-run -p1 < /tmp/v22.patch
+          patch -p1 < /tmp/v22.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2223713
+          grep -Fq '<title>Peptide Planner v2026.0309.22</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.22";' index.html
+
+          # Treatments information buttons/popovers are removed.
+          ! grep -Fq 'treatment-info-trigger' index.html
+          ! grep -Fq 'treatment-info-popover' index.html
+          ! grep -Fq 'TREATMENT_INFO_GLOSSARY' index.html
+          ! grep -Fq 'enhanceTreatmentInformation' index.html
+
+          # Centralized guide is under Reference using the existing KB guide structure.
+          grep -Fq '<summary>How to read this Knowledge Base</summary>' index.html
+          grep -Fq '<summary>Treatments field guide</summary>' index.html
+          grep -Fq '<strong>Full Dose</strong>' index.html
+          grep -Fq '<strong>Cycle Dose</strong>' index.html
+          grep -Fq 'actual scheduled dose for each administration date</b>, ignoring the discard date.' index.html
+          grep -Fq 'Full Dose and Cycle Dose follow the dose assigned to each actual administration date.' index.html
+
+          # Preserve Vial Schedule layout and scheduled-dose counting logic from v21.
+          grep -Fq '"open finish"' index.html
+          grep -Fq '"full cycle"' index.html
+          grep -Fq 'cycle-vial-full-dose-field' index.html
+          grep -Fq 'cycle-vial-cycle-dose-field' index.html
+          grep -Fq '#planner .cycle-vial-dose-box{display:flex;width:100%;min-width:0;max-width:142px;min-height:40px;height:40px' index.html
+          grep -Fq '.cycle-vial-col-status{width:27%}' index.html
+          grep -Fq 'function vialDoseCountForDisplay' index.html
+          grep -Fq 'if(event.units>remaining+0.000001)break;' index.html
+          grep -Fq 'remaining=round(remaining-event.units,6);' index.html
+          grep -Fq 'if(through&&event.date>through)break;' index.html
+
+          # Preserve core application functions.
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+
+          python3 - <<'PY2'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,flags=re.S|re.I)
+          Path('/tmp/v22-inline.js').write_text('\n'.join(scripts))
+          assert len(scripts)==2
+          assert '<th>Vial #</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in html
+          assert '<span>Full Dose</span><div class="cycle-vial-dose-box cycle-vial-full-dose">' in html
+          assert '<span>Cycle Dose</span><div class="cycle-vial-dose-box cycle-vial-cycle-dose">' in html
+          print('Inline scripts:',len(scripts))
+          PY2
+          node --check /tmp/v22-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v22
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.22"
+          git push
