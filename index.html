@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.22</title>
-<!-- v2026.0309.22: Treatments info buttons removed; definitions consolidated into Reference > Treatments field guide. -->
+<title>Peptide Planner v2026.0309.23</title>
+<!-- v2026.0309.23: Treatments field guide moved from Reference to the Treatments tab; guide content and all treatment logic remain unchanged. -->
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -6161,6 +6161,37 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     </div>
   </details>
 
+
+  <div class="card protocol-library-toolbar no-print" style="grid-template-columns:minmax(220px,1fr) minmax(180px,240px) minmax(180px,240px)">
+    <div>
+      <label for="protocolLibrarySearch">Search Knowledge Base</label>
+      <input id="protocolLibrarySearch" type="search" placeholder="Search name, alias, category, protocol or variant">
+    </div>
+    <div>
+      <label for="protocolCategoryFilter">Category</label>
+      <select id="protocolCategoryFilter"><option value="all">All categories</option></select>
+    </div>
+    <div>
+      <label for="protocolLibraryFilter">Stack status</label>
+      <select id="protocolLibraryFilter">
+        <option value="all">All records</option>
+        <option value="active">Actively using</option>
+        <option value="soon">Scheduled</option>
+        <option value="library">Not in my stack</option>
+      </select>
+    </div>
+  </div>
+  <div class="protocol-library-summary" id="protocolLibrarySummary"></div>
+  <div id="protocolLibraryCards" class="grid"></div>
+</section>
+
+<section id="planner" class="tab">
+  <div class="card simple-intro">
+    <div class="health-kicker">Treatments</div>
+    <h2>Add, verify and manage your treatments</h2>
+    <p>Work in order: choose the treatment, enter the prescribed schedule, enter the actual product preparation, then configure a cycle only when needed. Changes update Today and Progress automatically.</p>
+  </div>
+
   <details class="card kb-reading-guide">
     <summary>Treatments field guide</summary>
     <div class="kb-reading-guide-body">
@@ -6214,36 +6245,6 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
       </div>
     </div>
   </details>
-
-  <div class="card protocol-library-toolbar no-print" style="grid-template-columns:minmax(220px,1fr) minmax(180px,240px) minmax(180px,240px)">
-    <div>
-      <label for="protocolLibrarySearch">Search Knowledge Base</label>
-      <input id="protocolLibrarySearch" type="search" placeholder="Search name, alias, category, protocol or variant">
-    </div>
-    <div>
-      <label for="protocolCategoryFilter">Category</label>
-      <select id="protocolCategoryFilter"><option value="all">All categories</option></select>
-    </div>
-    <div>
-      <label for="protocolLibraryFilter">Stack status</label>
-      <select id="protocolLibraryFilter">
-        <option value="all">All records</option>
-        <option value="active">Actively using</option>
-        <option value="soon">Scheduled</option>
-        <option value="library">Not in my stack</option>
-      </select>
-    </div>
-  </div>
-  <div class="protocol-library-summary" id="protocolLibrarySummary"></div>
-  <div id="protocolLibraryCards" class="grid"></div>
-</section>
-
-<section id="planner" class="tab">
-  <div class="card simple-intro">
-    <div class="health-kicker">Treatments</div>
-    <h2>Add, verify and manage your treatments</h2>
-    <p>Work in order: choose the treatment, enter the prescribed schedule, enter the actual product preparation, then configure a cycle only when needed. Changes update Today and Progress automatically.</p>
-  </div>
 
   <details class="card unified-setup no-print" id="simpleSetupCard" data-collapse-key="simple-add-treatment">
     <summary class="simple-setup-summary">
@@ -6936,7 +6937,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.22";
+const APP_VERSION="v2026.0309.23";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
