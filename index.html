@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.19</title>
+<title>Peptide Planner v2026.0309.21</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -5226,7 +5226,8 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
     grid-template-areas:
       "vial status"
-      "open finish"!important;
+      "open finish"
+      "full cycle"!important;
     gap:7px 8px!important;
     align-items:end!important;
   }
@@ -5276,6 +5277,37 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     box-sizing:border-box!important;
     -webkit-min-logical-width:0!important;
   }
+  body.mobile-app #planner .cycle-vial-full-dose-field{grid-area:full!important}
+  body.mobile-app #planner .cycle-vial-cycle-dose-field{grid-area:cycle!important}
+  body.mobile-app #planner .cycle-vial-dose-field{
+    display:grid!important;
+    gap:4px!important;
+    min-width:0!important;
+    width:100%!important;
+    margin:0!important;
+  }
+  body.mobile-app #planner .cycle-vial-dose-field > span{
+    color:var(--muted);
+    font-size:.66rem!important;
+    font-weight:850;
+    line-height:1.1!important;
+    white-space:nowrap;
+  }
+  body.mobile-app #planner .cycle-vial-dose-field .cycle-vial-dose-box{
+    display:flex!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:46px!important;
+    min-height:46px!important;
+    max-height:46px!important;
+    margin:0!important;
+    padding:0 7px!important;
+    box-sizing:border-box!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+  }
   body.mobile-app #planner .cycle-vial-schedule-row{
     padding:8px!important;
   }
@@ -5297,7 +5329,9 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
       "vial"
       "status"
       "open"
-      "finish"!important;
+      "finish"
+      "full"
+      "cycle"!important;
   }
   body.mobile-app #planner .cycle-vial-status-wrap{
     justify-content:flex-start!important;
@@ -5309,19 +5343,38 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 #planner .cycle-vial-mobile-cards{display:none}
 #planner .cycle-vial-desktop-table-wrap{width:100%;min-width:0;overflow-x:auto}
 #planner .cycle-vial-desktop-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
-#planner .cycle-vial-desktop-table th{padding:8px 10px;background:#f7faf8;border-bottom:1px solid var(--line);color:var(--muted);font-size:.72rem;font-weight:900;text-align:left;white-space:nowrap}
-#planner .cycle-vial-desktop-table td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;min-width:0}
+#planner .cycle-vial-desktop-table th{padding:7px 6px;background:#f7faf8;border-bottom:1px solid var(--line);color:var(--muted);font-size:.72rem;font-weight:900;text-align:center!important;white-space:nowrap;vertical-align:middle}
+#planner .cycle-vial-desktop-table td{padding:5px 8px;vertical-align:middle;min-width:0;text-align:center}
+#planner .cycle-vial-desktop-table tbody tr:not(:last-child)>td{border-bottom:1px solid var(--line)!important}
+#planner .cycle-vial-desktop-table tbody tr:not(:last-child)>td:last-child{border-bottom:1px solid var(--line)!important}
 #planner .cycle-vial-desktop-table tbody tr:last-child td{border-bottom:0}
-#planner .cycle-vial-desktop-table .cycle-vial-col-number{width:100px}
-#planner .cycle-vial-desktop-table .cycle-vial-col-dose{width:190px}
-#planner .cycle-vial-desktop-table .cycle-vial-col-date{width:190px}
-#planner .cycle-vial-desktop-table .cycle-vial-col-status{width:215px}
+#planner .cycle-vial-desktop-table .cycle-vial-col-number{width:9%}
+#planner .cycle-vial-desktop-table .cycle-vial-col-dose{width:14%}
+#planner .cycle-vial-desktop-table .cycle-vial-col-date{width:18%}
+#planner .cycle-vial-desktop-table .cycle-vial-col-status{width:27%}
 #planner .cycle-vial-table-number{font-size:1rem;font-weight:400;white-space:nowrap}
 #planner .cycle-vial-full-dose,#planner .cycle-vial-cycle-dose{font-weight:400}
-#planner .cycle-vial-dose-box{display:flex;width:100%;min-width:0;max-width:100%;min-height:40px;height:40px;padding:7px 9px;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:#fff;align-items:center;justify-content:center;text-align:center;line-height:1}
-#planner .cycle-vial-table-date input[type="date"]{display:block;width:100%!important;min-width:0!important;max-width:100%!important;min-height:40px;height:40px;padding:7px 9px;box-sizing:border-box!important;font-weight:400!important}
-#planner .cycle-vial-table-status{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+#planner .cycle-vial-dose-box{display:flex;width:100%;min-width:0;max-width:142px;min-height:40px;height:40px;margin:0 auto;padding:6px 8px;box-sizing:border-box;border:1px solid #ccd8e6;border-radius:10px;background:#fff;align-items:center;justify-content:center;text-align:center;line-height:1}
+#planner .cycle-vial-table-date input[type="date"]{display:block;width:100%!important;min-width:0!important;max-width:142px!important;min-height:40px!important;height:40px!important;margin:0 auto;padding:6px 8px!important;box-sizing:border-box!important;border-radius:10px!important;font-weight:400!important;text-align:center!important}
+#planner .cycle-vial-table-date input[type="date"]::-webkit-date-and-time-value{text-align:center!important}
+#planner .cycle-vial-desktop-table td:last-child{padding-left:22px;padding-right:18px}
+#planner .cycle-vial-table-status{display:flex;align-items:center;justify-content:flex-end;gap:12px;min-width:0;width:100%}
+#planner .cycle-vial-table-status .cycle-vial-status{margin-left:auto}
 #planner .cycle-vial-table-status .cycle-vial-remove{flex:0 0 auto;padding:5px 7px;font-size:.7rem}
+/* v2026.0309.21 Treatments information popups */
+#planner .treatment-info-label{max-width:100%}
+#planner .treatment-info-label .treatment-info-trigger{margin-left:4px}
+#planner .treatment-info-trigger{display:inline-flex;align-items:center;justify-content:center;flex:0 0 17px;width:17px;height:17px;min-width:17px;min-height:17px;padding:0;border:1px solid #9db8ac;border-radius:50%;background:#fff;color:#315f54;font:800 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;vertical-align:middle;box-shadow:none}
+#planner .treatment-info-trigger:hover,#planner .treatment-info-trigger:focus-visible{border-color:var(--teal);color:var(--teal);outline:2px solid rgba(47,143,136,.16);outline-offset:1px}
+.treatment-info-popover{position:fixed;z-index:10050;width:min(310px,calc(100vw - 24px));padding:11px 12px;border:1px solid #bed2c8;border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 12px 32px rgba(31,54,72,.18);font-size:.78rem;line-height:1.45;text-align:left}
+.treatment-info-popover strong{display:block;margin:0 0 4px;color:#315f54;font-size:.8rem}
+.treatment-info-popover p{margin:0}
+.treatment-info-popover::before{content:"";position:absolute;top:-6px;left:var(--tip-left,18px);width:10px;height:10px;background:#fff;border-left:1px solid #bed2c8;border-top:1px solid #bed2c8;transform:rotate(45deg)}
+@media(max-width:760px){
+  #planner .treatment-info-trigger{flex-basis:16px;width:16px;height:16px;min-width:16px;min-height:16px;font-size:10px}
+  .treatment-info-popover{font-size:.76rem}
+}
+
 @media(max-width:760px){
   #planner .cycle-vial-desktop-table-wrap{display:none!important}
   #planner .cycle-vial-mobile-cards{display:grid!important}
@@ -6842,7 +6895,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.19";
+const APP_VERSION="v2026.0309.21";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11843,6 +11896,8 @@ function renderCycleConfigVialSchedule(plan,config,sequence){
             <strong class="cycle-vial-number">Vial #${row.index}</strong>
             <label class="cycle-vial-date-field"><span>Date Open</span>${dateOpenInput(row)}</label>
             <label class="cycle-vial-date-field"><span>Date Finish</span>${dateFinishInput(row)}</label>
+            <label class="cycle-vial-dose-field cycle-vial-full-dose-field"><span>Full Dose</span><div class="cycle-vial-dose-box cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</div></label>
+            <label class="cycle-vial-dose-field cycle-vial-cycle-dose-field"><span>Cycle Dose</span><div class="cycle-vial-dose-box cycle-vial-cycle-dose">${Number(row.cycleDoseCount)||0}</div></label>
             <div class="cycle-vial-status-wrap"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span></div>
           </div>
           ${row.index>required?`<div class="cycle-vial-row-actions no-print">${removeButton(row)}</div>`:""}
@@ -12307,7 +12362,7 @@ function renderContinuousVialSchedule(plan){
     <summary class="cycle-subsection-summary"><strong>Vial Schedule</strong><span class="cycle-subsection-count">${rowCount}</span></summary>
     <div class="cycle-vial-schedule-body">
       ${rows.length?`<div class="cycle-vial-desktop-table-wrap"><table class="cycle-vial-desktop-table"><colgroup><col class="cycle-vial-col-number"><col class="cycle-vial-col-dose"><col class="cycle-vial-col-dose"><col class="cycle-vial-col-date"><col class="cycle-vial-col-date"><col class="cycle-vial-col-status"></colgroup><thead><tr><th>Vial #</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th></tr></thead><tbody>${rows.map(row=>`<tr data-continuous-vial-row="${row.index}"><td><strong class="cycle-vial-table-number">Vial #${row.index}</strong></td><td><div class="cycle-vial-dose-box cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</div></td><td><div class="cycle-vial-dose-box cycle-vial-cycle-dose">${Number(row.cycleDoseCount)||0}</div></td><td class="cycle-vial-table-date">${dateOpenInput(row)}</td><td class="cycle-vial-table-date">${dateFinishInput(row)}</td><td><div class="cycle-vial-table-status"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span>${removeButton(row)}</div></td></tr>`).join("")}</tbody></table></div>
-      <div class="cycle-vial-schedule cycle-vial-mobile-cards">${rows.map(row=>`<div class="cycle-vial-schedule-row" data-continuous-vial-row="${row.index}"><div class="cycle-vial-line"><strong class="cycle-vial-number">Vial #${row.index}</strong><label class="cycle-vial-date-field"><span>Date Open</span>${dateOpenInput(row)}</label><label class="cycle-vial-date-field"><span>Date Finish</span>${dateFinishInput(row)}</label><div class="cycle-vial-status-wrap"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span></div></div>${row.index>required?`<div class="cycle-vial-row-actions no-print">${removeButton(row)}</div>`:""}</div>`).join("")}</div>`:`<div class="helper">${esc(computed.reason||"Complete the continuous dose and vial inputs to calculate the vial schedule.")}</div>`}
+      <div class="cycle-vial-schedule cycle-vial-mobile-cards">${rows.map(row=>`<div class="cycle-vial-schedule-row" data-continuous-vial-row="${row.index}"><div class="cycle-vial-line"><strong class="cycle-vial-number">Vial #${row.index}</strong><label class="cycle-vial-date-field"><span>Date Open</span>${dateOpenInput(row)}</label><label class="cycle-vial-date-field"><span>Date Finish</span>${dateFinishInput(row)}</label><label class="cycle-vial-dose-field cycle-vial-full-dose-field"><span>Full Dose</span><div class="cycle-vial-dose-box cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</div></label><label class="cycle-vial-dose-field cycle-vial-cycle-dose-field"><span>Cycle Dose</span><div class="cycle-vial-dose-box cycle-vial-cycle-dose">${Number(row.cycleDoseCount)||0}</div></label><div class="cycle-vial-status-wrap"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span></div></div>${row.index>required?`<div class="cycle-vial-row-actions no-print">${removeButton(row)}</div>`:""}</div>`).join("")}</div>`:`<div class="helper">${esc(computed.reason||"Complete the continuous dose and vial inputs to calculate the vial schedule.")}</div>`}
       <div class="actions cycle-vial-schedule-actions no-print"><button class="btn small" type="button" data-continuous-add-vial>Add vial</button></div>
     </div>
   </details>`;
@@ -12430,6 +12485,108 @@ function renderPlanCyclePanels(plan){
   </details>`;
 }
 
+const TREATMENT_INFO_GLOSSARY={
+  "treatment / peptide":"The treatment or peptide record being added to Treatments.",
+  "prescribed dose (mg)":"The actual prescribed dose in milligrams used to initialise the treatment schedule.",
+  "medication in vial (mg)":"The total medication amount contained in the vial before preparation, in milligrams.",
+  "bac water added (ml)":"The actual volume of bacteriostatic water added to prepare the vial.",
+  "final prepared volume (ml)":"The final liquid volume after preparation. This is used with vial strength to calculate concentration.",
+  "calculated syringe marking":"The syringe-unit marking calculated from the prescribed dose, prepared concentration and syringe calibration.",
+  "vial estimate (auto)":"An automatic estimate of vial use or vial duration based on the current preparation, dose and schedule.",
+  "cycle":"Controls whether the treatment is continuous or uses active and break periods.",
+  "cycles per year":"The intended number of complete treatment cycles in one year.",
+  "active weeks":"The number of treatment weeks in the active portion of a cycle.",
+  "break weeks":"The number of weeks off between active treatment cycles.",
+  "cycle start":"The start date of the current or relevant treatment cycle.",
+  "cycle end":"The final active date of the current or relevant treatment cycle.",
+  "schedule":"How often this treatment is scheduled, based on the selected interval or weekdays.",
+  "route":"How the treatment is administered. Use the route on the actual dispensing label or prescriber instructions.",
+  "dose (units)":"The syringe-unit amount calculated for the scheduled dose using the prepared concentration and syringe calibration.",
+  "dose left in vial":"Estimated complete doses remaining in the actively used vial after administrations recorded as given.",
+  "vials per cycle":"The current vial number compared with the total vials calculated for the cycle.",
+  "cycle count":"How many cycles have started in the current annual cycle plan compared with the configured cycles per year.",
+  "current cycle":"The treatment phase that applies now, such as Starting Phase, a numbered cycle, or Break.",
+  "next cycle eligible":"The earliest calculated date the next cycle can begin under the configured annual cycle limit.",
+  "status":"The treatment or vial state currently recorded by the planner.",
+  "vial (mg)":"The total amount of peptide or compound in one vial, in milligrams.",
+  "water (ml)":"The volume of diluent added to prepare the vial, in millilitres.",
+  "concentration (mg/ml)":"The prepared strength calculated as vial milligrams divided by diluent volume.",
+  "dispose by":"The allowed use period after a vial is opened. The planner uses this period to calculate the discard date.",
+  "syringe":"The syringe calibration and capacity used for unit calculations.",
+  "on":"The number of active treatment weeks in each cycle.",
+  "off":"The number of break or washout weeks after an active cycle.",
+  "cycles/year":"The number of treatment cycles planned per year. Continuous removes routine cycle breaks.",
+  "start date":"The date this cycle or continuous treatment begins.",
+  "time":"The scheduled administration time for this cycle or continuous treatment.",
+  "interval":"The number of days between administrations when the schedule uses Every N days.",
+  "vial #":"The sequential vial number in this treatment's calculated vial schedule.",
+  "full dose":"The number of complete administrations this vial can supply using the actual scheduled dose for each administration date, ignoring the discard date.",
+  "cycle dose":"The number of complete administrations this vial can supply on or before the discard date, using the actual scheduled dose for each administration date and the vial's remaining capacity.",
+  "open":"The date this vial is opened for use.",
+  "finish":"The date of the last complete scheduled administration assigned to this vial under the current vial schedule.",
+  "date open":"The date this vial is opened for use.",
+  "date finish":"The date of the last complete scheduled administration assigned to this vial under the current vial schedule.",
+  "start week":"The first treatment week that uses this dose-schedule row.",
+  "end week":"The last treatment week that uses this dose-schedule row.",
+  "days":"The interval in days for this dose phase when specific weekdays are not selected.",
+  "dose (mg)":"The actual scheduled dose in milligrams for administrations covered by this row.",
+  "units":"The syringe-unit equivalent of the scheduled milligram dose at the current prepared concentration.",
+  "weekdays":"The specific days of the week on which this dose phase is scheduled.",
+  "split dose":"Divides one scheduled total dose into multiple administrations while keeping the row's total dose unchanged.",
+  "action":"Controls available for this dose-schedule row, such as removing the row."
+};
+function treatmentInfoKey(text){return String(text||"").replace(/\s+/g," ").trim().toLowerCase()}
+function treatmentInfoText(label){
+  const key=treatmentInfoKey(label);
+  if(TREATMENT_INFO_GLOSSARY[key])return TREATMENT_INFO_GLOSSARY[key];
+  return `This item shows or controls ${String(label||"this treatment setting").trim().toLowerCase()} for the treatment.`;
+}
+function closeTreatmentInfoPopover(){
+  document.querySelector(".treatment-info-popover")?.remove();
+  document.querySelectorAll("#planner .treatment-info-trigger[aria-expanded='true']").forEach(button=>button.setAttribute("aria-expanded","false"));
+}
+function openTreatmentInfoPopover(button,label){
+  closeTreatmentInfoPopover();
+  const popover=document.createElement("div");
+  popover.className="treatment-info-popover";
+  popover.setAttribute("role","dialog");
+  popover.setAttribute("aria-label",`${label} information`);
+  const heading=document.createElement("strong");heading.textContent=label;
+  const body=document.createElement("p");body.textContent=treatmentInfoText(label);
+  popover.append(heading,body);document.body.append(popover);
+  button.setAttribute("aria-expanded","true");
+  const rect=button.getBoundingClientRect(),gap=8,pad=12;
+  const popRect=popover.getBoundingClientRect();
+  let left=Math.min(window.innerWidth-pad,Math.max(pad,rect.left+rect.width/2-popRect.width/2));
+  let top=rect.bottom+gap;
+  if(top+popRect.height>window.innerHeight-pad)top=Math.max(pad,rect.top-popRect.height-gap);
+  popover.style.left=`${left}px`;popover.style.top=`${top}px`;
+  const tip=Math.max(14,Math.min(popRect.width-20,rect.left+rect.width/2-left-5));
+  popover.style.setProperty("--tip-left",`${tip}px`);
+}
+function addTreatmentInfoTrigger(target,label){
+  if(!target||target.dataset.treatmentInfoReady==="true")return;
+  const clean=String(label||target.textContent||"").replace(/\s+/g," ").trim();if(!clean)return;
+  target.dataset.treatmentInfoReady="true";target.classList.add("treatment-info-label");
+  const button=document.createElement("button");button.type="button";button.className="treatment-info-trigger no-print";button.textContent="i";button.setAttribute("aria-label",`Explain ${clean}`);button.setAttribute("aria-expanded","false");
+  button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();if(button.getAttribute("aria-expanded")==="true")closeTreatmentInfoPopover();else openTreatmentInfoPopover(button,clean)});
+  button.addEventListener("keydown",event=>event.stopPropagation());
+  target.append(button);
+}
+function enhanceTreatmentInformation(root=document.getElementById("planner")){
+  if(!root)return;
+  root.querySelectorAll(".chronological-treatment-form label,.chronological-treatment-form .prep-live > span:not(#simpleTreatmentVialEstimateLabel)").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
+  root.querySelectorAll(".simple-plan-summary .simple-mini > span").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
+  root.querySelectorAll(".peptide-settings-grid > div > label,.cycle-config-grid > div > label").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
+  root.querySelectorAll(".requested-dose-table thead th").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
+  root.querySelectorAll(".cycle-vial-desktop-table thead th").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
+  root.querySelectorAll(".cycle-vial-mobile-cards .cycle-vial-date-field > span,.cycle-vial-mobile-cards .cycle-vial-dose-field > span").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
+}
+document.addEventListener("click",event=>{if(!event.target.closest(".treatment-info-popover")&&!event.target.closest("#planner .treatment-info-trigger"))closeTreatmentInfoPopover()});
+document.addEventListener("keydown",event=>{if(event.key==="Escape")closeTreatmentInfoPopover()});
+window.addEventListener("resize",closeTreatmentInfoPopover);
+window.addEventListener("scroll",closeTreatmentInfoPopover,true);
+
 function renderSimplePlanner(){
   const datalist=document.getElementById("simpleTreatmentPresets");
   if(!datalist)return;
@@ -12530,6 +12687,8 @@ function renderSimplePlanner(){
   root.innerHTML=plans.length
     ? `${renderPlanGroup("Active","active",activePlans,"No active treatments.")}${renderPlanGroup("Cycle Break","break",breakPlans,"No treatments currently on cycle break.")}${renderPlanGroup("Scheduled","scheduled",scheduledPlans,"No scheduled treatments.")}${renderPlanGroup("Completed","completed",completedPlans,"No completed cycles.")}`
     : `<div class="card empty"><strong>No treatments yet.</strong><br>Use Add a treatment above to create one.</div>`;
+
+  enhanceTreatmentInformation(document.getElementById("planner"));
 
   root.querySelectorAll("[data-simple-plan]").forEach(card=>{
     const plan=state.plans.find(item=>item.id===card.dataset.simplePlan);if(!plan)return;
@@ -14354,5 +14513,7 @@ initCloudServices();
 <!-- v2026.0309.11: Treatments add Cycle Break grouping; treatment cards collapse to peptide + two sublines; Overview, Peptide Settings and Cycle Settings are independently collapsible and default closed. Account Profile and Request email change default collapsed. -->
 <!-- v2026.0309.18: Treatment Overview outer section removed; its general-information summary is incorporated into the peptide card header and remains visible while the treatment is collapsed. -->
 <!-- v2026.0309.19: Desktop Vial Schedule adds Full Dose (vial capacity ignoring discard date) and Cycle Dose (full doses scheduled on or before the discard date); desktop dose boxes match Open/Finish field dimensions and alignment; mobile Vial Schedule is unchanged. -->
+<!-- v2026.0309.20: Mobile Vial Schedule adds Full Dose and Cycle Dose below Open/Finish. Desktop Vial Schedule uses compact equal-size dose/date fields, centered headers, full row separators through Status, and wider page distribution with Status aligned right. -->
+<!-- v2026.0309.21: Treatments adds small information popups to treatment field labels and schedule headers. Mobile Vial Schedule keeps Full Dose/Cycle Dose below Open/Finish. Desktop Vial Schedule is tightened, centered, fully separated through Status, and uses the page width without changing unrelated fields or fonts. Full Dose/Cycle Dose remain based on actual scheduled administration doses. -->
 </body>
 </html>
