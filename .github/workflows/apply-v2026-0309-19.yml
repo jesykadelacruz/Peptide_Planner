@@ -1,0 +1,85 @@
+name: Apply Peptide Planner v2026.0309.19
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0309-19.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, patch, and verify v19
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="1b4e48a4f6fabca829b9af177aacb5bf92dc13c0fcf555dbd2f3c9ac4abbc59c"
+          TARGET_SHA="e2a808278d4396baa1bfd440e450ba4a1058e1886bde18729293fc287c7c8d36"
+          PAYLOAD_SHA="d3ed7fb20bf3769a552a700a73136b335b9a68953f706f1054990978c3147661"
+          PATCH_SHA="67d440ee824e5015548df01147f49b1adc14d9f0ffc92530b80d05a604d9f2bd"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.19"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          echo "$PAYLOAD_SHA  .deploy/v2026_0309_19.patch.xz.b64" | sha256sum -c -
+          base64 -d .deploy/v2026_0309_19.patch.xz.b64 | xz -d > /tmp/v19.patch
+          echo "$PATCH_SHA  /tmp/v19.patch" | sha256sum -c -
+          patch --dry-run -p1 < /tmp/v19.patch
+          patch -p1 < /tmp/v19.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2213221
+          grep -Fq '<title>Peptide Planner v2026.0309.19</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.19";' index.html
+          grep -Fq '<th>Vial #</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' index.html
+          grep -Fq 'cycle-vial-dose-box cycle-vial-full-dose' index.html
+          grep -Fq 'cycle-vial-dose-box cycle-vial-cycle-dose' index.html
+          grep -Fq 'fullDoseCount:capacityWindow.fullDoseCount,cycleDoseCount:effectiveWindow.fullDoseCount' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-number{font-weight:700!important}' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-date-field input[type="date"]{font-weight:400!important}' index.html
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+
+          python3 - <<'PY2'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,flags=re.S|re.I)
+          Path('/tmp/v19-inline.js').write_text('\n'.join(scripts))
+          mobile_blocks=re.findall(r'<div class="cycle-vial-schedule cycle-vial-mobile-cards">(.*?)</div>(?=`|\s*:`)',html,flags=re.S)
+          assert 'Full Dose' not in ''.join(mobile_blocks)
+          assert 'Cycle Dose' not in ''.join(mobile_blocks)
+          print('Inline scripts:',len(scripts))
+          PY2
+          node --check /tmp/v19-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v19
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.19"
+          git push
