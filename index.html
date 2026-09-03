@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.15</title>
+<title>Peptide Planner v2026.0309.16</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -3562,6 +3562,11 @@ body.onboarding-dialog-open{overflow:hidden!important}
 #planner .planner-section-details[open] > summary::after{content:"−"}
 #planner .planner-section-details-body{padding:12px}
 #planner .plan-overview-details .simple-plan-summary{margin:0}
+@media (min-width:901px){
+  #planner .plan-overview-details > summary{cursor:default;pointer-events:none}
+  #planner .plan-overview-details > summary::after{display:none!important}
+  #planner .plan-overview-details > .planner-section-details-body{display:block!important}
+}
 #planner .cycle-settings-details.cycle-setup-section{
   margin-top:0;
   padding-top:0;
@@ -6812,7 +6817,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.15";
+const APP_VERSION="v2026.0309.16";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -14299,6 +14304,7 @@ initCloudServices();
 <!-- v2026.0309.09: Cycles/Year is now the single standard treatment-mode control: Continuous or 1–52 cycles. Continuous treatments use the same Cycle Settings field layout and Dose Schedule renderer as cycled treatments. -->
 <!-- v2026.0309.10: Overview uses Cycle Start/Cycle End for the current or most recently active cycle. Continuous overview keeps Cycle Start, Cycle End, Schedule, Route, Dose and Dose left only. -->
 <!-- v2026.0309.15: Mobile Vial Schedule vial number is bold; date values remain regular on desktop and mobile. -->
+<!-- v2026.0309.16: Desktop Overview remains permanently visible and is not collapsible; mobile Overview behavior is unchanged. -->
 <!-- v2026.0309.13: Vial Schedule date values use regular font weight. -->
 <!-- v2026.0309.12: Users and All Users admin sections are collapsible and persist their open/closed state. -->
 <!-- v2026.0309.11: Treatments add Cycle Break grouping; treatment cards collapse to peptide + two sublines; Overview, Peptide Settings and Cycle Settings are independently collapsible and default closed. Account Profile and Request email change default collapsed. -->
