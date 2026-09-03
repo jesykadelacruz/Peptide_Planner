@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.17</title>
+<title>Peptide Planner v2026.0309.18</title>
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -5537,6 +5537,30 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 
 
 
+
+<style id="v2026-0309-18-inline-overview">
+#planner .simple-plan-toggle{position:relative}
+#planner .simple-plan-toggle-head{padding-right:86px}
+#planner .simple-plan-toggle::after{
+  position:absolute!important;
+  top:16px!important;
+  right:16px!important;
+  width:auto!important;
+  margin:0!important;
+  text-align:right!important
+}
+#planner .simple-plan-inline-overview{
+  margin-top:2px;
+  padding-top:10px;
+  border-top:1px solid var(--line);
+  min-width:0
+}
+#planner .simple-plan-inline-overview .simple-plan-summary{margin:0!important}
+@media(max-width:640px){
+  body.mobile-app #planner .simple-plan-toggle-head{padding-right:72px}
+  body.mobile-app #planner .simple-plan-toggle::after{top:12px!important;right:11px!important}
+}
+</style>
 </head>
 <body class="mobile-app access-locked">
 
@@ -6817,7 +6841,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.17";
+const APP_VERSION="v2026.0309.18";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12420,17 +12444,13 @@ function renderSimplePlanner(){
     const summaryLineOne=kbCategory||(plan.noCycle?"Continuous treatment":"Cycled treatment");
     const summaryLineTwo=kbPurpose||(plan.route?`Route: ${plan.route}`:"Treatment setup");
     const kbBenefitHtml=`<div class="simple-plan-kb-benefit"><strong>${esc(summaryLineOne)}</strong><span>${esc(summaryLineTwo)}</span></div>`;
-    const collapseKey=plan.id+":simple-plan-compact",overviewKey=plan.id+":overview";
+    const collapseKey=plan.id+":simple-plan-compact";
     return `<details class="card simple-plan-card" data-simple-plan="${esc(plan.id)}" data-collapse-key="${esc(collapseKey)}"${detailOpenAttr(collapseKey,false)} style="--plan-color:${esc(meta.color)}">
       <summary class="simple-plan-toggle">
         <div class="simple-plan-toggle-head">
           <div class="simple-plan-toggle-main"><div class="simple-plan-name"><span class="dot" style="background:${esc(meta.color)}"></span>${esc(plan.noCycle?plan.name:cycleStackName(plan))}</div>${kbBenefitHtml}</div>
         </div>
-      </summary>
-      <div class="simple-plan-body">
-      <details class="planner-section-details plan-overview-details" data-collapse-key="${esc(overviewKey)}"${detailOpenAttr(overviewKey,false)}>
-        <summary>Overview</summary>
-        <div class="planner-section-details-body">
+        <div class="simple-plan-inline-overview">
           <div class="simple-plan-summary">
             <div class="simple-plan-summary-row simple-plan-summary-row-primary">
               <div class="simple-mini"><span>Cycle Start</span><strong>${cycleStart}</strong></div>
@@ -12448,7 +12468,8 @@ function renderSimplePlanner(){
             ${!plan.noCycle&&currentPosition?.annualLimit&&currentPosition?.nextEligibleStart?`<div class="simple-plan-summary-row simple-plan-summary-row-extra"><div class="simple-mini"><span>Next cycle eligible</span><strong>${fmtDate(currentPosition.nextEligibleStart)}</strong></div></div>`:""}
           </div>
         </div>
-      </details>
+      </summary>
+      <div class="simple-plan-body">
       <details class="peptide-settings" data-collapse-key="${esc(plan.id+":peptide-settings-compact")}"${detailOpenAttr(plan.id+":peptide-settings-compact",false)}>
         <summary>Peptide Settings</summary>
         <div class="peptide-settings-body">
@@ -12491,18 +12512,6 @@ function renderSimplePlanner(){
     if(card.matches("details[data-collapse-key]"))card.addEventListener("toggle",()=>saveDetailState(card));
     const peptideSettingsDetail=card.querySelector("details.peptide-settings[data-collapse-key]");
     if(peptideSettingsDetail)peptideSettingsDetail.addEventListener("toggle",()=>saveDetailState(peptideSettingsDetail));
-    const overviewDetail=card.querySelector("details.plan-overview-details[data-collapse-key]");
-    if(overviewDetail){
-      const desktopOverview=()=>window.matchMedia("(min-width: 901px)").matches;
-      if(desktopOverview())overviewDetail.open=true;
-      overviewDetail.addEventListener("toggle",()=>{
-        if(desktopOverview()){
-          if(!overviewDetail.open)overviewDetail.open=true;
-          return;
-        }
-        saveDetailState(overviewDetail);
-      });
-    }
     const cycleSettingsDetail=card.querySelector("details.cycle-settings-details[data-collapse-key]");
     if(cycleSettingsDetail)cycleSettingsDetail.addEventListener("toggle",()=>saveDetailState(cycleSettingsDetail));
     const vialScheduleDetail=card.querySelector("details.vial-schedule-settings[data-collapse-key]");
@@ -14319,5 +14328,6 @@ initCloudServices();
 <!-- v2026.0309.13: Vial Schedule date values use regular font weight. -->
 <!-- v2026.0309.12: Users and All Users admin sections are collapsible and persist their open/closed state. -->
 <!-- v2026.0309.11: Treatments add Cycle Break grouping; treatment cards collapse to peptide + two sublines; Overview, Peptide Settings and Cycle Settings are independently collapsible and default closed. Account Profile and Request email change default collapsed. -->
+<!-- v2026.0309.18: Treatment Overview outer section removed; its general-information summary is incorporated into the peptide card header and remains visible while the treatment is collapsed. -->
 </body>
 </html>
