@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.21</title>
+<title>Peptide Planner v2026.0309.22</title>
+<!-- v2026.0309.22: Treatments info buttons removed; definitions consolidated into Reference > Treatments field guide. -->
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -5361,20 +5362,6 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 #planner .cycle-vial-table-status{display:flex;align-items:center;justify-content:flex-end;gap:12px;min-width:0;width:100%}
 #planner .cycle-vial-table-status .cycle-vial-status{margin-left:auto}
 #planner .cycle-vial-table-status .cycle-vial-remove{flex:0 0 auto;padding:5px 7px;font-size:.7rem}
-/* v2026.0309.21 Treatments information popups */
-#planner .treatment-info-label{max-width:100%}
-#planner .treatment-info-label .treatment-info-trigger{margin-left:4px}
-#planner .treatment-info-trigger{display:inline-flex;align-items:center;justify-content:center;flex:0 0 17px;width:17px;height:17px;min-width:17px;min-height:17px;padding:0;border:1px solid #9db8ac;border-radius:50%;background:#fff;color:#315f54;font:800 11px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;vertical-align:middle;box-shadow:none}
-#planner .treatment-info-trigger:hover,#planner .treatment-info-trigger:focus-visible{border-color:var(--teal);color:var(--teal);outline:2px solid rgba(47,143,136,.16);outline-offset:1px}
-.treatment-info-popover{position:fixed;z-index:10050;width:min(310px,calc(100vw - 24px));padding:11px 12px;border:1px solid #bed2c8;border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 12px 32px rgba(31,54,72,.18);font-size:.78rem;line-height:1.45;text-align:left}
-.treatment-info-popover strong{display:block;margin:0 0 4px;color:#315f54;font-size:.8rem}
-.treatment-info-popover p{margin:0}
-.treatment-info-popover::before{content:"";position:absolute;top:-6px;left:var(--tip-left,18px);width:10px;height:10px;background:#fff;border-left:1px solid #bed2c8;border-top:1px solid #bed2c8;transform:rotate(45deg)}
-@media(max-width:760px){
-  #planner .treatment-info-trigger{flex-basis:16px;width:16px;height:16px;min-width:16px;min-height:16px;font-size:10px}
-  .treatment-info-popover{font-size:.76rem}
-}
-
 @media(max-width:760px){
   #planner .cycle-vial-desktop-table-wrap{display:none!important}
   #planner .cycle-vial-mobile-cards{display:grid!important}
@@ -6174,6 +6161,60 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     </div>
   </details>
 
+  <details class="card kb-reading-guide">
+    <summary>Treatments field guide</summary>
+    <div class="kb-reading-guide-body">
+      <div class="kb-term-grid">
+        <div><strong>Treatment / Peptide</strong><span>The peptide, compound, blend or treatment record being added to Treatments.</span></div>
+        <div><strong>Prescribed dose (mg)</strong><span>The actual prescribed dose in milligrams used to initialise the treatment schedule.</span></div>
+        <div><strong>Medication in vial (mg)</strong><span>The total medication amount contained in the vial before preparation, in milligrams.</span></div>
+        <div><strong>BAC water added (mL)</strong><span>The actual volume of bacteriostatic water added to prepare the vial.</span></div>
+        <div><strong>Final prepared volume (mL)</strong><span>The final liquid volume after preparation. It is used with vial strength to calculate concentration.</span></div>
+        <div><strong>Calculated syringe marking</strong><span>The syringe-unit marking calculated from the scheduled dose, prepared concentration and syringe calibration.</span></div>
+        <div><strong>Vial estimate (auto)</strong><span>An automatic estimate of vial use based on the current preparation and the actual scheduled doses.</span></div>
+        <div><strong>Status</strong><span>The treatment or vial state currently recorded by the planner.</span></div>
+        <div><strong>Route</strong><span>How the treatment is administered. Use the route on the actual dispensing label or prescriber instructions.</span></div>
+        <div><strong>Vial (mg)</strong><span>The total amount of peptide or compound in one vial, in milligrams.</span></div>
+        <div><strong>Water (mL)</strong><span>The volume of diluent added to prepare the vial, in millilitres.</span></div>
+        <div><strong>Concentration (mg/mL)</strong><span>The prepared strength calculated from vial milligrams and final prepared liquid volume.</span></div>
+        <div><strong>Dispose by</strong><span>The allowed use period after a vial is opened. The planner uses this period to calculate the discard date.</span></div>
+        <div><strong>Syringe</strong><span>The syringe calibration and capacity used for unit calculations.</span></div>
+        <div><strong>Cycle</strong><span>Controls whether the treatment is continuous or uses active and break periods.</span></div>
+        <div><strong>Cycles per year / Cycles/year</strong><span>The intended number of complete treatment cycles in one year. Continuous treatment removes routine cycle breaks.</span></div>
+        <div><strong>Active / On</strong><span>The number of active treatment weeks in the treatment cycle.</span></div>
+        <div><strong>Break / Off</strong><span>The planned treatment-free or washout period after an active cycle.</span></div>
+        <div><strong>Cycle Start</strong><span>The start date of the current or relevant treatment cycle.</span></div>
+        <div><strong>Cycle End</strong><span>The final active date of the current or relevant treatment cycle.</span></div>
+        <div><strong>Schedule</strong><span>How often the treatment is scheduled, based on the selected interval or weekdays.</span></div>
+        <div><strong>Dose (units)</strong><span>The syringe-unit amount calculated for the scheduled dose using the prepared concentration and syringe calibration.</span></div>
+        <div><strong>Dose left in vial</strong><span>Estimated complete scheduled doses remaining in the actively used vial after administrations recorded as given.</span></div>
+        <div><strong>Vials per cycle</strong><span>The current vial number compared with the total vials calculated for the cycle.</span></div>
+        <div><strong>Cycle count</strong><span>How many cycles have started in the current annual plan compared with the configured cycles per year.</span></div>
+        <div><strong>Current cycle</strong><span>The treatment phase that applies now, such as Starting Phase, a numbered cycle or Break.</span></div>
+        <div><strong>Next cycle eligible</strong><span>The earliest calculated date the next cycle can begin under the configured annual cycle limit.</span></div>
+        <div><strong>Start date</strong><span>The date the cycle or continuous treatment begins.</span></div>
+        <div><strong>Time</strong><span>The scheduled administration time for the cycle or continuous treatment.</span></div>
+        <div><strong>Interval</strong><span>The number of days between administrations when the schedule uses Every N days.</span></div>
+        <div><strong>Vial #</strong><span>The sequential vial number in the treatment's calculated Vial Schedule.</span></div>
+        <div><strong>Full Dose</strong><span>The number of complete administrations the vial can supply using the <b>actual scheduled dose for each administration date</b>, ignoring the discard date.</span></div>
+        <div><strong>Cycle Dose</strong><span>The number of complete administrations the vial can supply on or before the discard date, using the <b>actual scheduled dose for each administration date</b> and the vial's remaining capacity.</span></div>
+        <div><strong>Open / Date Open</strong><span>The date the vial is opened for use.</span></div>
+        <div><strong>Finish / Date Finish</strong><span>The date of the last complete scheduled administration assigned to the vial under the current Vial Schedule.</span></div>
+        <div><strong>Start week</strong><span>The first treatment week that uses a Dose Schedule row.</span></div>
+        <div><strong>End week</strong><span>The last treatment week that uses a Dose Schedule row.</span></div>
+        <div><strong>Days</strong><span>The interval in days for the dose phase when specific weekdays are not selected.</span></div>
+        <div><strong>Dose (mg)</strong><span>The actual scheduled dose in milligrams for administrations covered by the Dose Schedule row.</span></div>
+        <div><strong>Units</strong><span>The syringe-unit equivalent of the scheduled milligram dose at the current prepared concentration.</span></div>
+        <div><strong>Weekdays</strong><span>The specific days of the week on which the dose phase is scheduled.</span></div>
+        <div><strong>Split dose</strong><span>Divides one scheduled total dose into multiple administrations while keeping the row's total scheduled dose unchanged.</span></div>
+      </div>
+      <div class="kb-source-hierarchy">
+        <strong>Vial Schedule counting rule:</strong>
+        <span>Full Dose and Cycle Dose follow the dose assigned to each actual administration date. They do not apply one current dose to every administration in the vial.</span>
+      </div>
+    </div>
+  </details>
+
   <div class="card protocol-library-toolbar no-print" style="grid-template-columns:minmax(220px,1fr) minmax(180px,240px) minmax(180px,240px)">
     <div>
       <label for="protocolLibrarySearch">Search Knowledge Base</label>
@@ -6895,7 +6936,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.21";
+const APP_VERSION="v2026.0309.22";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12485,107 +12526,6 @@ function renderPlanCyclePanels(plan){
   </details>`;
 }
 
-const TREATMENT_INFO_GLOSSARY={
-  "treatment / peptide":"The treatment or peptide record being added to Treatments.",
-  "prescribed dose (mg)":"The actual prescribed dose in milligrams used to initialise the treatment schedule.",
-  "medication in vial (mg)":"The total medication amount contained in the vial before preparation, in milligrams.",
-  "bac water added (ml)":"The actual volume of bacteriostatic water added to prepare the vial.",
-  "final prepared volume (ml)":"The final liquid volume after preparation. This is used with vial strength to calculate concentration.",
-  "calculated syringe marking":"The syringe-unit marking calculated from the prescribed dose, prepared concentration and syringe calibration.",
-  "vial estimate (auto)":"An automatic estimate of vial use or vial duration based on the current preparation, dose and schedule.",
-  "cycle":"Controls whether the treatment is continuous or uses active and break periods.",
-  "cycles per year":"The intended number of complete treatment cycles in one year.",
-  "active weeks":"The number of treatment weeks in the active portion of a cycle.",
-  "break weeks":"The number of weeks off between active treatment cycles.",
-  "cycle start":"The start date of the current or relevant treatment cycle.",
-  "cycle end":"The final active date of the current or relevant treatment cycle.",
-  "schedule":"How often this treatment is scheduled, based on the selected interval or weekdays.",
-  "route":"How the treatment is administered. Use the route on the actual dispensing label or prescriber instructions.",
-  "dose (units)":"The syringe-unit amount calculated for the scheduled dose using the prepared concentration and syringe calibration.",
-  "dose left in vial":"Estimated complete doses remaining in the actively used vial after administrations recorded as given.",
-  "vials per cycle":"The current vial number compared with the total vials calculated for the cycle.",
-  "cycle count":"How many cycles have started in the current annual cycle plan compared with the configured cycles per year.",
-  "current cycle":"The treatment phase that applies now, such as Starting Phase, a numbered cycle, or Break.",
-  "next cycle eligible":"The earliest calculated date the next cycle can begin under the configured annual cycle limit.",
-  "status":"The treatment or vial state currently recorded by the planner.",
-  "vial (mg)":"The total amount of peptide or compound in one vial, in milligrams.",
-  "water (ml)":"The volume of diluent added to prepare the vial, in millilitres.",
-  "concentration (mg/ml)":"The prepared strength calculated as vial milligrams divided by diluent volume.",
-  "dispose by":"The allowed use period after a vial is opened. The planner uses this period to calculate the discard date.",
-  "syringe":"The syringe calibration and capacity used for unit calculations.",
-  "on":"The number of active treatment weeks in each cycle.",
-  "off":"The number of break or washout weeks after an active cycle.",
-  "cycles/year":"The number of treatment cycles planned per year. Continuous removes routine cycle breaks.",
-  "start date":"The date this cycle or continuous treatment begins.",
-  "time":"The scheduled administration time for this cycle or continuous treatment.",
-  "interval":"The number of days between administrations when the schedule uses Every N days.",
-  "vial #":"The sequential vial number in this treatment's calculated vial schedule.",
-  "full dose":"The number of complete administrations this vial can supply using the actual scheduled dose for each administration date, ignoring the discard date.",
-  "cycle dose":"The number of complete administrations this vial can supply on or before the discard date, using the actual scheduled dose for each administration date and the vial's remaining capacity.",
-  "open":"The date this vial is opened for use.",
-  "finish":"The date of the last complete scheduled administration assigned to this vial under the current vial schedule.",
-  "date open":"The date this vial is opened for use.",
-  "date finish":"The date of the last complete scheduled administration assigned to this vial under the current vial schedule.",
-  "start week":"The first treatment week that uses this dose-schedule row.",
-  "end week":"The last treatment week that uses this dose-schedule row.",
-  "days":"The interval in days for this dose phase when specific weekdays are not selected.",
-  "dose (mg)":"The actual scheduled dose in milligrams for administrations covered by this row.",
-  "units":"The syringe-unit equivalent of the scheduled milligram dose at the current prepared concentration.",
-  "weekdays":"The specific days of the week on which this dose phase is scheduled.",
-  "split dose":"Divides one scheduled total dose into multiple administrations while keeping the row's total dose unchanged.",
-  "action":"Controls available for this dose-schedule row, such as removing the row."
-};
-function treatmentInfoKey(text){return String(text||"").replace(/\s+/g," ").trim().toLowerCase()}
-function treatmentInfoText(label){
-  const key=treatmentInfoKey(label);
-  if(TREATMENT_INFO_GLOSSARY[key])return TREATMENT_INFO_GLOSSARY[key];
-  return `This item shows or controls ${String(label||"this treatment setting").trim().toLowerCase()} for the treatment.`;
-}
-function closeTreatmentInfoPopover(){
-  document.querySelector(".treatment-info-popover")?.remove();
-  document.querySelectorAll("#planner .treatment-info-trigger[aria-expanded='true']").forEach(button=>button.setAttribute("aria-expanded","false"));
-}
-function openTreatmentInfoPopover(button,label){
-  closeTreatmentInfoPopover();
-  const popover=document.createElement("div");
-  popover.className="treatment-info-popover";
-  popover.setAttribute("role","dialog");
-  popover.setAttribute("aria-label",`${label} information`);
-  const heading=document.createElement("strong");heading.textContent=label;
-  const body=document.createElement("p");body.textContent=treatmentInfoText(label);
-  popover.append(heading,body);document.body.append(popover);
-  button.setAttribute("aria-expanded","true");
-  const rect=button.getBoundingClientRect(),gap=8,pad=12;
-  const popRect=popover.getBoundingClientRect();
-  let left=Math.min(window.innerWidth-pad,Math.max(pad,rect.left+rect.width/2-popRect.width/2));
-  let top=rect.bottom+gap;
-  if(top+popRect.height>window.innerHeight-pad)top=Math.max(pad,rect.top-popRect.height-gap);
-  popover.style.left=`${left}px`;popover.style.top=`${top}px`;
-  const tip=Math.max(14,Math.min(popRect.width-20,rect.left+rect.width/2-left-5));
-  popover.style.setProperty("--tip-left",`${tip}px`);
-}
-function addTreatmentInfoTrigger(target,label){
-  if(!target||target.dataset.treatmentInfoReady==="true")return;
-  const clean=String(label||target.textContent||"").replace(/\s+/g," ").trim();if(!clean)return;
-  target.dataset.treatmentInfoReady="true";target.classList.add("treatment-info-label");
-  const button=document.createElement("button");button.type="button";button.className="treatment-info-trigger no-print";button.textContent="i";button.setAttribute("aria-label",`Explain ${clean}`);button.setAttribute("aria-expanded","false");
-  button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();if(button.getAttribute("aria-expanded")==="true")closeTreatmentInfoPopover();else openTreatmentInfoPopover(button,clean)});
-  button.addEventListener("keydown",event=>event.stopPropagation());
-  target.append(button);
-}
-function enhanceTreatmentInformation(root=document.getElementById("planner")){
-  if(!root)return;
-  root.querySelectorAll(".chronological-treatment-form label,.chronological-treatment-form .prep-live > span:not(#simpleTreatmentVialEstimateLabel)").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
-  root.querySelectorAll(".simple-plan-summary .simple-mini > span").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
-  root.querySelectorAll(".peptide-settings-grid > div > label,.cycle-config-grid > div > label").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
-  root.querySelectorAll(".requested-dose-table thead th").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
-  root.querySelectorAll(".cycle-vial-desktop-table thead th").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
-  root.querySelectorAll(".cycle-vial-mobile-cards .cycle-vial-date-field > span,.cycle-vial-mobile-cards .cycle-vial-dose-field > span").forEach(target=>addTreatmentInfoTrigger(target,target.childNodes[0]?.textContent||target.textContent));
-}
-document.addEventListener("click",event=>{if(!event.target.closest(".treatment-info-popover")&&!event.target.closest("#planner .treatment-info-trigger"))closeTreatmentInfoPopover()});
-document.addEventListener("keydown",event=>{if(event.key==="Escape")closeTreatmentInfoPopover()});
-window.addEventListener("resize",closeTreatmentInfoPopover);
-window.addEventListener("scroll",closeTreatmentInfoPopover,true);
 
 function renderSimplePlanner(){
   const datalist=document.getElementById("simpleTreatmentPresets");
@@ -12688,7 +12628,6 @@ function renderSimplePlanner(){
     ? `${renderPlanGroup("Active","active",activePlans,"No active treatments.")}${renderPlanGroup("Cycle Break","break",breakPlans,"No treatments currently on cycle break.")}${renderPlanGroup("Scheduled","scheduled",scheduledPlans,"No scheduled treatments.")}${renderPlanGroup("Completed","completed",completedPlans,"No completed cycles.")}`
     : `<div class="card empty"><strong>No treatments yet.</strong><br>Use Add a treatment above to create one.</div>`;
 
-  enhanceTreatmentInformation(document.getElementById("planner"));
 
   root.querySelectorAll("[data-simple-plan]").forEach(card=>{
     const plan=state.plans.find(item=>item.id===card.dataset.simplePlan);if(!plan)return;
