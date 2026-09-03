@@ -1,0 +1,113 @@
+name: Apply Peptide Planner v2026.0309.21
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0309-21.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, patch, and verify v21
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="53f5bc52b815cb132a99bde1a60075882f014dbe51d1c0ade9181d2e8a3b43c6"
+          TARGET_SHA="40f6dea68c4b133b1ac5b58b380a97193cb5e281fa98565202b60f5d69d7b297"
+          PAYLOAD_SHA="a4528fdc24ad2c1add58cd3ca3f7de6d40788440caa47b9a82d5560621a7b0de"
+          PATCH_SHA="ee9c187eb6593a7a2140d18838178a5f05c4fc1272fcb80d04486ceaa6ab58cd"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.21"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          echo "$PAYLOAD_SHA  .deploy/v2026_0309_21.patch.xz.b64" | sha256sum -c -
+          base64 -d .deploy/v2026_0309_21.patch.xz.b64 | xz -d > /tmp/v21.patch
+          echo "$PATCH_SHA  /tmp/v21.patch" | sha256sum -c -
+          patch --dry-run -p1 < /tmp/v21.patch
+          patch -p1 < /tmp/v21.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2227669
+          grep -Fq '<title>Peptide Planner v2026.0309.21</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.21";' index.html
+
+          # Mobile vial schedule: Full Dose/Cycle Dose remain below Open/Finish and equal-height with date fields.
+          grep -Fq 'grid-template-areas:' index.html
+          grep -Fq '"open finish"' index.html
+          grep -Fq '"full cycle"' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-date-field input[type="date"]' index.html
+          grep -Fq 'height:46px!important' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-dose-field .cycle-vial-dose-box' index.html
+          grep -Fq 'cycle-vial-full-dose-field' index.html
+          grep -Fq 'cycle-vial-cycle-dose-field' index.html
+
+          # Desktop vial schedule: compact fields, centered headings/values, full separators, status aligned right.
+          grep -Fq '#planner .cycle-vial-dose-box{display:flex;width:100%;min-width:0;max-width:142px;min-height:40px;height:40px' index.html
+          grep -Fq 'max-width:142px!important;min-height:40px!important;height:40px!important' index.html
+          grep -Fq 'text-align:center!important' index.html
+          grep -Fq 'tbody tr:not(:last-child)>td:last-child{border-bottom:1px solid var(--line)!important}' index.html
+          grep -Fq '.cycle-vial-col-status{width:27%}' index.html
+          grep -Fq '.cycle-vial-table-status .cycle-vial-status{margin-left:auto}' index.html
+
+          # Full/Cycle dose counts are calculated from each actual scheduled dose event.
+          grep -Fq 'function vialDoseCountForDisplay' index.html
+          grep -Fq 'if(event.units>remaining+0.000001)break;' index.html
+          grep -Fq 'remaining=round(remaining-event.units,6);' index.html
+          grep -Fq 'if(through&&event.date>through)break;' index.html
+
+          # Treatments information popup system and exact Full Dose explanation.
+          grep -Fq 'const TREATMENT_INFO_GLOSSARY=' index.html
+          grep -Fq 'function enhanceTreatmentInformation' index.html
+          grep -Fq 'The number of complete administrations this vial can supply using the actual scheduled dose for each administration date, ignoring the discard date.' index.html
+          grep -Fq '.cycle-vial-desktop-table thead th' index.html
+          grep -Fq '.cycle-vial-mobile-cards .cycle-vial-date-field > span' index.html
+
+          # Preserve core application functions.
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+
+          python3 - <<'PY2'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,flags=re.S|re.I)
+          Path('/tmp/v21-inline.js').write_text('\n'.join(scripts))
+          assert len(scripts)==2
+          assert '<th>Vial #</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in html
+          assert '<span>Full Dose</span><div class="cycle-vial-dose-box cycle-vial-full-dose">' in html
+          assert '<span>Cycle Dose</span><div class="cycle-vial-dose-box cycle-vial-cycle-dose">' in html
+          print('Inline scripts:',len(scripts))
+          PY2
+          node --check /tmp/v21-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v21
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.21"
+          git push
