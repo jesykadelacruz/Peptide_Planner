@@ -1,0 +1,96 @@
+name: Apply Peptide Planner v2026.0309.27
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0309-27.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Guard, patch, and verify v27
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="e2ef872f1194b85bc00775afe95feb619a2e2edae94b453c57132b5a157a6a89"
+          TARGET_SHA="f427e32ecf6b7ee7ced12d631ad5046d351e52f817516084b5bec82de7f8a1f3"
+          PAYLOAD_SHA="0403fc2beb9f17832fedf52ddaffdb6517c4f6861f16fb2e7d2fdd048068e3b0"
+          PATCH_SHA="7a3f0778ddfcbd58952d4984265cbca19dc900828699c079c195556c2c573d88"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.27"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          echo "$PAYLOAD_SHA  .deploy/v2026_0309_27.patch.xz.b64" | sha256sum -c -
+          base64 -d .deploy/v2026_0309_27.patch.xz.b64 | xz -d > /tmp/v27.patch
+          echo "$PATCH_SHA  /tmp/v27.patch" | sha256sum -c -
+          patch --dry-run -p1 < /tmp/v27.patch
+          patch -p1 < /tmp/v27.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2368701
+          grep -Fq '<title>Peptide Planner v2026.0309.27</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.27";' index.html
+
+          # Getting Started and Progress are Account subtabs, not main-nav tabs.
+          ! grep -Fq '<button class="tab-btn" data-tab="guide">Getting Started</button>' index.html
+          ! grep -Fq '<button class="tab-btn" data-tab="progress">Progress</button>' index.html
+          grep -Fq 'aria-label="Account sections"' index.html
+          grep -Fq 'data-guide-tab="guide">Getting Started</button>' index.html
+          grep -Fq 'data-guide-tab="progress">Progress</button>' index.html
+          grep -Fq '["guide","progress","safety"].includes(tabId)?"safety"' index.html
+
+          # Preserve new-user onboarding and v26 password setup/recovery behavior.
+          grep -Fq 'routeInitialPlannerExperience' index.html
+          grep -Fq 'activateTab("guide");' index.html
+          grep -Fq 'const PASSWORD_RESET_REDIRECT_URL="https://peptide-planner.pages.dev/?password=1";' index.html
+          grep -Fq 'plannerPasswordRecoveryLinkActive' index.html
+          grep -Fq 'cloudClient.rpc("planner_activate_invite")' index.html
+
+          # Preserve core application functions.
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+          grep -Fq 'function vialDoseCountForDisplay' index.html
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,flags=re.S|re.I)
+          assert len(scripts)==2
+          Path('/tmp/v27-inline.js').write_text('\n'.join(scripts))
+          assert html.count('aria-label="Account sections"') >= 3
+          print('Account grouping and inline scripts verified')
+          PY
+          node --check /tmp/v27-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+      - name: Commit synchronized v27
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.27"
+          git push
