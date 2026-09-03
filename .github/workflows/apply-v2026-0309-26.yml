@@ -1,0 +1,202 @@
+name: Apply Peptide Planner v2026.0309.26
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0309-26.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, reconstruct v25, apply v26, and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="e2ef872f1194b85bc00775afe95feb619a2e2edae94b453c57132b5a157a6a89"
+          V25_SHA="5e5e90dc71f15e71e8b662a72434769e325b8351073fbcd3f39226c3e1dd363c"
+          TARGET_SHA="8a0509e78e09766d9aae222e9952c2d98b87e1c0bd7e598c4902b8b7a9e5df73"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.26"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          # Reconstruct the already-staged v24 -> v25 patch and verify the exact v25 build.
+          cat .deploy/v2026_0309_25.patch.part{00..05}.b64 \
+            | tr -d '\n' \
+            | base64 -d \
+            | xz -d > /tmp/v25.patch
+          patch --dry-run -p1 < /tmp/v25.patch
+          patch -p1 < /tmp/v25.patch
+          echo "$V25_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2367830
+
+          # Apply the narrowly scoped v25 -> v26 password setup/recovery routing fix.
+          python3 - <<'PY2'
+          from pathlib import Path
+          import re
+
+          p=Path("index.html")
+          text=p.read_text()
+
+          def plain(old,new,expect=1):
+              global text
+              n=text.count(old)
+              assert n==expect,(n,old[:120])
+              text=text.replace(old,new)
+
+          def rex(pattern,repl,expect=1):
+              global text
+              text2,n=re.subn(pattern,repl,text)
+              assert n==expect,(n,pattern)
+              text=text2
+
+          plain('<title>Peptide Planner v2026.0309.25</title>',
+                '<title>Peptide Planner v2026.0309.26</title>')
+          plain('<!-- v2026.0309.25: New/incomplete users land on Getting Started first; guided Profile → Treatment → Review & Verify → Today journey plus comprehensive screenshot-based user guide. -->',
+                '<!-- v2026.0309.26: Approval, resend and password-reset emails open a Set New Password flow; invited accounts activate only after password setup. Existing v25 onboarding and guide remain unchanged. -->')
+          plain('/* v2026.0309.25 — Getting Started landing + comprehensive screenshot guide */',
+                '/* v2026.0309.26 — password setup/recovery routing fix; v25 Getting Started guide retained */')
+          plain('const APP_VERSION="v2026.0309.25";',
+                'const APP_VERSION="v2026.0309.26";')
+          plain('const PASSWORD_RESET_REDIRECT_URL="https://peptide-planner.pages.dev/";',
+                'const PASSWORD_RESET_REDIRECT_URL="https://peptide-planner.pages.dev/?password=1";')
+
+          rex(r'let \{error\}=await cloudClient\.auth\.resetPasswordForEmail\(email,\{redirectTo:PASSWORD_RESET_REDIRECT_URL\}\);\n\s*if\(error&&/redirect\|redirect_to\|not allowed/i\.test\(String\(error\?\.message\|\|""\)\)\)\{\(\{error\}=await cloudClient\.auth\.resetPasswordForEmail\(email\)\)\}',
+              'const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:PASSWORD_RESET_REDIRECT_URL});',
+              2)
+
+          plain(
+            'try{let {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:PASSWORD_RESET_REDIRECT_URL});if(error&&/redirect|redirect_to|not allowed/i.test(String(error?.message||""))){({error}=await cloudClient.auth.resetPasswordForEmail(email))}if(error)throw error;setPlannerAccessFeedback("If an approved account exists for that email, a password reset link has been sent.")}',
+            'try{const {error}=await cloudClient.auth.resetPasswordForEmail(email,{redirectTo:PASSWORD_RESET_REDIRECT_URL});if(error)throw error;setPlannerAccessFeedback("If an approved account exists for that email, a password reset link has been sent.")}'
+          )
+
+          plain(
+          '''function plannerInviteLinkActive(){
+            return new URLSearchParams(location.search).get("invite")==="1";
+          }
+          ''',
+          '''function plannerInviteLinkActive(){
+            return new URLSearchParams(location.search).get("invite")==="1";
+          }
+          function plannerPasswordRecoveryLinkActive(){
+            const search=new URLSearchParams(location.search);
+            const hash=new URLSearchParams(String(location.hash||"").replace(/^#/,""));
+            return search.get("password")==="1"||search.get("type")==="recovery"||hash.get("type")==="recovery";
+          }
+          ''')
+
+          plain('async function currentPlannerAccess({activateInvite=!plannerInviteLinkActive()}={}){',
+                'async function currentPlannerAccess({activateInvite=false}={}){')
+          plain('try{access=await currentPlannerAccess({activateInvite:!plannerInviteLinkActive()})}',
+                'try{access=await currentPlannerAccess({activateInvite:false})}')
+
+          plain(
+          '''    if(access?.status==="invited"&&plannerInviteLinkActive()){
+                cloudAccess=access;
+                setPlannerLocked(true);
+                renderPlannerAccessGate();
+                renderCloudAccount();
+                showPlannerInviteSetup();
+                return false;
+              }''',
+          '''    if(access?.status==="invited"){
+                cloudAccess=access;
+                setPlannerLocked(true);
+                renderPlannerAccessGate();
+                renderCloudAccount();
+                showPlannerInviteSetup();
+                return false;
+              }''')
+
+          plain(
+          '''      const {error}=await cloudClient.auth.updateUser({password});
+                if(error)throw error;
+                showCloudAuthMessage("Password updated successfully. You are now signed in.");
+                setTimeout(async()=>{hideCloudAuth();renderCloudAccount();if(cloudUser)await reconcileCloudState({silent:true})},700);''',
+          '''      const {error}=await cloudClient.auth.updateUser({password});
+                if(error)throw error;
+                let access=await currentPlannerAccess({activateInvite:false}).catch(()=>null);
+                if(access?.status==="invited"){
+                  const activated=await cloudClient.rpc("planner_activate_invite");
+                  if(activated.error)throw activated.error;
+                  access=await currentPlannerAccess({activateInvite:false}).catch(()=>access);
+                }
+                history.replaceState({},document.title,location.pathname);
+                showCloudAuthMessage(access?.status==="active"?"Password created successfully. Your planner access is now active.":"Password updated successfully.");
+                setTimeout(async()=>{hideCloudAuth();renderCloudAccount();if(cloudUser)await verifyPlannerAccess({silent:true})},700);''')
+
+          plain(
+            'setAdminPageFeedback(`New sign-in email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);',
+            'setAdminPageFeedback(`New password setup email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);'
+          )
+
+          plain(
+          '''  try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();await verifyPlannerAccess({silent:true})}catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
+            cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const nextUser=session?.user||null;if(event==="SIGNED_OUT"){cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return}cloudUser=nextUser;renderCloudAccount();if(event==="PASSWORD_RECOVERY"){const allowed=await verifyPlannerAccess();if(allowed)showCloudAuth("recovery");return}if(nextUser){await verifyPlannerAccess({silent:true})}},0)});''',
+          '''  try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser&&plannerPasswordRecoveryLinkActive()){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery")}else await verifyPlannerAccess({silent:true})}catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
+            cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const nextUser=session?.user||null;if(event==="SIGNED_OUT"){cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return}cloudUser=nextUser;renderCloudAccount();if(event==="PASSWORD_RECOVERY"){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery");return}if(nextUser){await verifyPlannerAccess({silent:true})}},0)});''')
+
+          p.write_text(text)
+          PY2
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2368258
+          grep -Fq '<title>Peptide Planner v2026.0309.26</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.26";' index.html
+          grep -Fq 'const PASSWORD_RESET_REDIRECT_URL="https://peptide-planner.pages.dev/?password=1";' index.html
+          grep -Fq 'function plannerPasswordRecoveryLinkActive()' index.html
+          grep -Fq 'async function currentPlannerAccess({activateInvite=false}={})' index.html
+          grep -Fq 'if(access?.status==="invited"){' index.html
+          grep -Fq 'if(event==="PASSWORD_RECOVERY"){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery");return}' index.html
+          grep -Fq 'const activated=await cloudClient.rpc("planner_activate_invite");' index.html
+          grep -Fq 'New password setup email sent to' index.html
+
+          # Preserve v25 onboarding/guide and core application functions.
+          grep -Fq 'Getting Started' index.html
+          grep -Fq 'routeInitialPlannerExperience' index.html
+          grep -Fq 'Full User Guide' index.html
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+          grep -Fq 'function vialDoseCountForDisplay' index.html
+
+          python3 - <<'PY3'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,flags=re.S|re.I)
+          assert len(scripts)==2
+          Path('/tmp/v26-inline.js').write_text('\n'.join(scripts))
+          print('Inline scripts:',len(scripts))
+          PY3
+          node --check /tmp/v26-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v26
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.26"
+          git push
