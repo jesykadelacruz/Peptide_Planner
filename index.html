@@ -11642,6 +11642,22 @@ function cycleVialScheduleRecordAt(plan,cycleUsage,cycleNumber,index,used,cycleR
   }
   return {record,forecastOpening};
 }
+function vialDoseCountForDisplay(events,startCursor,openDate,unitsPerVial,throughDate=null){
+  const open=parseISO(openDate),through=throughDate?parseISO(throughDate):null;
+  if(!open||!unitsPerVial||unitsPerVial<=0)return 0;
+  let cursor=Math.max(0,startCursor),remaining=unitsPerVial,count=0;
+  while(cursor<events.length&&events[cursor].date<open)cursor+=1;
+  while(cursor<events.length){
+    const event=events[cursor];
+    if(through&&event.date>through)break;
+    if(event.units>remaining+0.000001)break;
+    remaining=round(remaining-event.units,6);
+    count+=1;
+    cursor+=1;
+    if(remaining<=0.000001)break;
+  }
+  return count;
+}
 function simulateCycleVialWindow(events,startCursor,openDate,unitsPerVial,disposeDate,manualFinishDate=null){
   const open=parseISO(openDate),dispose=disposeDate?parseISO(disposeDate):null,manualFinish=manualFinishDate?parseISO(manualFinishDate):null;
   if(!open)return {nextCursor:startCursor,finishDate:"",lastFullDoseDate:"",usedUnits:0,fullDoseCount:0,remainingUnits:unitsPerVial,reason:"No open date"};
@@ -11692,8 +11708,8 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     const finishDate=manualFinish?String(record.finishDate||""):autoWindow.finishDate;
     const effectiveWindow=manualFinish?simulateCycleVialWindow(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,disposeDate,finishDate):autoWindow;
     if(effectiveWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
-    const capacityWindow=simulateCycleVialWindow(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,"",null);
-    if(capacityWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
+    const fullDoseCount=vialDoseCountForDisplay(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,null);
+    const cycleDoseCount=vialDoseCountForDisplay(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,disposeDate||null);
     const hadDoseAtStart=rowStartCursor<dosePlan.events.length;
     cursor=effectiveWindow.nextCursor;
     previousFinish=finishDate||calculatedOpenDate||previousFinish;
@@ -11703,7 +11719,7 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     rows.push({
       index,cycleNumber,record,forecastNumber:forecastOpening?.number||null,projectedDate:projected?localDateISO(projected):calculatedOpenDate,
       calculatedOpenDate,calculatedFinishDate:autoWindow.finishDate,openDate,finishDate,disposeDate,
-      unitsUsed:effectiveWindow.usedUnits,fullDoseCount:capacityWindow.fullDoseCount,cycleDoseCount:effectiveWindow.fullDoseCount,remainingUnits:effectiveWindow.remainingUnits,lastFullDoseDate:effectiveWindow.lastFullDoseDate,
+      unitsUsed:effectiveWindow.usedUnits,fullDoseCount,cycleDoseCount,remainingUnits:effectiveWindow.remainingUnits,lastFullDoseDate:effectiveWindow.lastFullDoseDate,
       status:cycleVialScheduleStatus(openDate,finishDate),statusKey:cycleVialScheduleStatusKey(cycleVialScheduleStatus(openDate,finishDate)),autoRequired:rowRequired
     });
     const needMoreAutomatic=cursor<dosePlan.events.length;
@@ -12267,11 +12283,11 @@ function continuousVialScheduleComputation(plan,requestedTotal=null){
     const finishDate=manualFinish?String(record.finishDate||""):autoWindow.finishDate;
     const effectiveWindow=manualFinish?simulateCycleVialWindow(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,disposeDate,finishDate):autoWindow;
     if(effectiveWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
-    const capacityWindow=simulateCycleVialWindow(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,"",null);
-    if(capacityWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
+    const fullDoseCount=vialDoseCountForDisplay(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,null);
+    const cycleDoseCount=vialDoseCountForDisplay(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,disposeDate||null);
     const hadDoseAtStart=rowStartCursor<dosePlan.events.length;cursor=effectiveWindow.nextCursor;previousFinish=finishDate||calculatedOpenDate||previousFinish;
     if(hadDoseAtStart)required=index;
-    rows.push({index,cycleNumber:0,record,calculatedOpenDate,calculatedFinishDate:autoWindow.finishDate,openDate,finishDate,disposeDate,unitsUsed:effectiveWindow.usedUnits,fullDoseCount:capacityWindow.fullDoseCount,cycleDoseCount:effectiveWindow.fullDoseCount,remainingUnits:effectiveWindow.remainingUnits,lastFullDoseDate:effectiveWindow.lastFullDoseDate,status:cycleVialScheduleStatus(openDate,finishDate),statusKey:cycleVialScheduleStatusKey(cycleVialScheduleStatus(openDate,finishDate)),autoRequired:hadDoseAtStart});
+    rows.push({index,cycleNumber:0,record,calculatedOpenDate,calculatedFinishDate:autoWindow.finishDate,openDate,finishDate,disposeDate,unitsUsed:effectiveWindow.usedUnits,fullDoseCount,cycleDoseCount,remainingUnits:effectiveWindow.remainingUnits,lastFullDoseDate:effectiveWindow.lastFullDoseDate,status:cycleVialScheduleStatus(openDate,finishDate),statusKey:cycleVialScheduleStatusKey(cycleVialScheduleStatus(openDate,finishDate)),autoRequired:hadDoseAtStart});
     const needMoreAutomatic=cursor<dosePlan.events.length,needMoreManual=index<requested;
     if(!needMoreAutomatic&&!needMoreManual)break;if(!previousFinish&&needMoreAutomatic)break;index+=1;
   }
@@ -14337,6 +14353,6 @@ initCloudServices();
 <!-- v2026.0309.12: Users and All Users admin sections are collapsible and persist their open/closed state. -->
 <!-- v2026.0309.11: Treatments add Cycle Break grouping; treatment cards collapse to peptide + two sublines; Overview, Peptide Settings and Cycle Settings are independently collapsible and default closed. Account Profile and Request email change default collapsed. -->
 <!-- v2026.0309.18: Treatment Overview outer section removed; its general-information summary is incorporated into the peptide card header and remains visible while the treatment is collapsed. -->
-<!-- v2026.0309.19: Desktop Vial Schedule adds Full Dose (vial capacity ignoring discard date) and Cycle Dose (disposal-aware usable full doses); desktop dose boxes match Open/Finish field dimensions and alignment; mobile Vial Schedule is unchanged. -->
+<!-- v2026.0309.19: Desktop Vial Schedule adds Full Dose (vial capacity ignoring discard date) and Cycle Dose (full doses scheduled on or before the discard date); desktop dose boxes match Open/Finish field dimensions and alignment; mobile Vial Schedule is unchanged. -->
 </body>
 </html>
