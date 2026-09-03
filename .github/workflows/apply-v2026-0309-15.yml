@@ -1,0 +1,89 @@
+name: Apply Peptide Planner v2026.0309.15
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0309-15.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Guard, reconstruct, and verify v15
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="9d0257817ae7cb90a0c11b072a1bb67cd4c8bc10b704e036313cc7d6d9dbe1ee"
+          TARGET_SHA="08544c17a1e3f38bd90dbc735a8cd27592795eeec2bf6e1e57a36b3bd042a434"
+          PAYLOAD_SHA="9d10e602001aa28467a3d045414516bd8a2590e680c55aeefc4f97fb78f2781a"
+          PATCH_SHA="081da55ececf2bc9f6d5ec3c140cd2cd5faeb694c8e7ad3230357629acf3810e"
+
+          CURRENT_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Current index SHA256: $CURRENT_SHA"
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "index.html already matches v2026.0309.15"
+            exit 0
+          fi
+          test "$CURRENT_SHA" = "$BASE_SHA"
+
+          cat \
+            .deploy/v2026_0309_15.patch.part01.b64 \
+            .deploy/v2026_0309_15.patch.part02.b64 \
+            .deploy/v2026_0309_15.patch.part03.b64 \
+            .deploy/v2026_0309_15.patch.part04.b64 \
+            > /tmp/v15.patch.xz.b64
+
+          echo "$PAYLOAD_SHA  /tmp/v15.patch.xz.b64" | sha256sum -c -
+          base64 -d /tmp/v15.patch.xz.b64 | xz -d > /tmp/v15.patch
+          echo "$PATCH_SHA  /tmp/v15.patch" | sha256sum -c -
+
+          patch --dry-run -p1 < /tmp/v15.patch
+          patch -p1 < /tmp/v15.patch
+
+          echo "$TARGET_SHA  index.html" | sha256sum -c -
+          test "$(wc -c < index.html)" -eq 2210506
+          grep -Fq '<title>Peptide Planner v2026.0309.15</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0309.15";' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-number{font-weight:700!important}' index.html
+          grep -Fq 'body.mobile-app #planner .cycle-vial-date-field input[type="date"]{font-weight:400!important}' index.html
+          grep -Fq '#planner .cycle-vial-table-number{font-size:1rem;font-weight:400;white-space:nowrap}' index.html
+          grep -Fq '#planner .cycle-vial-full-dose{font-weight:400}' index.html
+          grep -Fq '#planner .cycle-vial-table-date input[type="date"]' index.html
+          grep -Fq 'Forgot password' index.html
+          grep -Fq 'Create account' index.html
+          grep -Fq 'supabase.createClient' index.html
+          grep -Fq 'reconcileCloudState' index.html
+          grep -Fq 'registerPlannerServiceWorker' index.html
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text()
+          scripts = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.S|re.I)
+          Path('/tmp/v15-inline.js').write_text('\n'.join(scripts))
+          print('Inline scripts:', len(scripts))
+          PY
+          node --check /tmp/v15-inline.js
+          echo "Verified target index SHA256: $(sha256sum index.html | awk '{print $1}')"
+
+      - name: Commit synchronized v15
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo "No index.html change required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0309.15"
+          git push
