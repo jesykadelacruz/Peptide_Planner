@@ -47,7 +47,8 @@ jobs:
           grep -Fq 'if(desktopOverview())overviewDetail.open=true;' index.html
           grep -Fq 'if(!overviewDetail.open)overviewDetail.open=true;' index.html
           grep -Fq 'Cycle Start' index.html
-          grep -Fq 'Next Cycle' index.html
+          grep -Fq 'Cycle End' index.html
+          grep -Fq 'Current cycle' index.html
           grep -Fq 'Dispose by' index.html
           grep -Fq 'Peptide Settings' index.html
           grep -Fq 'Cycle Settings' index.html
