@@ -9,8 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.23</title>
+<title>Peptide Planner v2026.0309.24</title>
 <!-- v2026.0309.23: Treatments field guide moved from Reference to the Treatments tab; guide content and all treatment logic remain unchanged. -->
+<!-- v2026.0309.24: Added keyword search to the Treatments field guide; guide content and all treatment/planner logic remain unchanged. -->
 <!-- stabilization build: backend signup, verified Today, dose/units authority, consolidated treatment CSS, direct single-file deployment -->
 <style id="production-css">
 /* ===== consolidated source: base ===== */
@@ -867,6 +868,10 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:24px 8px}
 .kb-reading-guide{margin-bottom:14px;padding:0;overflow:hidden}
 .kb-reading-guide>summary{cursor:pointer;padding:14px 16px;font-weight:900;color:#285c50;background:#f3faf6}
 .kb-reading-guide-body{padding:14px 16px 16px}
+.treatment-field-guide-search{display:grid;gap:5px;margin:0 0 12px}
+.treatment-field-guide-search label{font-size:.73rem;font-weight:850;color:var(--muted)}
+.treatment-field-guide-search input[type="search"]{width:100%;min-width:0}
+.treatment-field-guide-search-status{min-height:1em;font-size:.68rem;color:var(--muted);line-height:1.3}
 .kb-term-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
 .kb-term-grid>div{padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fbfdff}
 .kb-term-grid strong{display:block;font-size:.76rem;margin-bottom:3px}
@@ -6195,7 +6200,12 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   <details class="card kb-reading-guide">
     <summary>Treatments field guide</summary>
     <div class="kb-reading-guide-body">
-      <div class="kb-term-grid">
+      <div class="treatment-field-guide-search no-print">
+        <label for="treatmentFieldGuideSearch">Search Treatments field guide</label>
+        <input id="treatmentFieldGuideSearch" type="search" autocomplete="off" placeholder="Search by keyword, e.g. dose, vial, cycle or units">
+        <div class="treatment-field-guide-search-status" id="treatmentFieldGuideSearchStatus" aria-live="polite"></div>
+      </div>
+      <div class="kb-term-grid" id="treatmentFieldGuideGrid">
         <div><strong>Treatment / Peptide</strong><span>The peptide, compound, blend or treatment record being added to Treatments.</span></div>
         <div><strong>Prescribed dose (mg)</strong><span>The actual prescribed dose in milligrams used to initialise the treatment schedule.</span></div>
         <div><strong>Medication in vial (mg)</strong><span>The total medication amount contained in the vial before preparation, in milligrams.</span></div>
@@ -6937,7 +6947,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.23";
+const APP_VERSION="v2026.0309.24";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -14248,6 +14258,34 @@ document.getElementById("onboardingClose")?.addEventListener("click",hideOnboard
 document.getElementById("onboardingOverlay")?.addEventListener("click",event=>{if(event.target?.id==="onboardingOverlay")hideOnboarding()});
 
 document.querySelectorAll("[data-guide-tab]").forEach(button=>button.addEventListener("click",()=>activateTab(button.dataset.guideTab)));
+
+const treatmentFieldGuideSearch=document.getElementById("treatmentFieldGuideSearch");
+const treatmentFieldGuideGrid=document.getElementById("treatmentFieldGuideGrid");
+const treatmentFieldGuideSearchStatus=document.getElementById("treatmentFieldGuideSearchStatus");
+function filterTreatmentFieldGuide(){
+  if(!treatmentFieldGuideGrid)return;
+  const query=String(treatmentFieldGuideSearch?.value||"").trim().toLowerCase();
+  const keywords=query.split(/\s+/).filter(Boolean);
+  const items=[...treatmentFieldGuideGrid.children];
+  let shown=0;
+  items.forEach(item=>{
+    const searchable=String(item.textContent||"").toLowerCase();
+    const match=!keywords.length||keywords.every(keyword=>searchable.includes(keyword));
+    item.hidden=!match;
+    if(match)shown++;
+  });
+  if(treatmentFieldGuideSearchStatus){
+    treatmentFieldGuideSearchStatus.textContent=keywords.length
+      ? (shown?`${shown} of ${items.length} fields match`:`No fields match “${query}”`)
+      : `${items.length} fields`;
+  }
+}
+if(treatmentFieldGuideSearch){
+  treatmentFieldGuideSearch.addEventListener("input",filterTreatmentFieldGuide);
+  treatmentFieldGuideSearch.addEventListener("search",filterTreatmentFieldGuide);
+  filterTreatmentFieldGuide();
+}
+
 const protocolSearch=document.getElementById("protocolLibrarySearch");
 const protocolFilter=document.getElementById("protocolLibraryFilter");
 const protocolCategoryFilter=document.getElementById("protocolCategoryFilter");
