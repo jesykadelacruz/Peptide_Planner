@@ -26,7 +26,10 @@ jobs:
           PAYLOAD_SHA="9d10e602001aa28467a3d045414516bd8a2590e680c55aeefc4f97fb78f2781a"
           PATCH_SHA="081da55ececf2bc9f6d5ec3c140cd2cd5faeb694c8e7ad3230357629acf3810e"
           PART1_SHA="a49f1571ba0149228a31882b47419ed90f12eefc9fca1eacbff7bcd5e22bbebc"
-          PART2_SHA="0346753cf44b661a4c70453cbb98fd79a620152092d72b8183d6aa3146ea0af0"
+          PART2A_SHA="1997cbd019467279d936090cc704421a013e77b4ac63a449ff10d6a3d22c1c7d"
+          PART2B_SHA="b9ef8f7967135c9f8ef7eb50dedf57c5dd701f1e996a91934344cc89859579ee"
+          PART2C_SHA="04e1e2fe92060f031e88ce140017bb02e2e650a1ec6f1621f17c2d3db0f52886"
+          PART2D_SHA="845153d0a9349ce11366b3ccac247d44000c97b2488d9c2a6e47a9d30e1a5faa"
           PART3_SHA="f6186631493775d8011ba05c1fcca57934114257176712ec056a6d974a55a485"
           PART4_SHA="7d38680d55a79a4cb27dee22bf2ae69fd2a8c65809dd244a639c48f0527f961d"
 
@@ -38,15 +41,20 @@ jobs:
           fi
           test "$CURRENT_SHA" = "$BASE_SHA"
 
-          sha256sum .deploy/v2026_0309_15.patch.part*.b64
           echo "$PART1_SHA  .deploy/v2026_0309_15.patch.part01.b64" | sha256sum -c -
-          echo "$PART2_SHA  .deploy/v2026_0309_15.patch.part02.b64" | sha256sum -c -
+          echo "$PART2A_SHA  .deploy/v2026_0309_15.patch.part02a.b64" | sha256sum -c -
+          echo "$PART2B_SHA  .deploy/v2026_0309_15.patch.part02b.b64" | sha256sum -c -
+          echo "$PART2C_SHA  .deploy/v2026_0309_15.patch.part02c.b64" | sha256sum -c -
+          echo "$PART2D_SHA  .deploy/v2026_0309_15.patch.part02d.b64" | sha256sum -c -
           echo "$PART3_SHA  .deploy/v2026_0309_15.patch.part03.b64" | sha256sum -c -
           echo "$PART4_SHA  .deploy/v2026_0309_15.patch.part04.b64" | sha256sum -c -
 
           cat \
             .deploy/v2026_0309_15.patch.part01.b64 \
-            .deploy/v2026_0309_15.patch.part02.b64 \
+            .deploy/v2026_0309_15.patch.part02a.b64 \
+            .deploy/v2026_0309_15.patch.part02b.b64 \
+            .deploy/v2026_0309_15.patch.part02c.b64 \
+            .deploy/v2026_0309_15.patch.part02d.b64 \
             .deploy/v2026_0309_15.patch.part03.b64 \
             .deploy/v2026_0309_15.patch.part04.b64 \
             > /tmp/v15.patch.xz.b64
