@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0309.29</title>
+<title>Peptide Planner v2026.0309.30</title>
+<!-- v2026.0309.30: Dose-left inventory ignores obsolete auto-completion records that no longer match the scheduled split/unsplit structure for that date and preserves historical planned dose-to-units conversion; Current weight is read-only in My Progress and updates only through Add progress record; mobile Vial Schedule Full Dose/Cycle Dose values match Cycle Settings Start date/Time text size. -->
 <!-- v2026.0309.29: Treatments/Knowledge Base guides now match the compact Add Treatment collapsed format; Peptide Settings syringe field removed; Account order is My Profile, My Progress, Help & Setup; Backup and transfer plus Progress/Administration histories are collapsible; Goal Progress now includes a progress chart. -->
 <!-- v2026.0309.28: Account navigation simplified for non-technical users: My Profile, My Progress and Help & Setup; duplicate setup is hidden, progress metrics live in My Progress, and secondary account tools are grouped under More Account Options. -->
 <!-- v2026.0309.23: Treatments field guide moved from Reference to the Treatments tab; guide content and all treatment logic remain unchanged. -->
@@ -5390,6 +5391,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     align-items:center!important;
     justify-content:center!important;
     text-align:center!important;
+    font-size:16px!important;
   }
   body.mobile-app #planner .cycle-vial-schedule-row{
     padding:8px!important;
@@ -6515,8 +6517,8 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   <div class="metrics compact-health-metrics">
     <div class="card metric metric-current-weight">
       <div class="label">Current weight</div>
-      <div class="metric-edit"><input id="quickWeight" type="number" min="20" max="400" step="0.1"><span class="unit-label">kg</span></div>
-      
+      <div class="value" id="quickWeightDisplay">—</div>
+      <input id="quickWeight" type="hidden">
     </div>
     <div class="card metric metric-current-bmi"><div class="label">Current BMI</div><div class="value" id="currentBmi">—</div><div class="sub" id="currentBmiCategory">Enter height and weight</div></div>
     <div class="card metric metric-target-weight">
@@ -7144,7 +7146,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0309.29";
+const APP_VERSION="v2026.0309.30";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -10206,9 +10208,26 @@ function trackingDateISO(date){
   return typeof date==="string"?date:localDateISO(date);
 }
 function administrationConsumedMg(plan,record){
-  const actualUnits=num(record?.actualUnits);
+  const actualUnits=num(record?.actualUnits),plannedUnits=num(record?.plannedUnits),plannedDose=num(record?.plannedDose);
+  if(actualUnits!=null&&actualUnits>=0&&plannedUnits!=null&&plannedUnits>0&&plannedDose!=null&&plannedDose>=0){
+    return round(plannedDose*(actualUnits/plannedUnits),6);
+  }
+  if(plannedDose!=null&&plannedDose>=0)return plannedDose;
   if(actualUnits!=null&&actualUnits>=0){const fromUnits=phaseDoseFromUnits(plan,actualUnits);if(fromUnits!=null&&fromUnits>=0)return fromUnits}
-  const planned=num(record?.plannedDose);return planned!=null&&planned>=0?planned:null;
+  return null;
+}
+function administrationMatchesScheduledStructure(plan,record){
+  const sourceKey=String(record?.sourceKey||"");
+  if(!sourceKey.startsWith(`completion|${plan?.id||""}|`))return true;
+  const date=String(record?.dateTime||"").slice(0,10),day=parseISO(date);
+  if(!day)return true;
+  const schedule=scheduleForDate({...plan,enabled:true},day);
+  if(!schedule?.administration)return true;
+  const administrations=(schedule.administrations&&schedule.administrations.length)?schedule.administrations:[{partKey:""}];
+  const scheduledParts=new Set(administrations.map(item=>String(item?.partKey||"")));
+  const partMatch=sourceKey.match(/\|(split-\d+)$/);
+  const recordPart=partMatch?partMatch[1]:"";
+  return scheduledParts.has(recordPart);
 }
 function nextIncompleteAdministration(plan,at=new Date()){
   const startDay=new Date(at.getFullYear(),at.getMonth(),at.getDate());
@@ -10301,7 +10320,7 @@ function currentVialDosesLeft(plan,at=new Date()){
   const records=(state.administrations||[])
     .filter(record=>record?.planId===plan.id&&record?.status==="Administered"&&String(record?.dateTime||""))
     .map(record=>({record,date:new Date(record.dateTime),mg:administrationConsumedMg(plan,record)}))
-    .filter(item=>!Number.isNaN(item.date.getTime())&&item.date<=at&&item.mg!=null&&item.mg>0)
+    .filter(item=>!Number.isNaN(item.date.getTime())&&item.date<=at&&item.mg!=null&&item.mg>0&&administrationMatchesScheduledStructure(plan,item.record))
     .sort((a,b)=>a.date-b.date);
   let remaining=vialMg;
   const openedAt=new Date(explicitCurrent.date);
@@ -11176,6 +11195,7 @@ function renderDashboard(){
   const p=state.profile,m=currentMeasurement(),cw=m?num(m.weight):num(p.startWeight),sw=num(p.startWeight),tw=num(p.targetWeight),h=num(p.heightCm);
   const cb=bmi(cw,h),tb=bmi(tw,h),total=sw!=null&&tw!=null?sw-tw:0,change=sw!=null&&cw!=null?sw-cw:0,prog=total>0?Math.max(0,Math.min(100,change/total*100)):0;
   document.getElementById("quickWeight").value=cw??"";document.getElementById("quickTarget").value=tw??"";
+  const quickWeightDisplay=document.getElementById("quickWeightDisplay");if(quickWeightDisplay)quickWeightDisplay.textContent=cw!=null?`${Number(cw).toFixed(1)} kg`:"—";
   const quickTargetDisplay=document.getElementById("quickTargetDisplay");if(quickTargetDisplay)quickTargetDisplay.textContent=tw!=null?`${Number(tw).toFixed(1)} kg`:"—";
   document.getElementById("currentBmi").textContent=cb!=null?cb.toFixed(1):"—";document.getElementById("currentBmiCategory").textContent=bmiCategory(cb);
   document.getElementById("targetBmiText").textContent=tb!=null?tb.toFixed(1):"—";
@@ -14568,13 +14588,6 @@ document.getElementById("saveProfile").onclick=()=>{
   if(advanceOnboarding)setTimeout(showTreatmentNextStep,120);
   else if(plannerOnboardingStage()==="profile")setTimeout(()=>showOnboarding({stage:"profile",title:"Complete the required profile fields",body:`<p>Your profile was saved, but the setup step is not complete yet.</p><div class="onboarding-required-note">Enter your name, date of birth, height, starting weight and target weight, then save again.</div>`,primaryLabel:"Continue profile",primaryAction:openProfileForOnboarding}),120)
 };
-document.getElementById("quickWeight").addEventListener("change",()=>{
-  const w=num(document.getElementById("quickWeight").value);
-  if(!w)return;
-  const now=new Date();
-  state.measurements.push({id:uid(),date:localDateISO(now),dateTime:now.toISOString(),weight:w,waist:"",notes:"Dashboard weight"});
-  save();renderAll();
-});
 document.getElementById("saveQuickTarget").onclick=()=>{const v=num(document.getElementById("quickTarget").value);if(!v){alert("Enter a valid target weight.");return}state.profile.targetWeight=v;save();renderAll()};
 document.getElementById("saveProgressProfile").onclick=()=>{
   const name=document.getElementById("progressProfileName").value.trim();
