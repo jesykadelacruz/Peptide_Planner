@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0409.02</title>
+<title>Peptide Planner v2026.0409.03</title>
+<!-- v2026.0409.03: First-time approved users now receive a required four-step visual orientation before entering live planner pages. The tour previews Account/Profile, Treatments, Review & Verify, and Today; explains where the guide can be reopened; then sends the user directly to Account profile setup. Existing guided Profile -> Treatment -> Verify -> Today progression is preserved. -->
 <!-- v2026.0409.02: Current Cycle summary keeps the existing field name and now includes the active week, for example Starting Phase . Week 2 or Cycle 2 . Week 3. -->
 <!-- v2026.0409.01: Active-vial inventory audit fix: current-vial selection prefers genuinely opened records, planned schedule rows use current Treatment Settings until opened, dose-left forecasting starts from now rather than counting missed historical slots, vial-setting mismatches and obsolete auto-completions are surfaced, and split schedules show administrations plus full days. -->
 <!-- v2026.0309.30: Dose-left inventory ignores obsolete auto-completion records that no longer match the scheduled split/unsplit structure for that date and preserves historical planned dose-to-units conversion; Current weight is read-only in My Progress and updates only through Add progress record; mobile Vial Schedule Full Dose/Cycle Dose values match Cycle Settings Start date/Time text size. -->
@@ -2634,6 +2635,11 @@ table{border-collapse:separate;border-spacing:0}thead th{font-weight:700}tbody t
   padding:10px 11px;border:1px solid #ead49a;border-radius:10px;background:#fff9ea;
   color:#66501c;font-size:.78rem
 }
+.onboarding-overlay.first-use-guide .onboarding-dialog{width:min(100%,760px)}
+.onboarding-guide-screenshot{margin:12px 0;border:1px solid var(--line);border-radius:14px;background:#f7fbf9;overflow:hidden}
+.onboarding-guide-screenshot img{display:block;width:100%;height:auto;max-height:330px;object-fit:contain;background:#fff}
+.onboarding-guide-step-note{margin-top:10px;padding:10px 12px;border-radius:10px;background:#eef8f3;border:1px solid #c8e5d8;color:#285c50;font-size:.8rem;line-height:1.45}
+.onboarding-close.hidden{display:none!important}
 body.onboarding-dialog-open{overflow:hidden!important}
 @media(max-width:640px){
   .onboarding-overlay{padding:10px;align-items:end}
@@ -7148,7 +7154,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0409.02";
+const APP_VERSION="v2026.0409.03";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -8879,6 +8885,7 @@ function defaultState(){
       uploadedProtocolsInitialisedV64:false,
       onboardingStage:"",
       onboardingComplete:false,
+      onboardingIntroComplete:false,
       sectionOpen:{}
     }
   }
@@ -8990,7 +8997,14 @@ function consolidateProtocolFamilies(){
 }
 
 function normaliseState(){
-  const onboardingFlagPresent=Object.prototype.hasOwnProperty.call(state.ui||{},"onboardingStage")||Object.prototype.hasOwnProperty.call(state.ui||{},"onboardingComplete");
+  const originalUi=state.ui||{};
+  const onboardingFlagPresent=Object.prototype.hasOwnProperty.call(originalUi,"onboardingStage")||Object.prototype.hasOwnProperty.call(originalUi,"onboardingComplete");
+  const onboardingIntroFlagPresent=Object.prototype.hasOwnProperty.call(originalUi,"onboardingIntroComplete");
+  const hadExistingPlannerSetup=Object.values(state.profile||{}).some(value=>value!==""&&value!==null&&value!==false)
+    ||(Array.isArray(state.measurements)&&state.measurements.length>0)
+    ||(Array.isArray(state.administrations)&&state.administrations.length>0)
+    ||(Array.isArray(state.vialRecords)&&state.vialRecords.length>0)
+    ||(Array.isArray(state.plans)&&state.plans.some(plan=>plan?.custom===true||["active","soon","completed"].includes(plan?.stackStatus)||plan?.confirmed===true||!!plan?.startDate));
   const base=defaultState();
   state.profile={...base.profile,...(state.profile||{})};
   state.measurements=Array.isArray(state.measurements)?state.measurements:[];
@@ -9003,6 +9017,7 @@ function normaliseState(){
   state.deletedProtocolIds=[];
   state.hiddenReferenceIds=[];
   state.ui={...base.ui,...(state.ui||{}),kbSourceMigrationV1:true};
+  if(!onboardingIntroFlagPresent)state.ui.onboardingIntroComplete=!!(hadExistingPlannerSetup||state.ui.onboardingComplete);
   state.ui.sectionOpen=state.ui.sectionOpen&&typeof state.ui.sectionOpen==="object"?state.ui.sectionOpen:{};
   if(state.ui.protocolCategoryFilter===undefined)state.ui.protocolCategoryFilter="all";
 
@@ -14381,23 +14396,30 @@ function setOnboardingProgress(stage){
   const done=onboardingProgressFor(stage);
   document.querySelectorAll("#onboardingProgress span").forEach((item,index)=>item.classList.toggle("done",index<done));
 }
-function hideOnboarding(){
-  document.getElementById("onboardingOverlay")?.classList.add("hidden");
+let onboardingCanClose=true;
+function hideOnboarding({force=false}={}){
+  if(!force&&!onboardingCanClose)return;
+  const overlay=document.getElementById("onboardingOverlay");
+  overlay?.classList.add("hidden");
+  overlay?.classList.remove("first-use-guide");
   document.body.classList.remove("onboarding-dialog-open");
 }
-function showOnboarding({stage=plannerOnboardingStage(),title,kicker="Getting started",body,primaryLabel="Continue",primaryAction,secondaryLabel="",secondaryAction}={}){
+function showOnboarding({stage=plannerOnboardingStage(),title,kicker="Getting started",body,primaryLabel="Continue",primaryAction,secondaryLabel="",secondaryAction,closable=true,firstUseGuide=false}={}){
   const overlay=document.getElementById("onboardingOverlay");
   if(!overlay)return;
+  onboardingCanClose=!!closable;
+  overlay.classList.toggle("first-use-guide",!!firstUseGuide);
+  document.getElementById("onboardingClose")?.classList.toggle("hidden",!closable);
   document.getElementById("onboardingKicker").textContent=kicker;
   document.getElementById("onboardingTitle").textContent=title||"Peptide Planner";
   document.getElementById("onboardingBody").innerHTML=body||"";
   const primary=document.getElementById("onboardingPrimary");
   const secondary=document.getElementById("onboardingSecondary");
   primary.textContent=primaryLabel;
-  primary.onclick=()=>{hideOnboarding();if(typeof primaryAction==="function")primaryAction()};
+  primary.onclick=()=>{hideOnboarding({force:true});if(typeof primaryAction==="function")primaryAction()};
   if(secondaryLabel){
     secondary.textContent=secondaryLabel;secondary.classList.remove("hidden");
-    secondary.onclick=()=>{hideOnboarding();if(typeof secondaryAction==="function")secondaryAction()};
+    secondary.onclick=()=>{hideOnboarding({force:true});if(typeof secondaryAction==="function")secondaryAction()};
   }else{
     secondary.textContent="";secondary.classList.add("hidden");secondary.onclick=null;
   }
@@ -14428,6 +14450,62 @@ function openVerificationForOnboarding(){
     })||document.querySelector("[data-simple-plan]");
     if(card){card.open=true;card.scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>card.querySelector(".review-verify-block")?.scrollIntoView({behavior:"smooth",block:"center"}),180)}
   });
+}
+function onboardingGuideScreenshotSrc(prefix){
+  const heading=[...document.querySelectorAll("#completePlannerGuide .guide-screenshot-copy h3")].find(item=>String(item.textContent||"").trim().startsWith(prefix));
+  return heading?.closest(".guide-screenshot-section")?.querySelector("img")?.src||"";
+}
+function showFirstTimeOrientation(stepIndex=0){
+  const steps=[
+    {
+      prefix:"2. Account & Profile",
+      kicker:"First-time setup · 1 of 4",
+      title:"Step 1 — Set up your Account profile",
+      body:`<p>This is where you begin. Your profile gives the planner the information needed for weight, BMI and progress tracking.</p><div class="onboarding-guide-step-note"><strong>What to do:</strong> Open <strong>Account → My Profile</strong> and enter your name, date of birth, height, starting weight and target weight. Save the profile before moving on.</div>`
+    },
+    {
+      prefix:"3. Treatments",
+      kicker:"First-time setup · 2 of 4",
+      title:"Step 2 — Add your treatment",
+      body:`<p>After your profile is saved, the planner will guide you to Treatments.</p><div class="onboarding-guide-step-note"><strong>What to do:</strong> Add the treatment you actually use, then enter the real route, dose, schedule, vial strength, preparation and cycle details that apply to you.</div>`
+    },
+    {
+      prefix:"4. Review & Verify",
+      kicker:"First-time setup · 3 of 4",
+      title:"Step 3 — Review & verify the treatment",
+      body:`<p>A treatment should not drive your Today page until you have reviewed its setup.</p><div class="onboarding-guide-step-note"><strong>What to do:</strong> Check the treatment card against your actual product and instructions, then complete <strong>Review & Verify</strong>.</div>`
+    },
+    {
+      prefix:"5. Today",
+      kicker:"First-time setup · 4 of 4",
+      title:"Step 4 — Today becomes your daily home",
+      body:`<p>Once Profile, Treatment and Review & Verify are complete, <strong>Today</strong> becomes your normal starting page for scheduled administrations and vial reminders.</p><div class="onboarding-required-note"><strong>Need to review this later?</strong> Open <strong>Account → Help & Setup</strong>. The <strong>Getting Started & Full User Guide</strong> is always available there.</div>`
+    }
+  ];
+  const index=Math.max(0,Math.min(steps.length-1,Number(stepIndex)||0)),step=steps[index];
+  const image=onboardingGuideScreenshotSrc(step.prefix);
+  const body=`${image?`<div class="onboarding-guide-screenshot"><img src="${image}" alt="${esc(step.title)} screenshot"></div>`:""}${step.body}`;
+  showOnboarding({
+    stage:index===0?"profile":index===1?"treatment":index===2?"verify":"tour",
+    kicker:step.kicker,
+    title:step.title,
+    body,
+    primaryLabel:index===steps.length-1?"Start Step 1":"Next",
+    primaryAction:()=>{
+      if(index<steps.length-1){showFirstTimeOrientation(index+1);return}
+      if(!state.ui)state.ui={};
+      state.ui.onboardingIntroComplete=true;
+      if(plannerOnboardingStage()==="complete")state.ui.onboardingStage="complete";
+      else state.ui.onboardingStage="profile";
+      save();renderGettingStartedJourney();renderSetupJourney();
+      openProfileForOnboarding();
+    },
+    secondaryLabel:index>0?"Back":"",
+    secondaryAction:index>0?()=>showFirstTimeOrientation(index-1):null,
+    closable:false,
+    firstUseGuide:true
+  });
+  document.querySelectorAll("#onboardingProgress span").forEach((item,i)=>item.classList.toggle("done",i<=index));
 }
 function showProfileWelcome(){
   showOnboarding({
@@ -14523,6 +14601,11 @@ function renderSetupJourney(){
 function routeInitialPlannerExperience(){
   const stage=plannerOnboardingStage();
   if(stage==="complete"){activateTab("dashboard");return}
+  if(!state.ui?.onboardingIntroComplete){
+    activateTab("safety");
+    requestAnimationFrame(()=>showFirstTimeOrientation(0));
+    return;
+  }
   activateTab("guide");
   requestAnimationFrame(()=>{
     renderGettingStartedJourney();
