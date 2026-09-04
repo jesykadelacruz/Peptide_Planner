@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0409.03</title>
+<title>Peptide Planner v2026.0409.04</title>
+<!-- v2026.0409.04: Invitation flow now uses a true signup invitation link instead of password recovery; credential setup is single-pass, first activation is forced into the first-time guide before live pages, and legacy recovery invitations no longer trigger a second password prompt. -->
 <!-- v2026.0409.03: First-time approved users now receive a required four-step visual orientation before entering live planner pages. The tour previews Account/Profile, Treatments, Review & Verify, and Today; explains where the guide can be reopened; then sends the user directly to Account profile setup. Existing guided Profile -> Treatment -> Verify -> Today progression is preserved. -->
 <!-- v2026.0409.02: Current Cycle summary keeps the existing field name and now includes the active week, for example Starting Phase . Week 2 or Cycle 2 . Week 3. -->
 <!-- v2026.0409.01: Active-vial inventory audit fix: current-vial selection prefers genuinely opened records, planned schedule rows use current Treatment Settings until opened, dose-left forecasting starts from now rather than counting missed historical slots, vial-setting mismatches and obsolete auto-completions are surfaced, and split schedules show administrations plus full days. -->
@@ -5808,7 +5809,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
       <div class="invite-setup-icon">✓</div>
       <div>
         <h2>Complete your sign up</h2>
-        <p>You have been invited to Peptide Planner. Set up your password to activate your account.</p>
+        <p>You opened your Peptide Planner sign-up invitation. Create your password once to activate your account and begin first-time setup.</p>
       </div>
 
       <div>
@@ -5828,7 +5829,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
       </div>
 
       <div class="invite-password-note">
-        This invitation is linked to one email address only. After your password is created, your access will be activated and first-time setup will begin.
+        This sign-up invitation is linked to one email address only. After this password is created, you will go directly into the required first-time guide. You will not be asked to create the password again.
       </div>
 
       <div class="invite-password-actions">
@@ -7154,7 +7155,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0409.03";
+const APP_VERSION="v2026.0409.04";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -9167,7 +9168,24 @@ function setPlannerLocked(locked=true){
 const SIGNUP_PREVIEW_KEY="peptidePlannerSignupPreview_v1";
 const EMAIL_CHANGE_PREVIEW_KEY="peptidePlannerEmailChangePreview_v1";
 let plannerAccessMode="signin";
+const FIRST_USE_SESSION_KEY="peptidePlannerFirstUseAfterInvite_v1";
+let plannerCredentialSetupCompleting=false;
 
+function markPlannerFirstUseAfterInvite(){
+  if(cloudUser?.id)sessionStorage.setItem(FIRST_USE_SESSION_KEY,String(cloudUser.id));
+}
+function consumePlannerFirstUseAfterInvite(){
+  const id=String(sessionStorage.getItem(FIRST_USE_SESSION_KEY)||"");
+  if(id&&id===String(cloudUser?.id||"")){sessionStorage.removeItem(FIRST_USE_SESSION_KEY);return true}
+  return false;
+}
+function forcePlannerFirstUseState(){
+  if(!state.ui)state.ui={};
+  state.ui.onboardingStage="profile";
+  state.ui.onboardingComplete=false;
+  state.ui.onboardingIntroComplete=false;
+  save();
+}
 
 function signupPreviewRecord(){
   try{return JSON.parse(localStorage.getItem(SIGNUP_PREVIEW_KEY)||"null")}catch{return null}
@@ -9443,12 +9461,15 @@ async function completePlannerInviteSetup(){
 
   const button=document.getElementById("plannerInviteComplete");
   if(button)button.disabled=true;
+  plannerCredentialSetupCompleting=true;
   try{
+    let access=await currentPlannerAccess({activateInvite:false});
+    const firstActivation=access?.status==="invited"&&!access?.activated_at;
     const {error:updateError}=await cloudClient.auth.updateUser({password});
     const samePassword=!!updateError&&(String(updateError?.code||"")==="same_password"||/new password should be different from the old password/i.test(String(updateError?.message||"")));
     if(updateError&&!samePassword)throw updateError;
 
-    let access=await currentPlannerAccess({activateInvite:false});
+    access=await currentPlannerAccess({activateInvite:false});
     if(access?.status==="revoked")throw new Error("Access for this account has been revoked. Contact the owner if you need access restored.");
     if(access?.status!=="active"){
       const activated=await cloudClient.rpc("planner_activate_invite");
@@ -9465,12 +9486,14 @@ async function completePlannerInviteSetup(){
     history.replaceState({},document.title,location.pathname);
     document.getElementById("plannerInvitePassword").value="";
     document.getElementById("plannerInviteConfirmPassword").value="";
+    if(firstActivation)markPlannerFirstUseAfterInvite();
     setPlannerInviteFeedback(samePassword?"Your password is already set. Activating your planner…":"Password created. Activating your planner…");
     hidePlannerInviteSetup();
-    await verifyPlannerAccess();
+    await verifyPlannerAccess({forceFirstUse:firstActivation});
   }catch(error){
     setPlannerInviteFeedback(error?.message||"Unable to complete your sign up. Please open the newest invitation email and try again.","error");
   }finally{
+    plannerCredentialSetupCompleting=false;
     if(button)button.disabled=false;
   }
 }
@@ -9501,7 +9524,7 @@ async function currentPlannerAccess({activateInvite=false}={}){
   }
   return data||null;
 }
-async function verifyPlannerAccess({silent=false}={}){
+async function verifyPlannerAccess({silent=false,forceFirstUse=false}={}){
   if(cloudAccessChecking)return !!(cloudAccess?.status==="active");
   cloudAccessChecking=true;
   try{
@@ -9523,7 +9546,9 @@ async function verifyPlannerAccess({silent=false}={}){
       cloudClient.rpc("planner_touch_access").catch(()=>{});
       await fetchKnowledgeBaseOverrides();
       await reconcileCloudState({silent:true});
-      routeInitialPlannerExperience();
+      const firstUse=!!forceFirstUse||consumePlannerFirstUseAfterInvite();
+      if(firstUse&&!hasMeaningfulPlannerData(state))forcePlannerFirstUseState();
+      routeInitialPlannerExperience({forceFirstUse:firstUse});
       return true;
     }
     cloudAccess=access;
@@ -9531,7 +9556,7 @@ async function verifyPlannerAccess({silent=false}={}){
     try{const result=await cloudClient.rpc("planner_owner_exists");if(!result.error)ownerExists=!!result.data}catch{}
     setPlannerLocked(true);
     const status=access?.status;
-    const message=status==="revoked"?"Access for this account has been revoked. Contact the owner if you need access restored.":status==="invited"?"Your sign-up invitation is pending. Open the invitation email to create your password and activate access.":"This account has not been approved for Peptide Planner.";
+    const message=status==="revoked"?"Access for this account has been revoked. Contact the owner if you need access restored.":status==="invited"?"Your sign-up invitation is pending. Open the sign-up invitation email to create your password once and activate access.":"This account has not been approved for Peptide Planner.";
     renderPlannerAccessGate({message,ownerSetup:!ownerExists});renderCloudAccount();
     return false;
   }finally{cloudAccessChecking=false}
@@ -9608,12 +9633,12 @@ async function adminAccessSession({forceRefresh=false}={}){
 async function adminAccessApi(action,payload={}){
   if(!cloudClient)throw new Error("Cloud service unavailable");
   let session=await adminAccessSession();
-  let result=await cloudClient.functions.invoke("planner-access-admin",{body:{action,...payload},headers:{Authorization:`Bearer ${session.access_token}`}});
+  let result=await cloudClient.functions.invoke("planner-access-admin-v2",{body:{action,...payload},headers:{Authorization:`Bearer ${session.access_token}`}});
   if(result.error){
     const message=await plannerFunctionErrorMessage(result.error,"Unable to update account access.");
     if(/invalid session|session not found|jwt|unauthorized|401/i.test(message)){
       session=await adminAccessSession({forceRefresh:true});
-      result=await cloudClient.functions.invoke("planner-access-admin",{body:{action,...payload},headers:{Authorization:`Bearer ${session.access_token}`}});
+      result=await cloudClient.functions.invoke("planner-access-admin-v2",{body:{action,...payload},headers:{Authorization:`Bearer ${session.access_token}`}});
     }
   }
   if(result.error)throw new Error(await plannerFunctionErrorMessage(result.error,"Unable to update account access."));
@@ -9661,7 +9686,7 @@ async function adminSignupRequestAction(action,requestId,button){
     const result=await adminAccessApi(action==="approve"?"approve_signup":"reject_signup",{request_id:requestId});
     if(action==="approve"){
       const message=result?.emailSent
-        ?`Approved. New sign-in email sent to ${result.email}.`
+        ?`Approved. Sign-up invitation email sent to ${result.email}.`
         :`Approved. The account was created, but the sign-in email could not be sent because the email service is temporarily rate-limited. Use Resend from the User Action menu later.`;
       setAdminPageFeedback(message,result?.emailPending?"error":"info");
     }else setAdminPageFeedback("Sign-up request rejected.");
@@ -9878,7 +9903,7 @@ async function sendAdminPageInvite(){
     const result=await adminAccessApi("invite",{email,role,name,phone});
 
     setAdminPageFeedback(result.emailSent
-      ?`New sign-in email sent to ${result.email}. They must open the email and create a password to activate access.`
+      ?`Sign-up invitation email sent to ${result.email}. They must open the invitation and create their password once to activate access.`
       :`Account access was created for ${result.email}, but the sign-in email could not be sent because the email service is temporarily rate-limited. Use Resend from the User Action menu later.`,result?.emailPending?"error":"info");
 
     ["adminPageInviteName","adminPageInviteEmail","adminPageInvitePhone"].forEach(id=>{
@@ -9938,7 +9963,7 @@ async function adminPageAction(action,userId,control){
       return;
     }
     const result=await adminAccessApi("resend",{user_id:userId});
-    setAdminPageFeedback(`New password setup email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);
+    setAdminPageFeedback(result?.emailType==="signup_invite"?`Sign-up invitation email sent to ${result?.email||email||"the user"}.`:`Account access email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);
     await loadAdminAccess();
   }catch(error){
     setAdminPageFeedback(error?.message||"Unable to update the user.","error");
@@ -10076,19 +10101,22 @@ async function submitCloudAuth(){
     if(password.length<6){showCloudAuthError("Use a password with at least 6 characters.");return}
     if(password!==confirmPassword){showCloudAuthError("The passwords do not match.");return}
     const submit=document.getElementById("cloudAuthSubmit");if(submit)submit.disabled=true;
+    plannerCredentialSetupCompleting=true;
     try{
+      let access=await currentPlannerAccess({activateInvite:false}).catch(()=>null);
+      const firstActivation=access?.status==="invited"&&!access?.activated_at;
       const {error}=await cloudClient.auth.updateUser({password});
       if(error)throw error;
-      let access=await currentPlannerAccess({activateInvite:false}).catch(()=>null);
       if(access?.status==="invited"){
         const activated=await cloudClient.rpc("planner_activate_invite");
         if(activated.error)throw activated.error;
         access=await currentPlannerAccess({activateInvite:false}).catch(()=>access);
       }
+      if(firstActivation)markPlannerFirstUseAfterInvite();
       history.replaceState({},document.title,location.pathname);
-      showCloudAuthMessage(access?.status==="active"?"Password created successfully. Your planner access is now active.":"Password updated successfully.");
-      setTimeout(async()=>{hideCloudAuth();renderCloudAccount();if(cloudUser)await verifyPlannerAccess({silent:true})},700);
-    }catch(error){showCloudAuthError(error?.message||"Unable to update the password. Please try again.")}finally{if(submit)submit.disabled=false}
+      showCloudAuthMessage(access?.status==="active"?(firstActivation?"Password created successfully. Opening your first-time setup guide…":"Password created successfully. Your planner access is now active."):"Password updated successfully.");
+      setTimeout(async()=>{hideCloudAuth();renderCloudAccount();if(cloudUser)await verifyPlannerAccess({silent:true,forceFirstUse:firstActivation})},450);
+    }catch(error){showCloudAuthError(error?.message||"Unable to update the password. Please try again.")}finally{plannerCredentialSetupCompleting=false;if(submit)submit.disabled=false}
     return;
   }
   if(!email||!password){showCloudAuthError("Enter your email and password.");return}
@@ -10200,7 +10228,7 @@ async function initCloudServices(){
 
   if(!cloudClient){setPlannerAccessFeedback("Cloud service is unavailable. The planner remains locked.","error");return}
   try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser&&plannerPasswordRecoveryLinkActive()){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery")}else await verifyPlannerAccess({silent:true})}catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
-  cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const nextUser=session?.user||null;if(event==="SIGNED_OUT"){cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return}cloudUser=nextUser;renderCloudAccount();if(event==="PASSWORD_RECOVERY"){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery");return}if(nextUser){await verifyPlannerAccess({silent:true})}},0)});
+  cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const nextUser=session?.user||null;if(plannerCredentialSetupCompleting&&["USER_UPDATED","SIGNED_IN"].includes(event)){cloudUser=nextUser||cloudUser;renderCloudAccount();return}if(event==="SIGNED_OUT"){cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return}cloudUser=nextUser;renderCloudAccount();if(event==="PASSWORD_RECOVERY"){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery");return}if(nextUser){await verifyPlannerAccess({silent:true})}},0)});
   window.addEventListener("focus",()=>{if(cloudUser)verifyPlannerAccess({silent:true})});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&cloudUser)verifyPlannerAccess({silent:true})});
 }
 function save(){
@@ -14598,14 +14626,15 @@ function renderSetupJourney(){
   set("journeyVerify",verified?"Verified":"Review treatment details",verified,stage==="verify");
   set("journeyReady",state.ui?.onboardingComplete?"Ready for daily use":verified?"View quick guide":"Available after verification",state.ui?.onboardingComplete,stage==="tour");
 }
-function routeInitialPlannerExperience(){
+function routeInitialPlannerExperience({forceFirstUse=false}={}){
+  if(forceFirstUse&&!hasMeaningfulPlannerData(state))forcePlannerFirstUseState();
   const stage=plannerOnboardingStage();
-  if(stage==="complete"){activateTab("dashboard");return}
   if(!state.ui?.onboardingIntroComplete){
     activateTab("safety");
     requestAnimationFrame(()=>showFirstTimeOrientation(0));
     return;
   }
+  if(stage==="complete"){activateTab("dashboard");return}
   activateTab("guide");
   requestAnimationFrame(()=>{
     renderGettingStartedJourney();
