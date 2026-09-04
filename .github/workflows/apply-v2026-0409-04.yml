@@ -1,0 +1,84 @@
+name: Apply Peptide Planner v2026.0409.04
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0409-04.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply guarded v2026.0409.04 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA256='c7ca7ee4f0ad925f51d19422a16cefc1e13bfa53516570da058d1b254897b1e9'
+          TARGET_SHA256='15233a0badb85f707d5181ebd50a72494e00f4aff209d1c1a541e0e35ae5c9b7'
+          TARGET_BYTES='2386593'
+          PAYLOAD='.deploy/v2026_0409_04.patch.xz.b64'
+          PAYLOAD_SHA256='14a9e1074ebf7af12dc3dfc02f1489dbda91450241e19b16fa2962de1cd3be83'
+          PATCH_SHA256='c7a0c21d9d84589c6550c14da93f6c4c5061ef7b657ad798838d38d89a916ccd'
+
+          current="$(sha256sum index.html | awk '{print $1}')"
+          if [ "$current" = "$TARGET_SHA256" ]; then
+            echo 'index.html is already v2026.0409.04'
+            exit 0
+          fi
+          if [ "$current" != "$BASE_SHA256" ]; then
+            echo "Refusing to patch unexpected index.html baseline: $current"
+            exit 1
+          fi
+
+          test "$(wc -c < "$PAYLOAD")" -eq 6144
+          echo "$PAYLOAD_SHA256  $PAYLOAD" | sha256sum -c -
+          base64 -d "$PAYLOAD" | xz -d > /tmp/v2026.0409.04.patch
+          echo "$PATCH_SHA256  /tmp/v2026.0409.04.patch" | sha256sum -c -
+
+          patch --dry-run -p1 < /tmp/v2026.0409.04.patch
+          patch -p1 < /tmp/v2026.0409.04.patch
+
+          test "$(sha256sum index.html | awk '{print $1}')" = "$TARGET_SHA256"
+          test "$(wc -c < index.html)" -eq "$TARGET_BYTES"
+          grep -Fq '<title>Peptide Planner v2026.0409.04</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0409.04";' index.html
+          grep -Fq 'planner-access-admin-v2' index.html
+          grep -Fq 'FIRST_USE_SESSION_KEY="peptidePlannerFirstUseAfterInvite_v1"' index.html
+          grep -Fq 'plannerCredentialSetupCompleting' index.html
+          grep -Fq 'verifyPlannerAccess({forceFirstUse:firstActivation})' index.html
+          grep -Fq 'function routeInitialPlannerExperience({forceFirstUse=false}={})' index.html
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('index.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>',text,re.I)
+          if len(scripts)!=1:
+              raise SystemExit(f'Expected one inline script, found {len(scripts)}')
+          Path('/tmp/index-inline.js').write_text(scripts[0],encoding='utf-8')
+          PY
+          node --check /tmp/index-inline.js
+
+      - name: Commit v2026.0409.04
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo 'No index.html change to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update Peptide Planner v2026.0409.04'
+          git push origin HEAD:main
