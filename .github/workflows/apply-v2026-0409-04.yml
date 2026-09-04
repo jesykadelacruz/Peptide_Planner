@@ -26,9 +26,8 @@ jobs:
           BASE_SHA256='c7ca7ee4f0ad925f51d19422a16cefc1e13bfa53516570da058d1b254897b1e9'
           TARGET_SHA256='15233a0badb85f707d5181ebd50a72494e00f4aff209d1c1a541e0e35ae5c9b7'
           TARGET_BYTES='2386593'
-          PAYLOAD='.deploy/v2026_0409_04.patch.xz.b64'
-          NORMALIZED_PAYLOAD_SHA256='14a9e1074ebf7af12dc3dfc02f1489dbda91450241e19b16fa2962de1cd3be83'
-          PATCH_SHA256='c7a0c21d9d84589c6550c14da93f6c4c5061ef7b657ad798838d38d89a916ccd'
+          PAYLOAD_SHA256='522eaae1cfe23ae6760f72c068738caa20b65d079b42851b072de44e2479b7a6'
+          PATCH_SHA256='61c7cc8f393a1825e3a9254f8d156ebdf30dabd7873f6caaaa299e92df705fd2'
 
           current="$(sha256sum index.html | awk '{print $1}')"
           if [ "$current" = "$TARGET_SHA256" ]; then
@@ -40,9 +39,14 @@ jobs:
             exit 1
           fi
 
-          tr -d '\r\n ' < "$PAYLOAD" > /tmp/v2026.0409.04.patch.xz.b64
-          echo "Normalized payload bytes: $(wc -c < /tmp/v2026.0409.04.patch.xz.b64)"
-          echo "$NORMALIZED_PAYLOAD_SHA256  /tmp/v2026.0409.04.patch.xz.b64" | sha256sum -c -
+          cat .deploy/v2026_0409_04.part00.b64 \
+              .deploy/v2026_0409_04.part01.b64 \
+              .deploy/v2026_0409_04.part02.b64 \
+              .deploy/v2026_0409_04.part03.b64 \
+              .deploy/v2026_0409_04.part04.b64 \
+              .deploy/v2026_0409_04.part05.b64 > /tmp/v2026.0409.04.patch.xz.b64
+          test "$(wc -c < /tmp/v2026.0409.04.patch.xz.b64)" -eq 6144
+          echo "$PAYLOAD_SHA256  /tmp/v2026.0409.04.patch.xz.b64" | sha256sum -c -
           base64 -d /tmp/v2026.0409.04.patch.xz.b64 | xz -d > /tmp/v2026.0409.04.patch
           echo "$PATCH_SHA256  /tmp/v2026.0409.04.patch" | sha256sum -c -
 
