@@ -1,0 +1,94 @@
+name: Apply and Deploy Peptide Planner v2026.0509.02
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0509-02.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  deployments: write
+
+concurrency:
+  group: peptide-planner-production
+  cancel-in-progress: true
+
+jobs:
+  apply-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply v2026.0509.02 patch
+        run: python .deploy/v2026_0509_02_patch.py
+
+      - name: Validate production file
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, hashlib
+          h=Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0509.02</title>',
+            'const APP_VERSION="v2026.0509.02";',
+            'data-cycle-config-field="endDate" data-cycle-sequence="0"',
+            'function continuousCurrentCycleText',
+            'function todayAdministrationMissed',
+            'today-injection-missed',
+            'signInWithPassword',
+            'resetPasswordForEmail',
+            'PASSWORD_RECOVERY',
+            'planner_state',
+            'planner_snapshots',
+          ]
+          missing=[m for m in required if m not in h]
+          if missing:
+              raise SystemExit('Feature validation failed: '+', '.join(missing))
+          if re.search(r'service_role|SUPABASE_SECRET_KEY',h,re.I):
+              raise SystemExit('Secret key marker found in client')
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',h,re.S|re.I)
+          Path('/tmp/planner-inline.js').write_text(max(scripts,key=len))
+          print('SHA256',hashlib.sha256(h.encode()).hexdigest())
+          print('index.html bytes',len(h.encode()))
+          PY
+          node --check /tmp/planner-inline.js
+
+      - name: Commit synchronized production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo 'No index change to commit'
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add index.html
+            git commit -m 'Update Peptide Planner v2026.0509.02'
+            git push
+          fi
+
+      - name: Build Cloudflare Pages bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp index.html dist/index.html
+          cat > dist/_headers <<'EOF'
+          /*
+            Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+            Pragma: no-cache
+            Expires: 0
+          EOF
+
+      - name: Deploy v2026.0509.02 to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=peptide-planner --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
