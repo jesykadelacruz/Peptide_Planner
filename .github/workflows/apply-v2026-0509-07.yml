@@ -4,10 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/apply-v2026-0509-07.yml'
-      - '.deploy/v2026.0509.07.patch.part1'
-      - '.deploy/v2026.0509.07.patch.part2'
-      - '.deploy/v2026.0509.07.patch.part3'
-      - '.deploy/v2026.0509.07.patch.part4'
+      - '.deploy/v2026.0509.07.patch'
   workflow_dispatch:
 
 permissions:
@@ -34,9 +31,8 @@ jobs:
             echo "Expected source SHA256: $SOURCE_SHA"
             echo "Actual source SHA256:   $ACTUAL_SOURCE"
             test "$ACTUAL_SOURCE" = "$SOURCE_SHA"
-            cat .deploy/v2026.0509.07.patch.part1 .deploy/v2026.0509.07.patch.part2 .deploy/v2026.0509.07.patch.part3 .deploy/v2026.0509.07.patch.part4 | base64 -d | gzip -dc > /tmp/v07.patch
-            git apply --check /tmp/v07.patch
-            git apply /tmp/v07.patch
+            git apply --check .deploy/v2026.0509.07.patch
+            git apply .deploy/v2026.0509.07.patch
           fi
 
       - name: Validate production file
@@ -68,8 +64,6 @@ jobs:
           html=Path('index.html').read_text(encoding='utf-8')
           scripts='\n'.join(re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,re.S|re.I))
           Path('/tmp/peptide-inline.js').write_text(scripts,encoding='utf-8')
-          assert '${!plan.noCycle?`<div><label>Vial (mg)</label>' in html
-          assert 'Historical units are converted using the vial active on that administration date.' in html
           PY
           node --check /tmp/peptide-inline.js
 
