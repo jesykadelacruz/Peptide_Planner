@@ -1,0 +1,72 @@
+--- a/index.html
++++ b/index.html
+@@ -9,7 +9,8 @@
+ <meta name="apple-mobile-web-app-title" content="Peptide Planner">
+ <meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0509.05</title>
++<title>Peptide Planner v2026.0509.06</title>
++<!-- v2026.0509.06: Continuous-treatment overview second row is Dose, Dose left in vial, and Current cycle in three columns; Current cycle shows Week N for weeks 1-4, then Month N · Week N using four-week treatment months. -->
+ <!-- v2026.0509.05: Continuous Cycle Settings keeps Start, End, Time, Schedule, and Interval on one desktop line; mobile layout remains unchanged. -->
+ <!-- v2026.0509.04: Continuous-treatment overview keeps Dose, Dose left in vial and Current cycle together; Current cycle is shown as the treatment week counted from the treatment start date. -->
+ <!-- v2026.0509.02: Continuous treatments now expose an optional end date in Cycle Settings and show Current cycle with the active continuous week; Today marks unchecked administrations as Missed in small red italic text after their scheduled date/time has passed. -->
+@@ -3486,6 +3487,9 @@
+ #planner .simple-plan-summary-row-extra{
+   grid-template-columns:repeat(2,minmax(0,1fr))
+ }
++#planner .simple-plan-summary-row-continuous{
++  grid-template-columns:repeat(3,minmax(0,1fr))
++}
+ 
+ /* Add treatment card: match reference card treatment styling only */
+ #planner .unified-setup{
+@@ -3973,6 +3977,7 @@
+   #planner .simple-plan-summary{display:block!important}
+   #planner .simple-plan-summary-row-primary{grid-template-columns:repeat(2,minmax(0,1fr))}
+   #planner .simple-plan-summary-row-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
++  #planner .simple-plan-summary-row-continuous{grid-template-columns:repeat(3,minmax(0,1fr))}
+ }
+ @media(max-width:640px){
+   #planner .simple-plan-summary{display:block!important}
+@@ -3981,6 +3986,7 @@
+   #planner .simple-plan-summary-row-metrics > .simple-mini:nth-child(-n+2){grid-column:span 3}
+   #planner .simple-plan-summary-row-metrics > .simple-mini:nth-child(n+3){grid-column:span 2}
+   #planner .simple-plan-summary-row-extra{grid-template-columns:repeat(2,minmax(0,1fr))}
++  #planner .simple-plan-summary-row-continuous{grid-template-columns:repeat(3,minmax(0,1fr))}
+   #planner .peptide-settings-body{
+     padding:9px
+   }
+@@ -7178,7 +7184,7 @@
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0509.05";
++const APP_VERSION="v2026.0509.06";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -12951,8 +12957,11 @@
+   if(day<start)return "Not started";
+   const end=plan?.endDate?parseISO(plan.endDate):null;
+   if(end&&day>end)return "Ended";
+-  const week=Math.max(1,Math.floor(dayDiff(start,day)/7)+1);
+-  return `Week ${week}`;
++  const runningWeek=Math.max(1,Math.floor(dayDiff(start,day)/7)+1);
++  if(runningWeek<=4)return `Week ${runningWeek}`;
++  const month=Math.floor((runningWeek-1)/4)+1;
++  const weekInMonth=((runningWeek-1)%4)+1;
++  return `Month ${month} · Week ${weekInMonth}`;
+ }
+ 
+ function renderSimplePlanner(){
+@@ -13009,8 +13018,8 @@
+               <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
+               <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
+             </div>
+-            <div class="simple-plan-summary-row ${plan.noCycle?"simple-plan-summary-row-extra":"simple-plan-summary-row-metrics"}">
+-              <div class="simple-mini"><span>Dose (units)</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
++            <div class="simple-plan-summary-row ${plan.noCycle?"simple-plan-summary-row-continuous":"simple-plan-summary-row-metrics"}">
++              <div class="simple-mini"><span>${plan.noCycle?"Dose":"Dose (units)"}</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
+               <div class="simple-mini" title="Uses the current opened vial when one is recorded. Otherwise it uses the active schedule window with current Treatment Settings. Only future complete administrations are counted; missed past schedule slots are not counted as doses left."><span>Dose left in vial</span><strong>${dosesLeftText}</strong></div>
+               ${plan.noCycle?`<div class="simple-mini"><span>Current cycle</span><strong>${continuousCurrentCycleText(plan,new Date())}</strong></div>`:`<div class="simple-mini"><span>Vials per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
+               <div class="simple-mini"><span>Cycle count</span><strong>${annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`}</strong></div>
