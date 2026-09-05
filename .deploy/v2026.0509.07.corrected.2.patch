@@ -1,0 +1,79 @@
+--- a/index.html
++++ b/index.html
+@@ -10433,9 +10461,14 @@
+   const scheduled=currentScheduledVialRecord(plan,at);
+   if(!scheduled)return null;
+   const source=scheduled.record||{},record={...source};
+-  /* A future/planned schedule row is not evidence that its planned vial strength is
+-     physically in use. Until a vial has an actual open date, inventory uses the
+-     current Treatment Settings while retaining the schedule-derived open window. */
++  if(plan?.noCycle){
++    const prep=continuousVialPrepForRecord(plan,source);
++    record.vialMg=prep.vialMg||source.vialMg||plan.vialMg;
++    record.bacWaterMl=prep.waterMl||source.bacWaterMl||plan.bacWaterMl;
++    record.finalMl=record.bacWaterMl||source.finalMl||plan.finalMl;
++    return {...scheduled,record,inventorySource:"vial-schedule"};
++  }
++  /* A future/planned cycle row is not evidence that its planned vial strength is physically in use. */
+   record.vialMg=num(plan?.vialMg)>0?plan.vialMg:source.vialMg;
+   record.finalMl=num(plan?.finalMl)>0?plan.finalMl:source.finalMl;
+   record.bacWaterMl=num(plan?.bacWaterMl)>0?plan.bacWaterMl:source.bacWaterMl;
+@@ -10444,6 +10477,7 @@
+ function currentVialIntegrity(plan,at=new Date()){
+   const actual=currentActualOpenedVialRecord(plan,at),scheduled=currentScheduledVialRecord(plan,at),candidate=actual||scheduled;
+   const warnings=[];
++  if(plan?.noCycle)return {warnings,actualRecord:actual?.record||null,scheduledRecord:scheduled?.record||null};
+   if(candidate?.record){
+     const record=candidate.record,planMg=num(plan?.vialMg),recordMg=num(record?.vialMg),planMl=num(plan?.finalMl),recordMl=num(record?.finalMl);
+     if(planMg>0&&recordMg>0&&Math.abs(planMg-recordMg)>0.000001){
+@@ -10470,10 +10504,10 @@
+   });
+ }
+ function currentVialDosesLeft(plan,at=new Date()){
+-  const planVialMg=num(plan?.vialMg);if(!(planVialMg>0))return {valid:false,reason:"Enter vial strength"};
+   const explicitCurrent=currentOpenedVialRecord(plan,at);
+-  if(!explicitCurrent)return {valid:false,reason:"Open vial"};
+-  const vialMg=num(explicitCurrent?.record?.vialMg)>0?num(explicitCurrent.record.vialMg):planVialMg;
++  if(!explicitCurrent)return {valid:false,reason:plan?.noCycle?"Add/open a vial in Vial Schedule":"Open vial"};
++  const vialMg=num(explicitCurrent?.record?.vialMg)>0?num(explicitCurrent.record.vialMg):num(plan?.vialMg);
++  if(!(vialMg>0))return {valid:false,reason:plan?.noCycle?"Enter Vial (mg) in Vial Schedule":"Enter vial strength"};
+   const records=(state.administrations||[])
+     .filter(record=>record?.planId===plan.id&&record?.status==="Administered"&&String(record?.dateTime||""))
+     .map(record=>({record,date:new Date(record.dateTime),mg:administrationConsumedMg(plan,record)}))
+@@ -10904,7 +10938,7 @@
+     const end=plan.endDate?parseISO(plan.endDate):null;if(end&&date>end)return out;if(elapsed===0)out.boundaries.push("Plan starts · continuous schedule");if(end&&localDateISO(date)===localDateISO(end))out.boundaries.push("Treatment end date");
+     const week=Math.floor(elapsed/7)+1,phaseDays=phaseWeekdaysForWeek(plan,week);
+     if(phaseDays!==null){if(!phaseDays.includes(date.getDay()))return out;}else{const phaseInterval=phaseIntervalDaysForWeek(plan,week);if(phaseInterval){const phase=phaseForWeek(plan,week),phaseStartOffset=Math.max(0,(Math.max(1,Math.floor(enteredPlanNumber(phase?.startWeek)||1))-1)*7);if((elapsed-phaseStartOffset)<0||(elapsed-phaseStartOffset)%phaseInterval!==0)return out;}else if(plan.scheduleMode==="interval"){const interval=num(plan.intervalDays);if(!interval||elapsed%interval!==0)return out;}else if(!(plan.weekdays||[]).map(Number).includes(date.getDay()))return out;}
+-    const phase=phaseForWeek(plan,week),dose=phaseDose(plan,week);out.week=week;out.protocolPhase="ongoing";out.administration=true;out.doseMg=dose;out.units=phaseResolvedUnits(plan,phase);if(out.units==null){const c=calcUnits(plan,dose);out.units=c.valid?round(c.units,2):(num(plan.fixedUnits)!=null?round(Number(plan.fixedUnits),2):null);}out.administrations=scheduleAdministrations(plan,week,out.doseMg,out.units);return out;
++    const phase=phaseForWeek(plan,week),dose=phaseDose(plan,week);out.week=week;out.protocolPhase="ongoing";out.administration=true;out.doseMg=dose;out.units=plan.noCycle?null:phaseResolvedUnits(plan,phase);if(out.units==null){const c=calcUnits(plan,dose,date);out.units=c.valid?round(c.units,2):(num(plan.fixedUnits)!=null?round(Number(plan.fixedUnits),2):null);}out.administrations=scheduleAdministrations(plan,week,out.doseMg,out.units);return out;
+   }
+   const position=protocolPositionForDate(plan,date);if(!position.valid||position.beforeStart||position.ended)return out;
+   out.protocolPhase=position.sequence===1?"starting":"cycle";out.cycle=position.sequence||1;
+@@ -12750,8 +12784,7 @@
+ 
+ 
+ function continuousVialDoseEvents(plan){
+-  const finalMl=num(plan?.finalMl),unitsPerMl=num(plan?.unitsPerMl),start=parseISO(plan?.startDate);
+-  if(!finalMl||finalMl<=0||!unitsPerMl||unitsPerMl<=0)return {valid:false,reason:"Enter final prepared volume and syringe calibration"};
++  const start=parseISO(plan?.startDate);
+   if(!start)return {valid:false,reason:"Enter the treatment start date"};
+   const forecastDays=Math.max(7,automaticForecastWeeks(plan)*7),today=parseISO(todayISO());
+   let horizonEnd=addDays(start,forecastDays-1);
+@@ -12760,13 +12793,11 @@
+   const simulation={...plan,enabled:true},events=[];
+   for(let date=new Date(start);date<=horizonEnd;date=addDays(date,1)){
+     const scheduled=scheduleForDate(simulation,date);if(!scheduled.administration)continue;
+-    const phaseCalc=phaseUnitCalculation(plan,scheduled.doseMg),units=phaseCalc.valid?phaseCalc.units:num(plan.fixedUnits);
+-    if(units==null||units<0)return {valid:false,reason:"Complete the dose/units for the continuous schedule"};
+-    if(units===0)continue;
+-    events.push({date:new Date(date.getFullYear(),date.getMonth(),date.getDate()),dateISO:localDateISO(date),units:round(units,4),doseMg:scheduled.doseMg,week:scheduled.week||Math.floor(dayDiff(start,date)/7)+1});
++    const doseMg=num(scheduled.doseMg);if(!(doseMg>0))continue;
++    events.push({date:new Date(date.getFullYear(),date.getMonth(),date.getDate()),dateISO:localDateISO(date),units:round(doseMg,6),doseMg,week:scheduled.week||Math.floor(dayDiff(start,date)/7)+1});
+   }
+-  if(!events.length)return {valid:false,reason:"Complete the continuous schedule and dose/units"};
+-  return {valid:true,start:new Date(start),horizonEnd:new Date(horizonEnd),events,unitsPerVial:round(finalMl*unitsPerMl,6)};
++  if(!events.length)return {valid:false,reason:"Complete the continuous schedule and dose"};
++  return {valid:true,start:new Date(start),horizonEnd:new Date(horizonEnd),events};
+ }
+ function continuousVialScheduleRecordPool(plan){
+   return (state.vialRecords||[])
