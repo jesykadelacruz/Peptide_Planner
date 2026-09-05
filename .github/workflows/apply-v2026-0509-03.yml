@@ -1,0 +1,74 @@
+name: Apply Peptide Planner v2026.0509.03
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0509-03.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: peptide-planner-production
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply v2026.0509.03 patch
+        run: python .deploy/v2026_0509_03_patch.py
+
+      - name: Validate production file
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, hashlib
+          h=Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0509.03</title>',
+            'const APP_VERSION="v2026.0509.03";',
+            'data-cycle-config-field="endDate" data-cycle-sequence="0"',
+            'function continuousCurrentCycleText',
+            'function todayAdministrationMissed',
+            'signInWithPassword',
+            'resetPasswordForEmail',
+            'PASSWORD_RECOVERY',
+            'planner_state',
+            'planner_snapshots',
+          ]
+          missing=[m for m in required if m not in h]
+          if missing:
+              raise SystemExit('Feature validation failed: '+', '.join(missing))
+          if 'Leave blank for continuous treatment.' in h:
+              raise SystemExit('Removed helper text is still present')
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',h,re.S|re.I)
+          Path('/tmp/planner-inline.js').write_text(max(scripts,key=len))
+          sha=hashlib.sha256(h.encode()).hexdigest()
+          print('SHA256',sha)
+          print('index.html bytes',len(h.encode()))
+          if sha!='e842d1ed354546de61d7fec05adaaecb819fe3b08602952d5e541532f07fcd2d':
+              raise SystemExit('Production output does not match tested v2026.0509.03 artifact')
+          PY
+          node --check /tmp/planner-inline.js
+
+      - name: Commit synchronized production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo 'No index change to commit'
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add index.html
+            git commit -m 'Update Peptide Planner v2026.0509.03'
+            git push
+          fi
