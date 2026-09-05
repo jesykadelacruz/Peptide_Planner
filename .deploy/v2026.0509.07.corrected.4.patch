@@ -1,0 +1,32 @@
+--- a/index.html
++++ b/index.html
+@@ -12988,7 +13023,7 @@
+     const dose=currentDose,calc=calcUnits(plan,dose),status=planStatus(plan);
+     const dosesLeft=currentVialDosesLeft(plan,new Date());
+     const vialIntegrity=currentVialIntegrity(plan,new Date());
+-    const dosesLeftText=dosesLeft.valid?(dosesLeft.splitSchedule&&dosesLeft.fullScheduleDays!==dosesLeft.doses?`${dosesLeft.doses} administration${dosesLeft.doses===1?"":"s"} · ${dosesLeft.fullScheduleDays} full day${dosesLeft.fullScheduleDays===1?"":"s"}`:`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`):esc(dosesLeft.reason||"—");
++    const dosesLeftText=dosesLeft.valid?(plan.noCycle?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"} · ${round(dosesLeft.currentRemainingMg??dosesLeft.remainingMg??0,3)} mg left`:(dosesLeft.splitSchedule&&dosesLeft.fullScheduleDays!==dosesLeft.doses?`${dosesLeft.doses} administration${dosesLeft.doses===1?"":"s"} · ${dosesLeft.fullScheduleDays} full day${dosesLeft.fullScheduleDays===1?"":"s"}`:`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`)):esc(dosesLeft.reason||"—");
+     const scheduleText=overviewScheduleText(plan);
+     const verification=planVerificationCompleteness(plan);
+     const enabledReady=plan.enabled&&planReadyForToday(plan);
+@@ -13019,7 +13054,7 @@
+             </div>
+             <div class="simple-plan-summary-row ${plan.noCycle?"simple-plan-summary-row-continuous":"simple-plan-summary-row-metrics"}">
+               <div class="simple-mini"><span>${plan.noCycle?"Dose":"Dose (units)"}</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
+-              <div class="simple-mini" title="Uses the current opened vial when one is recorded. Otherwise it uses the active schedule window with current Treatment Settings. Only future complete administrations are counted; missed past schedule slots are not counted as doses left."><span>Dose left in vial</span><strong>${dosesLeftText}</strong></div>
++              <div class="simple-mini" title="Uses the vial-specific strength and BAC-water preparation from Vial Schedule. Historical units are converted using the vial active on that administration date. Only future complete administrations are counted; missed past schedule slots are not counted as doses left."><span>Dose left in vial</span><strong>${dosesLeftText}</strong></div>
+               ${plan.noCycle?`<div class="simple-mini"><span>Current cycle</span><strong>${continuousCurrentCycleText(plan,new Date())}</strong></div>`:`<div class="simple-mini"><span>Vials per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
+               <div class="simple-mini"><span>Cycle count</span><strong>${annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`}</strong></div>
+               <div class="simple-mini"><span>Current cycle</span><strong>${currentPosition?.beforeStart?"Not started":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?`Starting Phase . Week ${currentPosition?.week||"—"}`:`Cycle ${currentPosition?.sequence||"—"} . Week ${currentPosition?.week||"—"}`)}</strong></div>`}
+@@ -13036,9 +13071,9 @@
+           <div class="peptide-settings-grid">
+             <div><label>Status</label><select data-simple-field="stackStatus"><option value="active" ${plan.stackStatus==="active"?"selected":""}>Current</option><option value="soon" ${plan.stackStatus==="soon"?"selected":""}>Scheduled</option><option value="completed" ${plan.stackStatus==="completed"?"selected":""}>Completed</option></select></div>
+             <div><label>Route</label><select class="route-select" data-simple-field="route">${myPlanRouteOptions(plan.route||"",plan.kbRoutes||[])}</select></div>
+-            <div><label>Vial (mg)</label><input type="number" min="0" step="0.001" data-simple-field="vialMg" value="${esc(plan.vialMg||"")}"></div>
++            ${!plan.noCycle?`<div><label>Vial (mg)</label><input type="number" min="0" step="0.001" data-simple-field="vialMg" value="${esc(plan.vialMg||"")}"></div>
+             <div><label>Water (mL)</label><input type="number" min="0" step="0.001" data-simple-field="bacWaterMl" value="${esc(plan.bacWaterMl||"")}"></div>
+-            <div><label>Concentration (mg/mL)</label><input type="text" data-simple-concentration readonly value="${num(plan.vialMg)>0&&num(plan.bacWaterMl)>0?esc(round(num(plan.vialMg)/num(plan.bacWaterMl),3)):""}"></div><input type="hidden" data-simple-field="finalMl" value="${esc(plan.bacWaterMl||plan.finalMl||"")}">
++            <div><label>Concentration (mg/mL)</label><input type="text" data-simple-concentration readonly value="${num(plan.vialMg)>0&&num(plan.bacWaterMl)>0?esc(round(num(plan.vialMg)/num(plan.bacWaterMl),3)):""}"></div><input type="hidden" data-simple-field="finalMl" value="${esc(plan.bacWaterMl||plan.finalMl||"")}">`:""}
+ 
+             <div><label>Dispose by</label><div class="dispose-by-control"><input type="number" min="1" step="1" data-simple-dispose-value value="${esc(disposeByControlValue(plan))}" aria-label="Dispose by period"><select data-simple-dispose-unit aria-label="Dispose by unit"><option value="days" ${disposeByControlUnit(plan)==="days"?"selected":""}>Days</option><option value="weeks" ${disposeByControlUnit(plan)==="weeks"?"selected":""}>Weeks</option><option value="months" ${disposeByControlUnit(plan)==="months"?"selected":""}>Months</option></select></div></div>
+             ${!plan.noCycle?`<div><label>On</label><input type="number" min="1" step="1" data-plan-active-weeks value="${esc(plan.activeWeeks||1)}"></div><div><label>Off</label><input type="number" min="0" step="1" data-plan-break-weeks value="${esc(plan.breakWeeks??0)}"></div>`:""}
