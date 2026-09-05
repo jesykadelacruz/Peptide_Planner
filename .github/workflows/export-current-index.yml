@@ -1,0 +1,20 @@
+name: Export Current Production Index
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-current-index.yml'
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload current index
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-production-index
+          path: index.html
+          if-no-files-found: error
+          retention-days: 1
