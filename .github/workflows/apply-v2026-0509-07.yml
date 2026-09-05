@@ -4,7 +4,10 @@ on:
   push:
     paths:
       - '.github/workflows/apply-v2026-0509-07.yml'
-      - '.deploy/v2026.0509.07.patch.gz.b64'
+      - '.deploy/v2026.0509.07.patch.part1'
+      - '.deploy/v2026.0509.07.patch.part2'
+      - '.deploy/v2026.0509.07.patch.part3'
+      - '.deploy/v2026.0509.07.patch.part4'
   workflow_dispatch:
 
 permissions:
@@ -31,7 +34,7 @@ jobs:
             echo "Expected source SHA256: $SOURCE_SHA"
             echo "Actual source SHA256:   $ACTUAL_SOURCE"
             test "$ACTUAL_SOURCE" = "$SOURCE_SHA"
-            base64 -d .deploy/v2026.0509.07.patch.gz.b64 | gzip -dc > /tmp/v07.patch
+            cat .deploy/v2026.0509.07.patch.part1 .deploy/v2026.0509.07.patch.part2 .deploy/v2026.0509.07.patch.part3 .deploy/v2026.0509.07.patch.part4 | base64 -d | gzip -dc > /tmp/v07.patch
             git apply --check /tmp/v07.patch
             git apply /tmp/v07.patch
           fi
