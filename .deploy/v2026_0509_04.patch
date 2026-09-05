@@ -1,0 +1,78 @@
+diff --git a/index.html b/index.html
+index 9b65724..a712e06 100644
+--- a/index.html
++++ b/index.html
+@@ -9,7 +9,8 @@
+ <meta name="apple-mobile-web-app-title" content="Peptide Planner">
+ <meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0509.03</title>
++<title>Peptide Planner v2026.0509.04</title>
++<!-- v2026.0509.04: Continuous treatment summary shows Dose, Dose left in vial and Current cycle as Week N counted from the treatment start date; continuous Start, End, Time, Schedule and Interval fields align on one row at standard widths while preserving responsive mobile layout. -->
+ <!-- v2026.0509.02: Continuous treatments now expose an optional end date in Cycle Settings and show Current cycle with the active continuous week; Today marks unchecked administrations as Missed in small red italic text after their scheduled date/time has passed. -->
+ <!-- v2026.0509.01: Invitation hardening: true sign-up invitations remain the only path for new approvals, legacy recovery invitations are handled as one-time sign-up completion instead of a second password change, first-time user accounts cannot land on Today before the required guide, and pending legacy invites can be replaced by a fresh sign-up invitation through Resend. -->
+ <!-- v2026.0409.04: Invitation flow now uses a true signup invitation link instead of password recovery; credential setup is single-pass, first activation is forced into the first-time guide before live pages, and legacy recovery invitations no longer trigger a second password prompt. -->
+@@ -5583,6 +5584,27 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
+     overflow-wrap:normal!important;
+   }
+ }
++
++/* v2026.0509.04 — continuous setup primary row only */
++#planner .continuous-primary-grid{
++  grid-template-columns:repeat(5,minmax(0,1fr))!important
++}
++#planner .continuous-primary-grid > div:nth-child(1),
++#planner .continuous-primary-grid > div:nth-child(2),
++#planner .continuous-primary-grid > div:nth-child(3),
++#planner .continuous-primary-grid > div:nth-child(4),
++#planner .continuous-primary-grid > div:nth-child(5){
++  grid-column:auto!important
++}
++#planner .continuous-primary-grid > .continuous-vial-schedule-field{
++  grid-column:1/-1!important
++}
++@media(max-width:760px){
++  #planner .continuous-primary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
++}
++@media(max-width:520px){
++  #planner .continuous-primary-grid{grid-template-columns:1fr!important}
++}
+ </style>
+ 
+ 
+@@ -7163,7 +7185,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0509.03";
++const APP_VERSION="v2026.0509.04";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -12863,7 +12885,7 @@ function renderContinuousPlanPanel(plan){
+         <details class="cycle-config-card cycle-state-current" data-cycle-config="0" data-collapse-key="${esc(key)}"${detailOpenAttr(key,false)}>
+           <summary><div class="cycle-config-title"><strong>Continuous</strong></div></summary>
+           <div class="cycle-config-body">
+-            <div class="cycle-config-grid">
++            <div class="cycle-config-grid continuous-primary-grid">
+               <div><label>Start date</label><input type="date" data-cycle-config-field="startDate" data-cycle-sequence="0" value="${esc(plan.startDate||"")}"></div>
+               <div><label>End date <span class="helper">(optional)</span></label><input type="date" data-cycle-config-field="endDate" data-cycle-sequence="0" min="${esc(plan.startDate||"")}" value="${esc(plan.endDate||"")}"></div>
+               <div><label>Time</label><input type="time" data-cycle-config-field="injectionTime" data-cycle-sequence="0" value="${esc(plan.injectionTime||"")}"></div>
+@@ -12937,7 +12959,7 @@ function continuousCurrentCycleText(plan,at=new Date()){
+   const end=plan?.endDate?parseISO(plan.endDate):null;
+   if(end&&day>end)return "Ended";
+   const week=Math.max(1,Math.floor(dayDiff(start,day)/7)+1);
+-  return `Continuous . Week ${week}`;
++  return `Week ${week}`;
+ }
+ 
+ function renderSimplePlanner(){
+@@ -12995,7 +13017,7 @@ function renderSimplePlanner(){
+               <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
+             </div>
+             <div class="simple-plan-summary-row ${plan.noCycle?"simple-plan-summary-row-extra":"simple-plan-summary-row-metrics"}">
+-              <div class="simple-mini"><span>Dose (units)</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
++              <div class="simple-mini"><span>${plan.noCycle?"Dose":"Dose (units)"}</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
+               <div class="simple-mini" title="Uses the current opened vial when one is recorded. Otherwise it uses the active schedule window with current Treatment Settings. Only future complete administrations are counted; missed past schedule slots are not counted as doses left."><span>Dose left in vial</span><strong>${dosesLeftText}</strong></div>
+               ${plan.noCycle?`<div class="simple-mini"><span>Current cycle</span><strong>${continuousCurrentCycleText(plan,new Date())}</strong></div>`:`<div class="simple-mini"><span>Vials per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
+               <div class="simple-mini"><span>Cycle count</span><strong>${annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`}</strong></div>
