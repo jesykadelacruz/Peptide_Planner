@@ -1,0 +1,67 @@
+name: Apply Peptide Planner v2026.0509.04
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v2026-0509-04.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply v2026.0509.04 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'const APP_VERSION="v2026.0509.04"' index.html; then
+            echo 'v2026.0509.04 already applied.'
+          else
+            grep -q 'const APP_VERSION="v2026.0509.03"' index.html
+            git apply --check .deploy/v2026_0509_04.patch
+            git apply .deploy/v2026_0509_04.patch
+          fi
+
+      - name: Validate production file
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum index.html | awk '{print $1}')" = "fdd8650f8b5511d6f4b65fc3b43b7071580e35ae576496a907dfb2a1a674c5d7"
+          grep -q '<title>Peptide Planner v2026.0509.04</title>' index.html
+          grep -q 'const APP_VERSION="v2026.0509.04"' index.html
+          grep -q 'cycle-config-grid continuous-primary-grid' index.html
+          grep -q 'grid-template-columns:repeat(5,minmax(0,1fr))!important' index.html
+          grep -q 'return `Week ${week}`;' index.html
+          grep -q 'plan.noCycle?"Dose":"Dose (units)"' index.html
+          grep -q 'manifest.webmanifest' index.html
+          grep -q 'peptide-planner-sw.js' index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script(?:\\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
+          Path('/tmp/peptide-planner-inline.js').write_text('\n'.join(blocks),encoding='utf-8')
+          PY
+          node --check /tmp/peptide-planner-inline.js
+
+      - name: Commit synchronized production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'No production change to commit.'
+          else
+            git commit -m 'Update Peptide Planner v2026.0509.04'
+            git push origin main
+          fi
