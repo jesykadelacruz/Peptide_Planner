@@ -1,0 +1,75 @@
+name: Apply Peptide Planner v2026.0509.05
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0509-05.yml'
+      - '.deploy/v2026.0509.05.patch'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply exact production patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Fq '<title>Peptide Planner v2026.0509.05</title>' index.html; then
+            echo 'v2026.0509.05 is already applied; skipping patch.'
+          else
+            git apply --check .deploy/v2026.0509.05.patch
+            git apply .deploy/v2026.0509.05.patch
+          fi
+
+      - name: Validate production file
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_SHA='b6f29190b2dbb9d732fe36710e3d7cefc6aa817e9562ee959a7a2b1735084618'
+          ACTUAL_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Expected SHA256: $EXPECTED_SHA"
+          echo "Actual SHA256:   $ACTUAL_SHA"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          grep -Fq '<title>Peptide Planner v2026.0509.05</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0509.05";' index.html
+          grep -Fq 'continuous treatment only: keep Start | End | Time | Schedule | Interval on one desktop row.' index.html
+          grep -Fq 'continuousCurrentCycleText' index.html
+          grep -Fq 'CLOUD_SYNC_META_KEY' index.html
+          grep -Fq 'SUPABASE_URL' index.html
+          grep -Fq 'auth.signInWithPassword' index.html
+          grep -Fq 'auth.resetPasswordForEmail' index.html
+          grep -Fq 'signUp' index.html
+          grep -Fq 'manifest.webmanifest' index.html
+          grep -Fq 'peptide-planner-sw.js' index.html
+          grep -Fq 'navigator.serviceWorker.register' index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = '\n'.join(re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, re.S | re.I))
+          Path('/tmp/peptide-inline.js').write_text(scripts, encoding='utf-8')
+          PY
+          node --check /tmp/peptide-inline.js
+
+      - name: Commit synchronized production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo 'No production file change to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update Peptide Planner v2026.0509.05'
+          git push origin HEAD:main
