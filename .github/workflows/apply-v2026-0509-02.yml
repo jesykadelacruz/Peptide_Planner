@@ -30,7 +30,8 @@ jobs:
           if grep -q '<title>Peptide Planner v2026.0509.02</title>' index.html; then
             echo 'v2026.0509.02 is already applied'
           else
-            base64 -d .deploy/v2026_0509_02_production.patch.gz.b64 | gunzip > /tmp/v2026_0509_02.patch
+            cat .deploy/v2026_0509_02_patch_part1.b64 .deploy/v2026_0509_02_patch_part2.b64 .deploy/v2026_0509_02_patch_part3.b64 .deploy/v2026_0509_02_patch_part4.b64 | base64 -d | gunzip > /tmp/v2026_0509_02.patch
+            test "$(wc -c < /tmp/v2026_0509_02.patch)" -eq 23590
             git apply --check /tmp/v2026_0509_02.patch
             git apply /tmp/v2026_0509_02.patch
           fi
@@ -63,8 +64,11 @@ jobs:
               raise SystemExit('Secret key marker found in client')
           scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',h,re.S|re.I)
           Path('/tmp/planner-inline.js').write_text(max(scripts,key=len))
-          print('SHA256',hashlib.sha256(h.encode()).hexdigest())
+          sha=hashlib.sha256(h.encode()).hexdigest()
+          print('SHA256',sha)
           print('index.html bytes',len(h.encode()))
+          if sha!='244f0fc589472173f7d712a77390247e25237beb92deab304eeb2ea03eba1417':
+              raise SystemExit('Production output does not match tested v2026.0509.02 artifact')
           PY
           node --check /tmp/planner-inline.js
 
