@@ -4,7 +4,11 @@ on:
   push:
     paths:
       - '.github/workflows/apply-v2026-0509-07.yml'
-      - '.deploy/v2026.0509.07.patch'
+      - '.deploy/v2026.0509.07.corrected.1.patch'
+      - '.deploy/v2026.0509.07.corrected.2.patch'
+      - '.deploy/v2026.0509.07.corrected.3.patch'
+      - '.deploy/v2026.0509.07.corrected.4.patch'
+      - '.deploy/v2026.0509.07.corrected.5.patch'
   workflow_dispatch:
 
 permissions:
@@ -19,27 +23,34 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Apply exact production patch
+      - name: Apply exact production patches
         shell: bash
         run: |
           set -euo pipefail
           SOURCE_SHA='ca2a1dff0186034f73b3283cb89536c234b962ba1cabd2a17fe157e027334140'
           if grep -Fq '<title>Peptide Planner v2026.0509.07</title>' index.html; then
-            echo 'v2026.0509.07 is already applied; skipping patch.'
+            echo 'v2026.0509.07 is already applied; skipping patches.'
           else
             ACTUAL_SOURCE="$(sha256sum index.html | awk '{print $1}')"
             echo "Expected source SHA256: $SOURCE_SHA"
             echo "Actual source SHA256:   $ACTUAL_SOURCE"
             test "$ACTUAL_SOURCE" = "$SOURCE_SHA"
-            git apply --check .deploy/v2026.0509.07.patch
-            git apply .deploy/v2026.0509.07.patch
+            for patch in \
+              .deploy/v2026.0509.07.corrected.1.patch \
+              .deploy/v2026.0509.07.corrected.2.patch \
+              .deploy/v2026.0509.07.corrected.3.patch \
+              .deploy/v2026.0509.07.corrected.4.patch \
+              .deploy/v2026.0509.07.corrected.5.patch; do
+              git apply --check "$patch"
+              git apply "$patch"
+            done
           fi
 
       - name: Validate production file
         shell: bash
         run: |
           set -euo pipefail
-          EXPECTED_SHA='bd9abbac0f2af42eeada67124632feb0ab6e66b0fa5990bef23c6d902b391a36'
+          EXPECTED_SHA='af53577eb805c7b3893c74671e74385969670de3675e49c6bb6abacbdd94cd50'
           ACTUAL_SHA="$(sha256sum index.html | awk '{print $1}')"
           echo "Expected SHA256: $EXPECTED_SHA"
           echo "Actual SHA256:   $ACTUAL_SHA"
@@ -47,6 +58,8 @@ jobs:
           grep -Fq '<title>Peptide Planner v2026.0509.07</title>' index.html
           grep -Fq 'const APP_VERSION="v2026.0509.07";' index.html
           grep -Fq 'continuousVialPrepForDate' index.html
+          grep -Fq 'num(selected.finalMl||selected.bacWaterMl)' index.html
+          grep -Fq 'num(record.finalMl||record.bacWaterMl)' index.html
           grep -Fq '<th>Vial #</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Open</th><th>Finish</th><th>Status</th>' index.html
           grep -Fq 'data-continuous-vial-field' index.html
           grep -Fq 'mg left' index.html
@@ -64,6 +77,12 @@ jobs:
           html=Path('index.html').read_text(encoding='utf-8')
           scripts='\n'.join(re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,re.S|re.I))
           Path('/tmp/peptide-inline.js').write_text(scripts,encoding='utf-8')
+          # Live Tirzepatide legacy-prep regression: finalMl 3.75 must win over stale bacWaterMl 30.
+          vial=15.0; final_ml=3.75; actual_units=[75,75,75,75]; upm=100.0
+          concentration=vial/final_ml
+          used=sum((u/upm)*concentration for u in actual_units)
+          remaining=vial-used
+          assert concentration == 4.0 and used == 12.0 and remaining == 3.0
           PY
           node --check /tmp/peptide-inline.js
 
