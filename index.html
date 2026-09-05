@@ -9,7 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0409.04</title>
+<title>Peptide Planner v2026.0509.02</title>
+<!-- v2026.0509.02: Continuous treatments now expose an optional end date in Cycle Settings and show Current cycle with the active continuous week; Today marks unchecked administrations as Missed in small red italic text after their scheduled date/time has passed. -->
+<!-- v2026.0509.01: Invitation hardening: true sign-up invitations remain the only path for new approvals, legacy recovery invitations are handled as one-time sign-up completion instead of a second password change, first-time user accounts cannot land on Today before the required guide, and pending legacy invites can be replaced by a fresh sign-up invitation through Resend. -->
 <!-- v2026.0409.04: Invitation flow now uses a true signup invitation link instead of password recovery; credential setup is single-pass, first activation is forced into the first-time guide before live pages, and legacy recovery invitations no longer trigger a second password prompt. -->
 <!-- v2026.0409.03: First-time approved users now receive a required four-step visual orientation before entering live planner pages. The tour previews Account/Profile, Treatments, Review & Verify, and Today; explains where the guide can be reopened; then sends the user directly to Account profile setup. Existing guided Profile -> Treatment -> Verify -> Today progression is preserved. -->
 <!-- v2026.0409.02: Current Cycle summary keeps the existing field name and now includes the active week, for example Starting Phase . Week 2 or Cycle 2 . Week 3. -->
@@ -2243,6 +2245,12 @@ body.mobile-app .today-injection-check{
   grid-area:check!important;
   align-self:center!important;
 }
+.today-injection-done-line{display:inline-flex;align-items:center;gap:7px}
+.today-injection-check.missed{flex-direction:column;align-items:flex-start;gap:1px}
+.today-injection-missed{display:block;margin-left:25px;color:var(--red);font-size:.66rem;font-style:italic;font-weight:700;line-height:1.05}
+body.mobile-app .today-injection-check.missed{flex-direction:column!important;align-items:flex-end!important;gap:1px!important}
+body.mobile-app .today-injection-check .today-injection-done-line{gap:5px!important}
+body.mobile-app .today-injection-missed{margin-left:0!important;font-size:.62rem!important;line-height:1!important}
 
 /* ===== consolidated source: v198-compact-add-treatment-collapsed ===== */
 /* v198 — compact only the collapsed Add a treatment card */
@@ -7155,7 +7163,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0409.04";
+const APP_VERSION="v2026.0509.02";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -7778,6 +7786,10 @@ function deleteProtocolById(planId){
 function activateTab(tabId){
   if(tabId==="admin"&&!["owner","admin"].includes(cloudAccess?.role||""))tabId="dashboard";
   if(tabId==="calendar")tabId="dashboard";
+  if(tabId==="dashboard"&&plannerFirstTimeGuideRequired()){
+    tabId="safety";
+    requestAnimationFrame(()=>showFirstTimeOrientation(0));
+  }
   const target=document.getElementById(tabId);
   if(!target||!target.classList.contains("tab"))return;
   const navTab=["protocols","guidelines"].includes(tabId)?"protocols":["guide","progress","safety"].includes(tabId)?"safety":tabId;
@@ -9422,6 +9434,35 @@ function plannerPasswordRecoveryLinkActive(){
   const hash=new URLSearchParams(String(location.hash||"").replace(/^#/,""));
   return search.get("password")==="1"||search.get("type")==="recovery"||hash.get("type")==="recovery";
 }
+async function routePlannerCredentialLink(){
+  if(!cloudClient||!cloudUser)return false;
+  if(plannerInviteLinkActive()){
+    const access=await currentPlannerAccess({activateInvite:false}).catch(()=>null);
+    if(access?.status==="invited"){
+      cloudAccess=access;
+      setPlannerLocked(true);
+      renderPlannerAccessGate();
+      showPlannerInviteSetup();
+      return true;
+    }
+  }
+  if(plannerPasswordRecoveryLinkActive()){
+    const access=await currentPlannerAccess({activateInvite:false}).catch(()=>null);
+    if(access?.status==="invited"&&!access?.activated_at){
+      cloudAccess=access;
+      setPlannerLocked(true);
+      renderPlannerAccessGate();
+      showPlannerInviteSetup();
+      setPlannerInviteFeedback("This is an older invitation link. Create your password once below. After activation you will go directly to the required first-time guide.");
+      return true;
+    }
+    setPlannerLocked(true);
+    renderPlannerAccessGate();
+    showCloudAuth("recovery");
+    return true;
+  }
+  return false;
+}
 function clearPlannerInviteFeedback(){
   const info=document.getElementById("plannerInviteSetupMessage");
   const error=document.getElementById("plannerInviteSetupError");
@@ -9547,7 +9588,7 @@ async function verifyPlannerAccess({silent=false,forceFirstUse=false}={}){
       await fetchKnowledgeBaseOverrides();
       await reconcileCloudState({silent:true});
       const firstUse=!!forceFirstUse||consumePlannerFirstUseAfterInvite();
-      if(firstUse&&!hasMeaningfulPlannerData(state))forcePlannerFirstUseState();
+      if(firstUse&&access?.role==="user")forcePlannerFirstUseState();
       routeInitialPlannerExperience({forceFirstUse:firstUse});
       return true;
     }
@@ -9686,7 +9727,7 @@ async function adminSignupRequestAction(action,requestId,button){
     const result=await adminAccessApi(action==="approve"?"approve_signup":"reject_signup",{request_id:requestId});
     if(action==="approve"){
       const message=result?.emailSent
-        ?`Approved. Sign-up invitation email sent to ${result.email}.`
+        ?`Approved. New sign-in email sent to ${result.email}.`
         :`Approved. The account was created, but the sign-in email could not be sent because the email service is temporarily rate-limited. Use Resend from the User Action menu later.`;
       setAdminPageFeedback(message,result?.emailPending?"error":"info");
     }else setAdminPageFeedback("Sign-up request rejected.");
@@ -9903,8 +9944,8 @@ async function sendAdminPageInvite(){
     const result=await adminAccessApi("invite",{email,role,name,phone});
 
     setAdminPageFeedback(result.emailSent
-      ?`Sign-up invitation email sent to ${result.email}. They must open the invitation and create their password once to activate access.`
-      :`Account access was created for ${result.email}, but the sign-in email could not be sent because the email service is temporarily rate-limited. Use Resend from the User Action menu later.`,result?.emailPending?"error":"info");
+      ?`Sign-up invitation sent to ${result.email}. The email opens the Peptide Planner sign-up page, where they create their password once and then begin first-time setup.`
+      :`Account access was created for ${result.email}, but the sign-up invitation could not be sent because the email service is temporarily rate-limited. Use Resend from the User Action menu later.`,result?.emailPending?"error":"info");
 
     ["adminPageInviteName","adminPageInviteEmail","adminPageInvitePhone"].forEach(id=>{
       const input=document.getElementById(id);
@@ -9963,7 +10004,7 @@ async function adminPageAction(action,userId,control){
       return;
     }
     const result=await adminAccessApi("resend",{user_id:userId});
-    setAdminPageFeedback(result?.emailType==="signup_invite"?`Sign-up invitation email sent to ${result?.email||email||"the user"}.`:`Account access email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);
+    setAdminPageFeedback(result?.emailType==="signup_invite"?`Sign-up invitation email sent to ${result?.email||email||"the user"}. It opens the sign-up page; the user creates one password and then starts the first-time guide.`:`Account access email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);
     await loadAdminAccess();
   }catch(error){
     setAdminPageFeedback(error?.message||"Unable to update the user.","error");
@@ -10227,8 +10268,26 @@ async function initCloudServices(){
 
 
   if(!cloudClient){setPlannerAccessFeedback("Cloud service is unavailable. The planner remains locked.","error");return}
-  try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser&&plannerPasswordRecoveryLinkActive()){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery")}else await verifyPlannerAccess({silent:true})}catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
-  cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const nextUser=session?.user||null;if(plannerCredentialSetupCompleting&&["USER_UPDATED","SIGNED_IN"].includes(event)){cloudUser=nextUser||cloudUser;renderCloudAccount();return}if(event==="SIGNED_OUT"){cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return}cloudUser=nextUser;renderCloudAccount();if(event==="PASSWORD_RECOVERY"){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery");return}if(nextUser){await verifyPlannerAccess({silent:true})}},0)});
+  try{
+    const {data}=await cloudClient.auth.getSession();
+    cloudUser=data?.session?.user||null;
+    renderCloudAccount();
+    const routed=cloudUser?await routePlannerCredentialLink():false;
+    if(!routed)await verifyPlannerAccess({silent:true});
+  }catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
+  cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{
+    const nextUser=session?.user||null;
+    if(plannerCredentialSetupCompleting&&["USER_UPDATED","SIGNED_IN","PASSWORD_RECOVERY"].includes(event)){cloudUser=nextUser||cloudUser;renderCloudAccount();return}
+    if(event==="SIGNED_OUT"){
+      cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return
+    }
+    cloudUser=nextUser;renderCloudAccount();
+    if(nextUser&&(event==="PASSWORD_RECOVERY"||plannerInviteLinkActive()||plannerPasswordRecoveryLinkActive())){
+      const routed=await routePlannerCredentialLink();
+      if(routed)return;
+    }
+    if(nextUser){await verifyPlannerAccess({silent:true})}
+  },0)});
   window.addEventListener("focus",()=>{if(cloudUser)verifyPlannerAccess({silent:true})});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&cloudUser)verifyPlannerAccess({silent:true})});
 }
 function save(){
@@ -11190,6 +11249,21 @@ function assignTodayRotationSites(injections,selectedDay){
 }
 
 
+function todayAdministrationMissed(dateISO,time,completed,at=new Date()){
+  if(completed)return false;
+  const scheduledDay=parseISO(dateISO);
+  if(!scheduledDay)return false;
+  const today=new Date(at.getFullYear(),at.getMonth(),at.getDate());
+  if(scheduledDay<today)return true;
+  if(scheduledDay>today)return false;
+  const match=String(time||"").match(/^(\d{1,2}):(\d{2})$/);
+  if(!match)return false;
+  const hours=Number(match[1]),minutes=Number(match[2]);
+  if(!Number.isFinite(hours)||!Number.isFinite(minutes)||hours<0||hours>23||minutes<0||minutes>59)return false;
+  const scheduledAt=new Date(scheduledDay.getFullYear(),scheduledDay.getMonth(),scheduledDay.getDate(),hours,minutes,0,0);
+  return at>scheduledAt;
+}
+
 function renderTodayInjections(){
   const selectedIso=selectedDashboardInjectionDate();
   const selectedDay=parseISO(selectedIso)||parseISO(todayISO());
@@ -11256,6 +11330,7 @@ function renderTodayInjections(){
         const siteLabel=item.rotationSite
           ? `<div class="today-injection-site ${item.rotationRoute}">${item.rotationRoute==="subq"?"SubQ":"IM"} rotation · ${esc(item.rotationSite)}</div>`
           :"";
+        const missed=todayAdministrationMissed(selectedIso,item.time,item.completed,new Date());
         return `<div class="today-injection-item ${item.completed?"completed":""}" style="--plan-color:${planMeta(item.plan).color}">
           <div class="today-injection-title">${esc(time)} | ${esc(cycleStackName(item.plan))} | ${esc(units)}</div>
           <div class="today-injection-meta">${esc(item.rotationSite||"Rotation not available")} | ${esc(routeText)}</div>
@@ -11265,9 +11340,9 @@ function renderTodayInjections(){
             <div class="today-injection-details">${esc(splitText)}${esc(dose)} · ${esc(units)} · ${esc(cycleText)}</div>
             ${siteLabel}
           </div>
-          <label class="today-injection-check no-print">
-            <input type="checkbox" data-dashboard-injection="${esc(item.key)}" ${item.completed?"checked":""}>
-            Done
+          <label class="today-injection-check no-print ${missed?"missed":""}">
+            <span class="today-injection-done-line"><input type="checkbox" data-dashboard-injection="${esc(item.key)}" ${item.completed?"checked":""}> Done</span>
+            ${missed?`<small class="today-injection-missed">Missed</small>`:""}
           </label>
         </div>`;
       }).join("")
@@ -12790,6 +12865,7 @@ function renderContinuousPlanPanel(plan){
           <div class="cycle-config-body">
             <div class="cycle-config-grid">
               <div><label>Start date</label><input type="date" data-cycle-config-field="startDate" data-cycle-sequence="0" value="${esc(plan.startDate||"")}"></div>
+              <div><label>End date <span class="helper">(optional)</span></label><input type="date" data-cycle-config-field="endDate" data-cycle-sequence="0" min="${esc(plan.startDate||"")}" value="${esc(plan.endDate||"")}"><div class="helper">Leave blank for continuous treatment.</div></div>
               <div><label>Time</label><input type="time" data-cycle-config-field="injectionTime" data-cycle-sequence="0" value="${esc(plan.injectionTime||"")}"></div>
               <div><label>Schedule</label><select data-cycle-config-field="scheduleMode" data-cycle-sequence="0"><option value="interval" ${plan.scheduleMode!=="weekdays"?"selected":""}>Every N days</option><option value="weekdays" ${plan.scheduleMode==="weekdays"?"selected":""}>Choose weekdays</option></select></div>
               <div><label>Interval</label><input type="number" min="1" step="1" data-cycle-config-field="intervalDays" data-cycle-sequence="0" value="${esc(plan.intervalDays??"")}" ${plan.scheduleMode==="weekdays"?"disabled":""}></div>
@@ -12853,6 +12929,17 @@ function renderPlanCyclePanels(plan){
 }
 
 
+function continuousCurrentCycleText(plan,at=new Date()){
+  const start=parseISO(plan?.startDate);
+  if(!start)return "Not started";
+  const day=new Date(at.getFullYear(),at.getMonth(),at.getDate());
+  if(day<start)return "Not started";
+  const end=plan?.endDate?parseISO(plan.endDate):null;
+  if(end&&day>end)return "Ended";
+  const week=Math.max(1,Math.floor(dayDiff(start,day)/7)+1);
+  return `Continuous . Week ${week}`;
+}
+
 function renderSimplePlanner(){
   const datalist=document.getElementById("simpleTreatmentPresets");
   if(!datalist)return;
@@ -12910,7 +12997,7 @@ function renderSimplePlanner(){
             <div class="simple-plan-summary-row ${plan.noCycle?"simple-plan-summary-row-extra":"simple-plan-summary-row-metrics"}">
               <div class="simple-mini"><span>Dose (units)</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
               <div class="simple-mini" title="Uses the current opened vial when one is recorded. Otherwise it uses the active schedule window with current Treatment Settings. Only future complete administrations are counted; missed past schedule slots are not counted as doses left."><span>Dose left in vial</span><strong>${dosesLeftText}</strong></div>
-              ${plan.noCycle?"":`<div class="simple-mini"><span>Vials per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
+              ${plan.noCycle?`<div class="simple-mini"><span>Current cycle</span><strong>${continuousCurrentCycleText(plan,new Date())}</strong></div>`:`<div class="simple-mini"><span>Vials per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
               <div class="simple-mini"><span>Cycle count</span><strong>${annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`}</strong></div>
               <div class="simple-mini"><span>Current cycle</span><strong>${currentPosition?.beforeStart?"Not started":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?`Starting Phase . Week ${currentPosition?.week||"—"}`:`Cycle ${currentPosition?.sequence||"—"} . Week ${currentPosition?.week||"—"}`)}</strong></div>`}
             </div>
@@ -14401,6 +14488,9 @@ function enhanceMobileTables(root=document){
 }
 
 
+function plannerFirstTimeGuideRequired(){
+  return cloudAccess?.status==="active"&&cloudAccess?.role==="user"&&state?.ui?.onboardingIntroComplete===false;
+}
 function plannerProfileComplete(){
   const p=state.profile||{};
   return !!(String(p.name||"").trim()&&p.dob&&num(p.heightCm)>0&&num(p.startWeight)>0&&num(p.targetWeight)>0);
@@ -14627,7 +14717,7 @@ function renderSetupJourney(){
   set("journeyReady",state.ui?.onboardingComplete?"Ready for daily use":verified?"View quick guide":"Available after verification",state.ui?.onboardingComplete,stage==="tour");
 }
 function routeInitialPlannerExperience({forceFirstUse=false}={}){
-  if(forceFirstUse&&!hasMeaningfulPlannerData(state))forcePlannerFirstUseState();
+  if(forceFirstUse&&cloudAccess?.role==="user")forcePlannerFirstUseState();
   const stage=plannerOnboardingStage();
   if(!state.ui?.onboardingIntroComplete){
     activateTab("safety");
