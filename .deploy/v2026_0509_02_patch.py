@@ -1,7 +1,38 @@
 from pathlib import Path
+import subprocess
 
 path = Path('index.html')
 text = path.read_text()
+
+# Production can still be on the exact v2026.0409.04 source while the
+# downloadable baseline is v2026.0509.01. Bring production through the
+# already-staged v2026.0509.01 patch first, then apply this release.
+if '<title>Peptide Planner v2026.0409.04</title>' in text:
+    subprocess.run(['python', '.deploy/v2026_0509_01_patch.py'], check=True)
+    text = path.read_text()
+
+required = [
+    '<title>Peptide Planner v2026.0509.02</title>',
+    'const APP_VERSION="v2026.0509.02";',
+    'data-cycle-config-field="endDate" data-cycle-sequence="0"',
+    'function continuousCurrentCycleText',
+    'function todayAdministrationMissed',
+    'today-injection-missed',
+    'signInWithPassword',
+    'resetPasswordForEmail',
+    'PASSWORD_RECOVERY',
+    'planner_state',
+    'planner_snapshots',
+]
+
+# Safe retry: if the release is already present, validate and exit without
+# rewriting anything.
+if '<title>Peptide Planner v2026.0509.02</title>' in text:
+    missing = [m for m in required if m not in text]
+    if missing:
+        raise SystemExit('v2026.0509.02 detected but required markers are missing: ' + ', '.join(missing))
+    print('v2026.0509.02 already applied:', len(text.encode()))
+    raise SystemExit(0)
 
 def once(old, new, label):
     global text
@@ -94,19 +125,6 @@ once('''              ${plan.noCycle?"":`<div class="simple-mini"><span>Vials pe
               <div class="simple-mini"><span>Cycle count</span><strong>${annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`}</strong></div>
               <div class="simple-mini"><span>Current cycle</span><strong>${currentPosition?.beforeStart?"Not started":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?`Starting Phase . Week ${currentPosition?.week||"—"}`:`Cycle ${currentPosition?.sequence||"—"} . Week ${currentPosition?.week||"—"}`)}</strong></div>`}''', 'Continuous Current cycle summary')
 
-required = [
-    '<title>Peptide Planner v2026.0509.02</title>',
-    'const APP_VERSION="v2026.0509.02";',
-    'data-cycle-config-field="endDate" data-cycle-sequence="0"',
-    'function continuousCurrentCycleText',
-    'function todayAdministrationMissed',
-    'today-injection-missed',
-    'signInWithPassword',
-    'resetPasswordForEmail',
-    'PASSWORD_RECOVERY',
-    'planner_state',
-    'planner_snapshots',
-]
 missing = [m for m in required if m not in text]
 if missing:
     raise SystemExit('missing required markers after patch: ' + ', '.join(missing))
