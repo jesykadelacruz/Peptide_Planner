@@ -1,0 +1,19 @@
+--- a/index.html
++++ b/index.html
+@@ -13122,6 +13157,16 @@
+       }
+       plan.confirmed=false;save();renderAll();
+     }));
++    card.querySelectorAll("[data-continuous-vial-field]").forEach(control=>control.addEventListener("change",()=>{
++      const index=Math.max(1,Number(control.dataset.continuousVialIndex)||1),field=String(control.dataset.continuousVialField||"");
++      let record=continuousVialScheduleComputation(plan).rows.find(item=>item.index===index)?.record||null;if(!record)record=ensureContinuousVialScheduleRecord(plan,index);
++      if(record&&["vialMg","bacWaterMl"].includes(field)){
++        record.scheduleCycleNumber=0;record.scheduleRowIndex=index;record.vialNumber=index;record[field]=control.value||"";
++        if(field==="bacWaterMl")record.finalMl=record.bacWaterMl||"";
++        updateVialRecordDerived(record,plan);
++      }
++      plan.confirmed=false;save();renderAll();
++    }));
+     card.querySelectorAll("[data-continuous-vial-open-date]").forEach(control=>control.addEventListener("change",()=>{
+       const index=Math.max(1,Number(control.dataset.continuousVialOpenDate)||1);let record=continuousVialScheduleComputation(plan).rows.find(item=>item.index===index)?.record||null;if(!record)record=ensureContinuousVialScheduleRecord(plan,index);
+       if(record){record.scheduleCycleNumber=0;record.scheduleRowIndex=index;record.startDate=control.value||"";record.scheduleOpenAuto=!control.value;record.finishDate="";record.scheduleFinishAuto=true;record.statusAuto=true;updateVialRecordDerived(record,plan);}plan.confirmed=false;save();renderAll();
