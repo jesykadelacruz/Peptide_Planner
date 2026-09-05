@@ -1,0 +1,96 @@
+--- a/index.html
++++ b/index.html
+@@ -9,7 +9,8 @@
+ <meta name="apple-mobile-web-app-title" content="Peptide Planner">
+ <meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0509.06</title>
++<title>Peptide Planner v2026.0509.07</title>
++<!-- v2026.0509.07: Continuous-treatment vial preparation is stored per Vial Schedule row (Vial mg, BAC Water, concentration); dose-left converts historical units using the vial active on each administration date and continuous vial scheduling uses each vial's own capacity. -->
+ <!-- v2026.0509.06: Continuous-treatment overview second row is Dose, Dose left in vial, and Current cycle in three columns; Current cycle starts at Month 1 · Week 1 and advances in four-week treatment months. -->
+ <!-- v2026.0509.05: Continuous Cycle Settings keeps Start, End, Time, Schedule, and Interval on one desktop line; mobile layout remains unchanged. -->
+ <!-- v2026.0509.04: Continuous-treatment overview keeps Dose, Dose left in vial and Current cycle together; Current cycle is shown as the treatment week counted from the treatment start date. -->
+@@ -7184,7 +7185,7 @@
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0509.06";
++const APP_VERSION="v2026.0509.07";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -8063,8 +8064,9 @@
+ function scheduleAdministrations(plan,week,doseMg,units){
+   return administrationsForPhase(plan,phaseForWeek(plan,week),doseMg,units);
+ }
+-function calcUnits(plan,doseMg){
+-  const vial=num(plan.vialMg),ml=num(plan.finalMl),upm=num(plan.unitsPerMl);
++function calcUnits(plan,doseMg,date=null){
++  const prep=plan?.noCycle?continuousVialPrepForDate(plan,date||new Date()):null;
++  const vial=prep?.vialMg||num(plan.vialMg),ml=prep?.waterMl||num(plan.finalMl),upm=num(plan.unitsPerMl);
+   if(!plan.confirmed||!doseMg||!vial||!ml||!upm)return {valid:false};
+   const concentration=vial/ml,volume=doseMg/concentration,units=volume*upm;
+   const warnings=[];
+@@ -8072,8 +8074,9 @@
+   if(volume>1)warnings.push(`Calculated volume is ${round(volume,3)} mL; confirm the product, route and concentration.`);
+   return {valid:true,concentration,volume,units,warnings};
+ }
+-function phaseUnitCalculation(plan,doseMg){
+-  const dose=num(doseMg),vial=num(plan.vialMg),ml=num(plan.finalMl),upm=num(plan.unitsPerMl);
++function phaseUnitCalculation(plan,doseMg,date=null){
++  const prep=plan?.noCycle?continuousVialPrepForDate(plan,date||new Date()):null;
++  const dose=num(doseMg),vial=prep?.vialMg||num(plan.vialMg),ml=prep?.waterMl||num(plan.finalMl),upm=num(plan.unitsPerMl);
+   if(dose==null||dose<0||vial==null||vial<=0||ml==null||ml<=0||upm==null||upm<=0)return {valid:false};
+   const concentration=vial/ml,volume=dose/concentration,units=volume*upm;
+   return {valid:true,concentration,volume,units};
+@@ -8086,8 +8089,9 @@
+   const calc=phaseUnitCalculation(plan,doseMg);
+   return calc.valid?round(calc.units,2):null;
+ }
+-function phaseDoseFromUnits(plan,units){
+-  const totalUnits=num(units),vial=num(plan?.vialMg),ml=num(plan?.finalMl),upm=num(plan?.unitsPerMl);
++function phaseDoseFromUnits(plan,units,date=null){
++  const prep=plan?.noCycle?continuousVialPrepForDate(plan,date||new Date()):null;
++  const totalUnits=num(units),vial=prep?.vialMg||num(plan?.vialMg),ml=prep?.waterMl||num(plan?.finalMl),upm=num(plan?.unitsPerMl);
+   if(totalUnits==null||totalUnits<0||vial==null||vial<=0||ml==null||ml<=0||upm==null||upm<=0)return null;
+   return round((totalUnits*vial)/(ml*upm),6);
+ }
+@@ -10332,13 +10336,37 @@
+ function trackingDateISO(date){
+   return typeof date==="string"?date:localDateISO(date);
+ }
++function continuousVialPrepForDate(plan,date=new Date()){
++  if(!plan?.noCycle)return null;
++  const target=typeof date==="string"?parseISO(date):date;
++  const candidates=(state.vialRecords||[])
++    .filter(record=>record?.planId===plan.id&&num(record?.vialMg)>0&&num(record?.finalMl||record?.bacWaterMl)>0)
++    .map(record=>({record,date:parseISO(record.startDate||record.needDate||"")}))
++    .filter(item=>item.date&&(!target||item.date<=target))
++    .sort((a,b)=>a.date-b.date||Number(a.record?.scheduleRowIndex||a.record?.vialNumber||0)-Number(b.record?.scheduleRowIndex||b.record?.vialNumber||0));
++  const selected=candidates.length?candidates[candidates.length-1]?.record:null;
++  const vialMg=num(selected?.vialMg)>0?num(selected.vialMg):num(plan?.vialMg);
++  const waterMl=num(selected?.finalMl||selected?.bacWaterMl)>0?num(selected.finalMl||selected.bacWaterMl):num(plan?.finalMl||plan?.bacWaterMl);
++  if(!(vialMg>0&&waterMl>0))return null;
++  return {record:selected,vialMg,waterMl,finalMl:waterMl,concentration:vialMg/waterMl};
++}
++function continuousVialPrepForRecord(plan,record,fallback=null){
++  const vialMg=num(record?.vialMg)>0?num(record.vialMg):(num(fallback?.vialMg)>0?num(fallback.vialMg):num(plan?.vialMg));
++  const waterMl=num(record?.finalMl||record?.bacWaterMl)>0?num(record.finalMl||record.bacWaterMl):(num(fallback?.waterMl)>0?num(fallback.waterMl):num(plan?.finalMl||plan?.bacWaterMl));
++  return {vialMg:vialMg||0,waterMl:waterMl||0,finalMl:waterMl||0,concentration:vialMg>0&&waterMl>0?vialMg/waterMl:0};
++}
+ function administrationConsumedMg(plan,record){
+   const actualUnits=num(record?.actualUnits),plannedUnits=num(record?.plannedUnits),plannedDose=num(record?.plannedDose);
++  if(plan?.noCycle&&actualUnits!=null&&actualUnits>=0){
++    const prep=continuousVialPrepForDate(plan,String(record?.dateTime||"").slice(0,10));
++    const upm=num(plan?.unitsPerMl)||100;
++    if(prep?.concentration>0&&upm>0)return round((actualUnits/upm)*prep.concentration,6);
++  }
+   if(actualUnits!=null&&actualUnits>=0&&plannedUnits!=null&&plannedUnits>0&&plannedDose!=null&&plannedDose>=0){
+     return round(plannedDose*(actualUnits/plannedUnits),6);
+   }
+   if(plannedDose!=null&&plannedDose>=0)return plannedDose;
+-  if(actualUnits!=null&&actualUnits>=0){const fromUnits=phaseDoseFromUnits(plan,actualUnits);if(fromUnits!=null&&fromUnits>=0)return fromUnits}
++  if(actualUnits!=null&&actualUnits>=0){const fromUnits=phaseDoseFromUnits(plan,actualUnits,String(record?.dateTime||"").slice(0,10));if(fromUnits!=null&&fromUnits>=0)return fromUnits}
+   return null;
+ }
+ function administrationMatchesScheduledStructure(plan,record){
