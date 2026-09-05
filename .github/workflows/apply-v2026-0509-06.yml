@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          EXPECTED_SHA='dcd98dff093bda311b7aeb32caa211a50ae091e49d6d6f4f5c5bfa11693edef3'
+          EXPECTED_SHA='ca2a1dff0186034f73b3283cb89536c234b962ba1cabd2a17fe157e027334140'
           ACTUAL_SHA="$(sha256sum index.html | awk '{print $1}')"
           echo "Expected SHA256: $EXPECTED_SHA"
           echo "Actual SHA256:   $ACTUAL_SHA"
@@ -48,8 +48,9 @@ jobs:
           grep -Fq 'const APP_VERSION="v2026.0509.06";' index.html
           grep -Fq 'simple-plan-summary-row-continuous' index.html
           grep -Fq 'continuousCurrentCycleText' index.html
-          grep -Fq 'runningWeek<=4' index.html
           grep -Fq 'Month ${month} · Week ${weekInMonth}' index.html
+          grep -Fq 'Dose left in vial' index.html
+          grep -Fq 'Current cycle' index.html
           grep -Fq 'CLOUD_SYNC_META_KEY' index.html
           grep -Fq 'SUPABASE_URL' index.html
           grep -Fq 'auth.signInWithPassword' index.html
