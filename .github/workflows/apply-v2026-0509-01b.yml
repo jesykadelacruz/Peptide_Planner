@@ -1,0 +1,32 @@
+name: Apply Peptide Planner v2026.0509.01 (retry)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0509-01b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply staged patch
+        run: python .deploy/v2026_0509_01_patch.py
+      - name: Validate JavaScript
+        run: |
+          python -c "from pathlib import Path; import re; h=Path('index.html').read_text(); s=re.findall(r'<script(?:\\s[^>]*)?>(.*?)</script>',h,re.S|re.I); Path('/tmp/planner-inline.js').write_text(max(s,key=len)); print('scripts',len(s))"
+          node --check /tmp/planner-inline.js
+      - name: Commit production app
+        run: |
+          if git diff --quiet -- index.html; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update Peptide Planner v2026.0509.01'
+          git push
