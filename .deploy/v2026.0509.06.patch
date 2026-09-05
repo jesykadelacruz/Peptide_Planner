@@ -1,12 +1,12 @@
---- a/index.html
-+++ b/index.html
+--- a/index.html	2026-09-05 16:08:32.376235666 +0000
++++ b/index.html	2026-09-05 16:08:32.385904015 +0000
 @@ -9,7 +9,8 @@
  <meta name="apple-mobile-web-app-title" content="Peptide Planner">
  <meta name="mobile-web-app-capable" content="yes">
  <link rel="manifest" href="./manifest.webmanifest">
 -<title>Peptide Planner v2026.0509.05</title>
 +<title>Peptide Planner v2026.0509.06</title>
-+<!-- v2026.0509.06: Continuous-treatment overview second row is Dose, Dose left in vial, and Current cycle in three columns; Current cycle shows Week N for weeks 1-4, then Month N · Week N using four-week treatment months. -->
++<!-- v2026.0509.06: Continuous-treatment overview second row is Dose, Dose left in vial, and Current cycle in three columns; Current cycle starts at Month 1 · Week 1 and advances in four-week treatment months. -->
  <!-- v2026.0509.05: Continuous Cycle Settings keeps Start, End, Time, Schedule, and Interval on one desktop line; mobile layout remains unchanged. -->
  <!-- v2026.0509.04: Continuous-treatment overview keeps Dose, Dose left in vial and Current cycle together; Current cycle is shown as the treatment week counted from the treatment start date. -->
  <!-- v2026.0509.02: Continuous treatments now expose an optional end date in Cycle Settings and show Current cycle with the active continuous week; Today marks unchecked administrations as Missed in small red italic text after their scheduled date/time has passed. -->
@@ -45,21 +45,20 @@
  const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
  const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
  const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
-@@ -12951,8 +12957,11 @@
+@@ -12951,8 +12957,10 @@
    if(day<start)return "Not started";
    const end=plan?.endDate?parseISO(plan.endDate):null;
    if(end&&day>end)return "Ended";
 -  const week=Math.max(1,Math.floor(dayDiff(start,day)/7)+1);
 -  return `Week ${week}`;
 +  const runningWeek=Math.max(1,Math.floor(dayDiff(start,day)/7)+1);
-+  if(runningWeek<=4)return `Week ${runningWeek}`;
 +  const month=Math.floor((runningWeek-1)/4)+1;
 +  const weekInMonth=((runningWeek-1)%4)+1;
 +  return `Month ${month} · Week ${weekInMonth}`;
  }
  
  function renderSimplePlanner(){
-@@ -13009,8 +13018,8 @@
+@@ -13009,8 +13017,8 @@
                <div class="simple-mini"><span>Schedule</span><strong>${esc(scheduleText)}</strong></div>
                <div class="simple-mini"><span>Route</span><strong>${esc(plan.route||"Not selected")}</strong></div>
              </div>
