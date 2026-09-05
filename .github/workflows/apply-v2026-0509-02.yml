@@ -1,4 +1,4 @@
-# retry after reconciling the production v2026.0409.04 baseline through v2026.0509.01
+# exact production patch generated from the live index and the requested v2026.0509.01 download baseline
 name: Apply and Deploy Peptide Planner v2026.0509.02
 
 on:
@@ -23,8 +23,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply v2026.0509.02 patch
-        run: python .deploy/v2026_0509_02_patch.py
+      - name: Apply exact v2026.0509.02 production patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q '<title>Peptide Planner v2026.0509.02</title>' index.html; then
+            echo 'v2026.0509.02 is already applied'
+          else
+            base64 -d .deploy/v2026_0509_02_production.patch.gz.b64 | gunzip > /tmp/v2026_0509_02.patch
+            git apply --check /tmp/v2026_0509_02.patch
+            git apply /tmp/v2026_0509_02.patch
+          fi
 
       - name: Validate production file
         shell: bash
