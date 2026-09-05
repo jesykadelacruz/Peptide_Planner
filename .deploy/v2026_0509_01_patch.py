@@ -1,0 +1,138 @@
+from pathlib import Path
+
+path = Path('index.html')
+text = path.read_text()
+
+def once(old, new, label):
+    global text
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f'{label}: expected exactly one match, found {count}')
+    text = text.replace(old, new, 1)
+
+once('<title>Peptide Planner v2026.0409.04</title>',
+     '<title>Peptide Planner v2026.0509.01</title>\n<!-- v2026.0509.01: Invitation hardening: true sign-up invitations remain the only path for new approvals, legacy recovery invitations are handled as one-time sign-up completion instead of a second password change, first-time user accounts cannot land on Today before the required guide, and pending legacy invites can be replaced by a fresh sign-up invitation through Resend. -->',
+     'title/version')
+
+once('const APP_VERSION="v2026.0409.04";',
+     'const APP_VERSION="v2026.0509.01";',
+     'APP_VERSION')
+
+once('''function activateTab(tabId){
+  if(tabId==="admin"&&!["owner","admin"].includes(cloudAccess?.role||""))tabId="dashboard";
+  if(tabId==="calendar")tabId="dashboard";''',
+     '''function activateTab(tabId){
+  if(tabId==="admin"&&!["owner","admin"].includes(cloudAccess?.role||""))tabId="dashboard";
+  if(tabId==="calendar")tabId="dashboard";
+  if(tabId==="dashboard"&&plannerFirstTimeGuideRequired()){
+    tabId="safety";
+    requestAnimationFrame(()=>showFirstTimeOrientation(0));
+  }''',
+     'Today first-time guard')
+
+anchor = '''function plannerPasswordRecoveryLinkActive(){
+  const search=new URLSearchParams(location.search);
+  const hash=new URLSearchParams(String(location.hash||"").replace(/^#/,""));
+  return search.get("password")==="1"||search.get("type")==="recovery"||hash.get("type")==="recovery";
+}'''
+replacement = anchor + '''
+async function routePlannerCredentialLink(){
+  if(!cloudClient||!cloudUser)return false;
+  if(plannerInviteLinkActive()){
+    const access=await currentPlannerAccess({activateInvite:false}).catch(()=>null);
+    if(access?.status==="invited"){
+      cloudAccess=access;
+      setPlannerLocked(true);
+      renderPlannerAccessGate();
+      showPlannerInviteSetup();
+      return true;
+    }
+  }
+  if(plannerPasswordRecoveryLinkActive()){
+    const access=await currentPlannerAccess({activateInvite:false}).catch(()=>null);
+    if(access?.status==="invited"&&!access?.activated_at){
+      cloudAccess=access;
+      setPlannerLocked(true);
+      renderPlannerAccessGate();
+      showPlannerInviteSetup();
+      setPlannerInviteFeedback("This is an older invitation link. Create your password once below. After activation you will go directly to the required first-time guide.");
+      return true;
+    }
+    setPlannerLocked(true);
+    renderPlannerAccessGate();
+    showCloudAuth("recovery");
+    return true;
+  }
+  return false;
+}'''
+once(anchor, replacement, 'credential-link router')
+
+once('if(firstUse&&!hasMeaningfulPlannerData(state))forcePlannerFirstUseState();',
+     'if(firstUse&&access?.role==="user")forcePlannerFirstUseState();',
+     'first activation state')
+
+once('''setAdminPageFeedback(result.emailSent
+      ?`New sign-in email sent to ${result.email}. They must open the email and create a password to activate access.`
+      :`Account access was created for ${result.email}, but the sign-in email could not be sent because the email service is temporarily rate-limited. Use Resend from the User Action menu later.`,result?.emailPending?"error":"info");''',
+     '''setAdminPageFeedback(result.emailSent
+      ?`Sign-up invitation sent to ${result.email}. The email opens the Peptide Planner sign-up page, where they create their password once and then begin first-time setup.`
+      :`Account access was created for ${result.email}, but the sign-up invitation could not be sent because the email service is temporarily rate-limited. Use Resend from the User Action menu later.`,result?.emailPending?"error":"info");''',
+     'admin invite wording')
+
+once('''setAdminPageFeedback(result?.emailType==="signup_invite"?`Sign-up invitation email sent to ${result?.email||email||"the user"}.`:`Account access email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);''',
+     '''setAdminPageFeedback(result?.emailType==="signup_invite"?`Sign-up invitation email sent to ${result?.email||email||"the user"}. It opens the sign-up page; the user creates one password and then starts the first-time guide.`:`Account access email sent to ${result?.email||email||"the user"}. Existing saved planner data will remain available when the account is activated.`);''',
+     'admin resend wording')
+
+old_startup = '''  try{const {data}=await cloudClient.auth.getSession();cloudUser=data?.session?.user||null;renderCloudAccount();if(cloudUser&&plannerPasswordRecoveryLinkActive()){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery")}else await verifyPlannerAccess({silent:true})}catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
+  cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const nextUser=session?.user||null;if(plannerCredentialSetupCompleting&&["USER_UPDATED","SIGNED_IN"].includes(event)){cloudUser=nextUser||cloudUser;renderCloudAccount();return}if(event==="SIGNED_OUT"){cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return}cloudUser=nextUser;renderCloudAccount();if(event==="PASSWORD_RECOVERY"){setPlannerLocked(true);renderPlannerAccessGate();showCloudAuth("recovery");return}if(nextUser){await verifyPlannerAccess({silent:true})}},0)});'''
+new_startup = '''  try{
+    const {data}=await cloudClient.auth.getSession();
+    cloudUser=data?.session?.user||null;
+    renderCloudAccount();
+    const routed=cloudUser?await routePlannerCredentialLink():false;
+    if(!routed)await verifyPlannerAccess({silent:true});
+  }catch(error){console.warn("Session restore failed",error);setPlannerLocked(true);renderPlannerAccessGate({error:"Unable to verify your session. Please sign in again."})}
+  cloudClient.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{
+    const nextUser=session?.user||null;
+    if(plannerCredentialSetupCompleting&&["USER_UPDATED","SIGNED_IN","PASSWORD_RECOVERY"].includes(event)){cloudUser=nextUser||cloudUser;renderCloudAccount();return}
+    if(event==="SIGNED_OUT"){
+      cloudUser=null;cloudAccess=null;plannerStateUserId="";clearTimeout(cloudSaveTimer);cloudApplying=true;state=defaultState();normaliseState();cloudApplying=false;renderAll({preserveView:false});setPlannerLocked(true);renderPlannerAccessGate();renderCloudAccount();return
+    }
+    cloudUser=nextUser;renderCloudAccount();
+    if(nextUser&&(event==="PASSWORD_RECOVERY"||plannerInviteLinkActive()||plannerPasswordRecoveryLinkActive())){
+      const routed=await routePlannerCredentialLink();
+      if(routed)return;
+    }
+    if(nextUser){await verifyPlannerAccess({silent:true})}
+  },0)});'''
+once(old_startup, new_startup, 'auth startup/router')
+
+once('''function plannerProfileComplete(){''',
+     '''function plannerFirstTimeGuideRequired(){
+  return cloudAccess?.status==="active"&&cloudAccess?.role==="user"&&state?.ui?.onboardingIntroComplete===false;
+}
+function plannerProfileComplete(){''',
+     'first-time guide predicate')
+
+once('''function routeInitialPlannerExperience({forceFirstUse=false}={}){
+  if(forceFirstUse&&!hasMeaningfulPlannerData(state))forcePlannerFirstUseState();''',
+     '''function routeInitialPlannerExperience({forceFirstUse=false}={}){
+  if(forceFirstUse&&cloudAccess?.role==="user")forcePlannerFirstUseState();''',
+     'initial planner routing')
+
+required = [
+    '<title>Peptide Planner v2026.0509.01</title>',
+    'const APP_VERSION="v2026.0509.01";',
+    'function routePlannerCredentialLink()',
+    'function plannerFirstTimeGuideRequired()',
+    'showFirstTimeOrientation(0)',
+    'planner-access-admin-v2',
+    'planner_activate_invite',
+    'resetPasswordForEmail',
+]
+for marker in required:
+    if marker not in text:
+        raise SystemExit(f'missing required marker after patch: {marker}')
+
+path.write_text(text)
+print('Patched index.html:', len(text.encode()))
