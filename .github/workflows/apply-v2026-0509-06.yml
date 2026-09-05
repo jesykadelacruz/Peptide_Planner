@@ -23,11 +23,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SOURCE_SHA='b6f29190b2dbb9d732fe36710e3d7cefc6aa817e9562ee959a7a2b1735084618'
-          if grep -Fq '<title>Peptide Planner v2026.0509.06</title>' index.html; then
-            echo 'v2026.0509.06 is already applied; skipping patch.'
+          SOURCE_SHA='dcd98dff093bda311b7aeb32caa211a50ae091e49d6d6f4f5c5bfa11693edef3'
+          TARGET_SHA='ca2a1dff0186034f73b3283cb89536c234b962ba1cabd2a17fe157e027334140'
+          ACTUAL_SOURCE="$(sha256sum index.html | awk '{print $1}')"
+          if [ "$ACTUAL_SOURCE" = "$TARGET_SHA" ]; then
+            echo 'Corrected v2026.0509.06 is already applied; skipping patch.'
           else
-            ACTUAL_SOURCE="$(sha256sum index.html | awk '{print $1}')"
             echo "Expected source SHA256: $SOURCE_SHA"
             echo "Actual source SHA256:   $ACTUAL_SOURCE"
             test "$ACTUAL_SOURCE" = "$SOURCE_SHA"
@@ -49,6 +50,7 @@ jobs:
           grep -Fq 'simple-plan-summary-row-continuous' index.html
           grep -Fq 'continuousCurrentCycleText' index.html
           grep -Fq 'Month ${month} · Week ${weekInMonth}' index.html
+          ! grep -Fq 'if(runningWeek<=4)return `Week ${runningWeek}`;' index.html
           grep -Fq 'Dose left in vial' index.html
           grep -Fq 'Current cycle' index.html
           grep -Fq 'CLOUD_SYNC_META_KEY' index.html
