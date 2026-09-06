@@ -1,0 +1,89 @@
+name: Apply Peptide Planner v2026.0709.03
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-03.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "2d3b11aac4c555c5b3d0b167ce90b90945777be2"
+          test "$(git hash-object peptide-planner-sw.js)" = "fe350051ed8c3d3a5d9867ce81961d538a6d8b0f"
+          cp index.html /tmp/source-index.html
+
+      - name: Apply exact v2026.0709.03 patch
+        run: |
+          git apply --check .deploy/v2026.0709.03.patch
+          git apply .deploy/v2026.0709.03.patch
+
+      - name: Validate exact target and owner regression guards
+        run: |
+          test "$(git hash-object index.html)" = "47886215c10f3ed95fda757b9e3ed6c257b4e3be"
+          test "$(git hash-object peptide-planner-sw.js)" = "701a4249fc429095af5c77252f1e82fae70a1209"
+          test "$(sha256sum index.html | awk '{print $1}')" = "b5af62390b81c74a4232770079230cf215fa8b6b2c32a57c1940a3db3e8953de"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "c768e4f2d564bd608d1df178ce1ab8d54772cd401581e61eb60d4b8ecf4f8d19"
+          python3 - <<'PY'
+          import pathlib,re
+          src=pathlib.Path('/tmp/source-index.html').read_text()
+          text=pathlib.Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.03</title>',
+            'const APP_VERSION="v2026.0709.03";',
+            'function applyStandardUserOwnerParityState()',
+            'body.planner-standard-user #planner .peptide-settings-grid',
+            'document.body.classList.toggle("planner-standard-user",active&&cloudAccess?.role==="user")',
+            'function plannerCanAccessAdmin()',
+            '["owner","admin"].includes(cloudAccess?.role||"")',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('Missing required v2026.0709.03 markers: '+repr(missing))
+
+          # Owner treatment renderer and all core calculations must remain byte-for-byte unchanged.
+          def chunks(s):
+            parts=s.split('\nfunction ')
+            out={}
+            for part in parts[1:]:
+              name=part.split('(',1)[0].strip()
+              out[name]='function '+part
+            return out
+          a,b=chunks(src),chunks(text)
+          unchanged=[
+            'renderSimplePlanner','calcUnits','planCyclesPerYear','continuousVialPrepForDate',
+            'continuousVialPrepForRecord','currentContinuousVialScheduleRows',
+            'currentActualOpenedVialRecord','currentOpenedVialRecord','currentVialDosesLeft',
+            'scheduleForDate','todayAdministrationMissed','cycleVialScheduleComputation',
+            'cycleConfigVialScheduleComputation','continuousVialScheduleComputation',
+            'continuousCurrentCycleText','ensurePlanCycleConfigs'
+          ]
+          for name in unchanged:
+            if name not in a or name not in b: raise SystemExit('Required owner/core function missing: '+name)
+            if a[name] != b[name]: raise SystemExit('Owner/core function changed unexpectedly: '+name)
+
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.03"
+          git push origin HEAD:main
