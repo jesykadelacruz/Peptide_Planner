@@ -1,0 +1,94 @@
+name: Apply Peptide Planner v2026.0709.02
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-02.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "117e5d7b3604e304ffc356ff92ca0b04903f4eaf"
+          test "$(git hash-object peptide-planner-sw.js)" = "a4026018c8a0bee14271482eecefc27f8a3af830"
+          cp index.html /tmp/source-index.html
+
+      - name: Apply exact v2026.0709.02 patch
+        run: |
+          git apply --check .deploy/v2026.0709.02.patch
+          git apply .deploy/v2026.0709.02.patch
+
+      - name: Validate exact target and regression guards
+        run: |
+          test "$(git hash-object index.html)" = "2d3b11aac4c555c5b3d0b167ce90b90945777be2"
+          test "$(git hash-object peptide-planner-sw.js)" = "fe350051ed8c3d3a5d9867ce81961d538a6d8b0f"
+          test "$(sha256sum index.html | awk '{print $1}')" = "8003ab99ae1fa8291b2344e9113b3c7583072874b89a80928a7e6cd68982d255"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "d72df399b4620fa6bfbc229412f791f7407b18f1233082ef8a26f2b7c5a6b39c"
+          python3 - <<'PY'
+          import pathlib,re
+          src=pathlib.Path('/tmp/source-index.html').read_text()
+          text=pathlib.Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.02</title>',
+            'const APP_VERSION="v2026.0709.02";',
+            'function plannerCanAccessAdmin()',
+            'if(tabId==="admin"&&!plannerCanAccessAdmin())tabId="dashboard";',
+            'const firstName=plannerFirstName(profileName||cloudAccess?.name||"");',
+            '"cycleConfigs","continuousVialScheduleRowCount"',
+            '<div class="peptide-settings-grid">',
+            'config=cycleConfigForSequence(plan,sequence);if(!config)return;',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('Missing required v2026.0709.02 markers: '+repr(missing))
+          forbidden=[
+            'peptide-settings-grid ${plan.noCycle?"continuous-peptide-settings-grid":""}',
+            '#planner .peptide-settings-grid.continuous-peptide-settings-grid'
+          ]
+          present=[x for x in forbidden if x in text]
+          if present: raise SystemExit('Owner layout override still present: '+repr(present))
+
+          def chunks(s):
+            parts=s.split('\nfunction ')
+            out={}
+            for part in parts[1:]:
+              name=part.split('(',1)[0].strip()
+              out[name]='function '+part
+            return out
+          a,b=chunks(src),chunks(text)
+          unchanged=[
+            'calcUnits','planCyclesPerYear','continuousVialPrepForDate','continuousVialPrepForRecord',
+            'currentContinuousVialScheduleRows','currentActualOpenedVialRecord','currentOpenedVialRecord',
+            'currentVialDosesLeft','scheduleForDate','todayAdministrationMissed',
+            'cycleVialScheduleComputation','cycleConfigVialScheduleComputation',
+            'continuousVialScheduleComputation','continuousCurrentCycleText'
+          ]
+          for name in unchanged:
+            if name not in a or name not in b: raise SystemExit('Calculation function missing: '+name)
+            if a[name] != b[name]: raise SystemExit('Calculation function changed unexpectedly: '+name)
+
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.02"
+          git push origin HEAD:main
