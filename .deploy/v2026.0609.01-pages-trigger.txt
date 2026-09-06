@@ -1,0 +1,4 @@
+Peptide Planner v2026.0609.01 Pages deployment trigger.
+Validated production commit: 9a764b47e1bcfb6e982e56e5bfeba6db0f94e561
+Validated index blob: 117e5d7b3604e304ffc356ff92ca0b04903f4eaf
+Validated service worker blob: a4026018c8a0bee14271482eecefc27f8a3af830
