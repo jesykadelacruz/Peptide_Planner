@@ -1,0 +1,69 @@
+diff --git a/index.html b/index.html
+index 8171aec..a6cba07 100644
+--- a/index.html
++++ b/index.html
+@@ -9,7 +9,8 @@
+ <meta name="apple-mobile-web-app-title" content="Peptide Planner">
+ <meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0509.07</title>
++<title>Peptide Planner v2026.0509.08</title>
++<!-- v2026.0509.08: Continuous Open next vial promotes the next scheduled future vial to the actual opened vial; future-dated openings no longer derive an In use status before their open date. -->
+ <!-- v2026.0509.07: Continuous-treatment vial preparation is stored per Vial Schedule row (Vial mg, BAC Water, concentration); dose-left converts historical units using the vial active on each administration date and continuous vial scheduling uses each vial's own capacity. -->
+ <!-- v2026.0509.06: Continuous-treatment overview second row is Dose, Dose left in vial, and Current cycle in three columns; Current cycle starts at Month 1 · Week 1 and advances in four-week treatment months. -->
+ <!-- v2026.0509.05: Continuous Cycle Settings keeps Start, End, Time, Schedule, and Interval on one desktop line; mobile layout remains unchanged. -->
+@@ -7185,7 +7186,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0509.07";
++const APP_VERSION="v2026.0509.08";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -10707,11 +10708,15 @@ function vialDiscardDisplay(record,plan){
+ }
+ function deriveVialStatus(record){
+   if(["Finished","Discarded","On hold"].includes(record.status)&&record.statusAuto===false)return record.status;
+-  if(record.startDate)return "In use";
++  const today=parseISO(todayISO());
++  if(record.startDate){
++    const opened=parseISO(record.startDate);
++    if(opened&&today&&opened<=today)return "In use";
++  }
+   if(record.receivedDate)return "Received";
+   if(record.purchaseDate)return "Purchased";
+   if(record.needDate){
+-    const need=parseISO(record.needDate),today=parseISO(todayISO());
++    const need=parseISO(record.needDate);
+     if(need&&today&&need<=today)return "Need to buy";
+   }
+   return "Planned";
+@@ -10882,10 +10887,25 @@ function openNextVialForPlan(plan,openedDate=todayISO()){
+     const count=currentAnnualCycleCount(plan,opened);
+     if(count&&count.current===0)return {blocked:true,reason:"Treatment has not started"};
+   }
+-  const closed=new Set(["Finished","Discarded","On hold"]);
+-  let record=vialRecordsForPlan(plan).find(item=>!item.startDate&&!closed.has(String(item.status||"")));
++  const closed=new Set(["Finished","Discarded","On hold"]),records=vialRecordsForPlan(plan);
++  let record=null;
++  if(plan.noCycle){
++    record=records.find(item=>{
++      if(closed.has(String(item.status||"")))return false;
++      if(!item.startDate)return true;
++      const plannedOpen=parseISO(item.startDate);
++      return !!(plannedOpen&&plannedOpen>opened);
++    });
++  }else{
++    record=records.find(item=>!item.startDate&&!closed.has(String(item.status||"")));
++  }
+   if(!record)record=createManualVialRecord(plan);
+   record.startDate=localDateISO(opened);
++  if(plan.noCycle){
++    record.scheduleOpenAuto=false;
++    record.finishDate="";
++    record.scheduleFinishAuto=true;
++  }
+   record.statusAuto=true;
+   updateVialRecordDerived(record,plan);
+   return {record};
