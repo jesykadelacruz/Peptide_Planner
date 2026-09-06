@@ -1,0 +1,122 @@
+name: Apply Peptide Planner v2026.0509.10
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0509-10.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact v09 production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = "53359ac532f6d26864d6401aff1aed812f95a9a2"
+          test "$(git hash-object peptide-planner-sw.js)" = "72a79c7852835bac75cf34712e2639b27b0b5281"
+          cp index.html /tmp/peptide-planner-v09.html
+          git apply --check .deploy/v2026.0509.10.patch
+
+      - name: Apply v10 planner parity patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply .deploy/v2026.0509.10.patch
+          cat > peptide-planner-sw.js <<'EOF'
+          const PEPTIDE_PLANNER_SW_VERSION='v2026.0509.10';
+          self.addEventListener('install',event=>{self.skipWaiting();});
+          self.addEventListener('activate',event=>{
+            event.waitUntil((async()=>{
+              const keys=await caches.keys();
+              await Promise.all(keys.map(key=>caches.delete(key)));
+              await self.clients.claim();
+              const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+              await Promise.all(clients.map(client=>{
+                try{
+                  const url=new URL(client.url);
+                  url.searchParams.set('_ppv',PEPTIDE_PLANNER_SW_VERSION);
+                  return client.navigate(url.href);
+                }catch{return Promise.resolve();}
+              }));
+            })());
+          });
+          self.addEventListener('fetch',event=>{
+            if(event.request.method!=='GET')return;
+            event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>fetch(event.request)));
+          });
+          EOF
+
+      - name: Validate exact v10 production files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = "710c3c51e963af3cda8ce80a72fbf43b338f6711"
+          test "$(git hash-object peptide-planner-sw.js)" = "37d8864c267c5ec126720f89ae9c4b1c1836308f"
+          grep -Fq '<title>Peptide Planner v2026.0509.10</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0509.10";' index.html
+          grep -Fq 'continuous-peptide-settings-grid' index.html
+          grep -Fq 'onboarding is guidance, not a role-based access gate' index.html
+          grep -Fq 'every active account enters the same planner experience' index.html
+          ! grep -Fq 'cloudAccess?.role==="user"' index.html
+          grep -Fq 'CLOUD_SYNC_META_KEY' index.html
+          grep -Fq 'SUPABASE_URL' index.html
+          grep -Fq 'auth.signInWithPassword' index.html
+          grep -Fq 'auth.resetPasswordForEmail' index.html
+          grep -Fq 'signUp' index.html
+          grep -Fq 'manifest.webmanifest' index.html
+          grep -Fq 'peptide-planner-sw.js' index.html
+          grep -Fq 'navigator.serviceWorker.register' index.html
+          grep -Fq "PEPTIDE_PLANNER_SW_VERSION='v2026.0509.10'" peptide-planner-sw.js
+          node --check peptide-planner-sw.js
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          before=Path('/tmp/peptide-planner-v09.html').read_text(encoding='utf-8')
+          after=Path('index.html').read_text(encoding='utf-8')
+          names=['continuousVialScheduleComputation','currentVialDosesLeft','administrationConsumedMg','calcUnits','addSimpleTreatmentToMyPlan','bindSimpleSetup','renderContinuousVialSchedule','renderContinuousDoseSchedule','save','pushCloudState','reconcileCloudState','planReadyForToday']
+          def block(text,name):
+              m=re.search(rf'\n(?:async\s+)?function {re.escape(name)}\s*\(',text)
+              if not m: raise SystemExit(f'missing function {name}')
+              start=m.start()+1
+              n=re.search(r'\n(?:async\s+)?function [A-Za-z_$][\w$]*\s*\(',text[m.end():])
+              end=m.end()+n.start() if n else len(text)
+              return text[start:end]
+          for name in names:
+              if block(before,name)!=block(after,name):
+                  raise SystemExit(f'unexpected functional change in {name}')
+          if 'function plannerFirstTimeGuideRequired(){\n  // v2026.0509.10: onboarding is guidance, not a role-based access gate.\n  return false;' not in after:
+              raise SystemExit('planner first-use gate not removed')
+          if '<div class="peptide-settings-grid ${plan.noCycle?"continuous-peptide-settings-grid":""}">' not in after:
+              raise SystemExit('shared continuous peptide settings layout missing')
+          parts=[]
+          for m in re.finditer(r'<script(?:\s[^>]*)?>(.*?)</script>',after,re.S|re.I):
+              tag=after[m.start():after.find('>',m.start())+1]
+              if 'src=' not in tag.lower(): parts.append(m.group(1))
+          Path('/tmp/inline.js').write_text('\n;\n'.join(parts),encoding='utf-8')
+          PY
+          node --check /tmp/inline.js
+          git diff --check
+
+      - name: Commit synchronized production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html peptide-planner-sw.js; then
+            echo 'Production files already match v2026.0509.10.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html peptide-planner-sw.js
+          git commit -m 'Update Peptide Planner v2026.0509.10'
+          git push
