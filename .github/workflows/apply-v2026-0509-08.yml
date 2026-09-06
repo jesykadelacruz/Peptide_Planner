@@ -1,0 +1,99 @@
+name: Apply Peptide Planner v2026.0509.08
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0509-08.yml'
+      - '.deploy/v2026.0509.08.patch'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply exact production patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_SHA='af53577eb805c7b3893c74671e74385969670de3675e49c6bb6abacbdd94cd50'
+          if grep -Fq '<title>Peptide Planner v2026.0509.08</title>' index.html; then
+            echo 'v2026.0509.08 is already applied; skipping patch.'
+          else
+            ACTUAL_SOURCE="$(sha256sum index.html | awk '{print $1}')"
+            echo "Expected source SHA256: $SOURCE_SHA"
+            echo "Actual source SHA256:   $ACTUAL_SOURCE"
+            test "$ACTUAL_SOURCE" = "$SOURCE_SHA"
+            git apply --check .deploy/v2026.0509.08.patch
+            git apply .deploy/v2026.0509.08.patch
+          fi
+
+      - name: Validate production file
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_SHA='c01d27c9c8c0b09f403de09b0d5664e28af176669ac803855760495681a95f3d'
+          ACTUAL_SHA="$(sha256sum index.html | awk '{print $1}')"
+          echo "Expected SHA256: $EXPECTED_SHA"
+          echo "Actual SHA256:   $ACTUAL_SHA"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          grep -Fq '<title>Peptide Planner v2026.0509.08</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0509.08";' index.html
+          grep -Fq 'plannedOpen&&plannedOpen>opened' index.html
+          grep -Fq 'record.scheduleOpenAuto=false' index.html
+          grep -Fq 'opened&&today&&opened<=today' index.html
+          grep -Fq 'currentVialDosesLeft' index.html
+          grep -Fq 'continuousVialPrepForDate' index.html
+          grep -Fq 'CLOUD_SYNC_META_KEY' index.html
+          grep -Fq 'SUPABASE_URL' index.html
+          grep -Fq 'auth.signInWithPassword' index.html
+          grep -Fq 'auth.resetPasswordForEmail' index.html
+          grep -Fq 'signUp' index.html
+          grep -Fq 'manifest.webmanifest' index.html
+          grep -Fq 'peptide-planner-sw.js' index.html
+          grep -Fq 'navigator.serviceWorker.register' index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text(encoding='utf-8')
+          scripts='\n'.join(re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,re.S|re.I))
+          Path('/tmp/peptide-inline.js').write_text(scripts,encoding='utf-8')
+          # Regression: a continuous next vial with a projected future open date must be promotable to actual-open today.
+          opened='2026-09-06'
+          rows=[
+              {'id':'v1','startDate':'2026-08-15','status':'In use','vialMg':30},
+              {'id':'v2','startDate':'2026-09-12','status':'In use','vialMg':60,'purchaseDate':'2026-09-06'},
+              {'id':'v3','startDate':'2026-11-01','status':'In use','vialMg':30},
+          ]
+          candidates=[r for r in rows if not r['startDate'] or r['startDate']>opened]
+          assert candidates and candidates[0]['id']=='v2'
+          candidates[0]['startDate']=opened
+          # No administrations after a 6 Sep open in the captured case, so the new 60 mg vial starts with full inventory.
+          administrations=['2026-08-15','2026-08-22','2026-08-29','2026-09-05']
+          remaining=60-sum(7.5 for d in administrations if d>=opened)
+          assert remaining==60
+          # Future-dated start must not be treated as already in-use.
+          assert 'if(opened&&today&&opened<=today)return "In use";' in html
+          PY
+          node --check /tmp/peptide-inline.js
+
+      - name: Commit synchronized production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo 'No production file change to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Update Peptide Planner v2026.0509.08'
+          git push origin HEAD:main
