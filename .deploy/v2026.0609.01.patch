@@ -1,0 +1,90 @@
+--- a/index.html
++++ b/index.html
+@@ -9,8 +9,9 @@
+ <meta name="apple-mobile-web-app-title" content="Peptide Planner">
+ <meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0509.10</title>
++<title>Peptide Planner v2026.0609.01</title>
+ <!-- v2026.0509.08: Continuous Open next vial promotes the next scheduled future vial to the actual opened vial; future-dated openings no longer derive an In use status before their open date. -->
++<!-- v2026.0609.01: Owner/User full planner parity — owner and user share identical non-admin markup, controls and handlers; automatic onboarding overlays no longer intercept profile/treatment/verification actions; Admin Dashboard remains inaccessible to user role. -->
+ <!-- v2026.0509.10: Owner/User planner parity — all non-admin planner views and treatment controls use the same renderer and interaction path; mandatory user-only onboarding gating is removed; continuous Peptide Settings uses a shared four-column layout. -->
+ <!-- v2026.0509.09: Continuous Vial Schedule is visually separated into Active & Pending Vials and Completed Vials; vial calculations, dates, statuses, editing, and dose-counting logic are unchanged. -->
+ <!-- v2026.0509.07: Continuous-treatment vial preparation is stored per Vial Schedule row (Vial mg, BAC Water, concentration); dose-left converts historical units using the vial active on each administration date and continuous vial scheduling uses each vial's own capacity. -->
+@@ -7208,7 +7209,7 @@
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0509.10";
++const APP_VERSION="v2026.0609.01";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -7831,10 +7832,6 @@
+ function activateTab(tabId){
+   if(tabId==="admin"&&!["owner","admin"].includes(cloudAccess?.role||""))tabId="dashboard";
+   if(tabId==="calendar")tabId="dashboard";
+-  if(tabId==="dashboard"&&plannerFirstTimeGuideRequired()){
+-    tabId="safety";
+-    requestAnimationFrame(()=>showFirstTimeOrientation(0));
+-  }
+   const target=document.getElementById(tabId);
+   if(!target||!target.classList.contains("tab"))return;
+   const navTab=["protocols","guidelines"].includes(tabId)?"protocols":["guide","progress","safety"].includes(tabId)?"safety":tabId;
+@@ -10062,7 +10059,7 @@
+ 
+ function registerPlannerServiceWorker(){
+   if(!("serviceWorker" in navigator)||!window.isSecureContext)return;
+-  navigator.serviceWorker.register("./peptide-planner-sw.js",{scope:"./",updateViaCache:"none"})
++  navigator.serviceWorker.register(`./peptide-planner-sw.js?v=${encodeURIComponent(APP_VERSION)}`,{scope:"./",updateViaCache:"none"})
+     .then(registration=>registration.update().catch(()=>{}))
+     .catch(error=>console.warn("Service worker registration failed",error));
+ }
+@@ -13157,7 +13154,6 @@
+     card.querySelectorAll(".simple-plan-toggle .switch,.simple-plan-toggle .switch input").forEach(control=>control.addEventListener("click",event=>event.stopPropagation()));
+     card.querySelectorAll("[data-simple-field]").forEach(control=>control.addEventListener("change",()=>{
+       const field=control.dataset.simpleField;
+-      let showTourAfter=false;
+       if(field==="stackStatus")setPlanStackStatus(plan,control.value);
+       else{
+         const recalculatesDose=["vialMg","bacWaterMl","finalMl","unitsPerMl"].includes(field);
+@@ -13169,12 +13165,11 @@
+         if(field==="bacWaterMl")plan.finalMl=control.value;
+         if(recalculatesDose)syncPlanPhaseCalculations(plan);
+         if(field==="confirmed"&&control.checked&&planReadyForToday(plan)&&plannerOnboardingStage()==="verify"){
+-          state.ui.onboardingStage="tour";state.ui.onboardingComplete=false;showTourAfter=true;
++          state.ui.onboardingStage="tour";state.ui.onboardingComplete=false;
+         }
+         save();
+       }
+       renderAll();
+-      if(showTourAfter)setTimeout(showPlannerHowToUse,140);
+     }));
+     card.querySelector("[data-simple-schedule]")?.addEventListener("change",event=>{applyPlannerSchedulePreset(plan,event.target.value);save();renderAll()});
+     card.querySelector("[data-plan-active-weeks]")?.addEventListener("change",event=>{
+@@ -13514,7 +13509,7 @@
+     plan.basePlanId=baseId;plan.cycleStackInstance=false;plan.cycleNumber=1;plan.confirmed=false;plan.enabled=false;reconcilePlanStackStatus(plan);
+     if(!state.plans.some(item=>item.id===plan.id))state.plans.push(plan);
+     const advanceOnboarding=plannerOnboardingStage()==="treatment";if(advanceOnboarding){state.ui.onboardingStage="verify";state.ui.onboardingComplete=false;}
+-    save();renderAll();clearSimpleSetup();if(advanceOnboarding)setTimeout(showVerifyNextStep,120);return true;
++    save();renderAll();clearSimpleSetup();return true;
+   }catch(error){console.error("Add Treatment failed",error);alert(`Unable to add this treatment to Treatments: ${error?.message||error}`);return false;}
+ }
+ function bindSimpleSetup(){
+@@ -14938,8 +14933,6 @@
+   const advanceOnboarding=plannerOnboardingStage()==="profile"&&plannerProfileComplete();
+   if(advanceOnboarding){state.ui.onboardingStage="treatment";state.ui.onboardingComplete=false;renderGettingStartedJourney();}
+   save();renderAll();
+-  if(advanceOnboarding)setTimeout(showTreatmentNextStep,120);
+-  else if(plannerOnboardingStage()==="profile")setTimeout(()=>showOnboarding({stage:"profile",title:"Complete the required profile fields",body:`<p>Your profile was saved, but the setup step is not complete yet.</p><div class="onboarding-required-note">Enter your name, date of birth, height, starting weight and target weight, then save again.</div>`,primaryLabel:"Continue profile",primaryAction:openProfileForOnboarding}),120)
+ };
+ document.getElementById("saveQuickTarget").onclick=()=>{const v=num(document.getElementById("quickTarget").value);if(!v){alert("Enter a valid target weight.");return}state.profile.targetWeight=v;save();renderAll()};
+ document.getElementById("saveProgressProfile").onclick=()=>{
+--- a/peptide-planner-sw.js
++++ b/peptide-planner-sw.js
+@@ -1,4 +1,4 @@
+-const PEPTIDE_PLANNER_SW_VERSION='v2026.0509.10';
++const PEPTIDE_PLANNER_SW_VERSION='v2026.0609.01';
+ self.addEventListener('install',event=>{self.skipWaiting();});
+ self.addEventListener('activate',event=>{
+   event.waitUntil((async()=>{
