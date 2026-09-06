@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0709.02</title>
+<title>Peptide Planner v2026.0709.03</title>
+<!-- v2026.0709.03: User-view parity only. Owner view and owner treatment behavior remain unchanged; active User accounts receive owner-equivalent treatment layout overrides and legacy user treatment-state normalization, while Admin Dashboard remains unavailable to User. -->
 <!-- v2026.0709.02: Owner and user use the exact same planner renderer, fields, controls and calculations; only Admin Dashboard access is role-restricted. Restores the owner Peptide Settings layout, preserves vial/cycle row state across reloads, fixes cyclic Add/Remove vial persistence, and makes Personal Profile name the header source of truth. -->
 <!-- v2026.0709.01: Owner and user share one identical planner renderer, layout and treatment interaction path; only Admin Dashboard access remains role-restricted. Cache-busting is strengthened so user sessions load the current interface. -->
 <!-- v2026.0509.08: Continuous Open next vial promotes the next scheduled future vial to the actual opened vial; future-dated openings no longer derive an In use status before their open date. -->
@@ -5471,6 +5472,51 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 }
 
 
+
+/* v2026.0709.03 — USER VIEW ONLY: mirror the existing Owner treatment layout without changing Owner CSS. */
+body.planner-standard-user #planner .peptide-settings-grid{
+  display:grid!important;
+  grid-template-columns:repeat(10,minmax(0,1fr))!important;
+  gap:9px!important;
+  align-items:end!important
+}
+body.planner-standard-user #planner .peptide-settings-grid>div{min-width:0!important}
+body.planner-standard-user #planner .peptide-settings-grid>div:nth-child(-n+5){grid-column:span 2!important}
+body.planner-standard-user #planner .peptide-settings-grid>div:nth-child(6){grid-column:span 4!important;margin-top:0!important}
+body.planner-standard-user #planner .peptide-settings-grid>div:nth-child(7),
+body.planner-standard-user #planner .peptide-settings-grid>div:nth-child(8){grid-column:span 3!important;margin-top:0!important}
+body.planner-standard-user #planner .peptide-settings-grid input,
+body.planner-standard-user #planner .peptide-settings-grid select{width:100%!important;min-width:0!important;max-width:100%!important}
+body.planner-standard-user #planner .peptide-settings-grid .dispose-by-control{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)!important;gap:7px!important}
+body.planner-standard-user #planner .cycle-config-grid{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:9px!important;
+  align-items:end!important
+}
+body.planner-standard-user #planner .cycle-config-grid>div{min-width:0!important;align-self:end!important}
+body.planner-standard-user #planner .cycle-config-grid label{display:block!important;margin:0 0 6px!important;line-height:1.2!important}
+body.planner-standard-user #planner .cycle-config-grid input,
+body.planner-standard-user #planner .cycle-config-grid select{width:100%!important;min-width:0!important;max-width:100%!important}
+body.planner-standard-user #planner .continuous-schedule-section .cycle-config-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+body.planner-standard-user #planner .continuous-schedule-section .cycle-config-grid>div:nth-child(-n+5){grid-column:span 1!important}
+body.planner-standard-user #planner .continuous-schedule-section .continuous-vial-schedule-field{grid-column:1/-1!important}
+@media(max-width:760px){
+  body.planner-standard-user #planner .peptide-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+  body.planner-standard-user #planner .peptide-settings-grid>div{grid-column:auto!important}
+  body.planner-standard-user #planner .cycle-config-grid,
+  body.planner-standard-user #planner .continuous-schedule-section .cycle-config-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+  body.planner-standard-user #planner .cycle-config-grid>div,
+  body.planner-standard-user #planner .continuous-schedule-section .cycle-config-grid>div{grid-column:auto!important}
+  body.planner-standard-user #planner .continuous-schedule-section .continuous-vial-schedule-field{grid-column:1/-1!important}
+}
+@media(max-width:520px){
+  body.planner-standard-user #planner .peptide-settings-grid,
+  body.planner-standard-user #planner .cycle-config-grid,
+  body.planner-standard-user #planner .continuous-schedule-section .cycle-config-grid{grid-template-columns:1fr!important}
+  body.planner-standard-user #planner .continuous-schedule-section .continuous-vial-schedule-field{grid-column:auto!important}
+}
+
 /* v2026.0509.09 — continuous Vial Schedule grouping only; no vial logic changes. */
 #planner .continuous-vial-group{margin-top:10px}
 #planner .continuous-vial-group:first-child{margin-top:2px}
@@ -7201,7 +7247,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0709.02";
+const APP_VERSION="v2026.0709.03";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -7821,6 +7867,27 @@ function deleteProtocolById(planId){
   Object.keys(state.ui.sectionOpen).filter(key=>key.startsWith(planId+":")).forEach(key=>delete state.ui.sectionOpen[key]);
   save();return plan
 }
+function applyStandardUserOwnerParityState(){
+  // User-only compatibility layer. Owner data/state is never touched by this function.
+  if(cloudAccess?.role!=="user"||cloudAccess?.status!=="active")return false;
+  let changed=false;
+  (state.plans||[]).forEach(plan=>{
+    if(!plan||typeof plan!=="object")return;
+    if(plan.endDate===undefined){plan.endDate="";changed=true;}
+    if(plan.injectionTime===undefined){plan.injectionTime="";changed=true;}
+    if(!Array.isArray(plan.weekdays)){plan.weekdays=[];changed=true;}
+    if(plan.noCycle){
+      const recordRows=(state.vialRecords||[]).filter(record=>record?.planId===plan.id&&Number(record.scheduleCycleNumber)===0).reduce((max,record)=>Math.max(max,Math.max(0,Number(record.scheduleRowIndex)||0)),0);
+      if(plan.continuousVialScheduleRowCount===undefined&&recordRows>0){plan.continuousVialScheduleRowCount=recordRows;changed=true;}
+      return;
+    }
+    const before=JSON.stringify(plan.cycleConfigs||[]);
+    ensurePlanCycleConfigs(plan);
+    if(JSON.stringify(plan.cycleConfigs||[])!==before)changed=true;
+  });
+  return changed;
+}
+
 function plannerCanAccessAdmin(){
   return !!(cloudUser&&cloudAccess?.status==="active"&&["owner","admin"].includes(cloudAccess?.role||""));
 }
@@ -9632,6 +9699,7 @@ async function verifyPlannerAccess({silent=false,forceFirstUse=false}={}){
       cloudClient.rpc("planner_touch_access").catch(()=>{});
       await fetchKnowledgeBaseOverrides();
       await reconcileCloudState({silent:true});
+      if(applyStandardUserOwnerParityState()){save();renderAll({preserveView:false});}
       const firstUse=!!forceFirstUse||consumePlannerFirstUseAfterInvite();
       routeInitialPlannerExperience({forceFirstUse:firstUse});
       return true;
@@ -10076,6 +10144,7 @@ function renderCloudAccount(){
   const accountEmail=document.getElementById("accountCurrentEmail");if(accountEmail)accountEmail.textContent=cloudUser?.email||"Not signed in";
   renderPlannerHeader();
   const active=!!(cloudUser&&cloudAccess?.status==="active");
+  document.body.classList.toggle("planner-standard-user",active&&cloudAccess?.role==="user");
   signIn?.classList.toggle("hidden",!!cloudUser);signUp?.classList.add("hidden");signOut?.classList.toggle("hidden",!cloudUser);sync?.classList.toggle("hidden",!active);
   const canAdmin=plannerCanAccessAdmin();admin?.classList.toggle("hidden",!canAdmin);document.getElementById("adminTabButton")?.classList.toggle("hidden",!canAdmin);
   const owner=active&&cloudAccess?.role==="owner";document.querySelectorAll("#admin .admin-owner-only").forEach(element=>element.classList.toggle("hidden",!owner));
