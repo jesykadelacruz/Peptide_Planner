@@ -9,8 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Peptide Planner">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0509.08</title>
+<title>Peptide Planner v2026.0509.09</title>
 <!-- v2026.0509.08: Continuous Open next vial promotes the next scheduled future vial to the actual opened vial; future-dated openings no longer derive an In use status before their open date. -->
+<!-- v2026.0509.09: Continuous Vial Schedule is visually separated into Active & Pending Vials and Completed Vials; vial calculations, dates, statuses, editing, and dose-counting logic are unchanged. -->
 <!-- v2026.0509.07: Continuous-treatment vial preparation is stored per Vial Schedule row (Vial mg, BAC Water, concentration); dose-left converts historical units using the vial active on each administration date and continuous vial scheduling uses each vial's own capacity. -->
 <!-- v2026.0509.06: Continuous-treatment overview second row is Dose, Dose left in vial, and Current cycle in three columns; Current cycle starts at Month 1 · Week 1 and advances in four-week treatment months. -->
 <!-- v2026.0509.05: Continuous Cycle Settings keeps Start, End, Time, Schedule, and Interval on one desktop line; mobile layout remains unchanged. -->
@@ -5464,6 +5465,14 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 }
 
 
+/* v2026.0509.09 — continuous Vial Schedule grouping only; no vial logic changes. */
+#planner .continuous-vial-group{margin-top:10px}
+#planner .continuous-vial-group:first-child{margin-top:2px}
+#planner .continuous-vial-group-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;padding:0 2px;color:var(--ink)}
+#planner .continuous-vial-group-heading strong{font-size:.82rem;font-weight:850}
+#planner .continuous-vial-group-count{min-width:24px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.68rem;font-weight:850;text-align:center;box-sizing:border-box}
+#planner .continuous-vial-group-empty{padding:9px 10px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:.78rem;background:#fff}
+
 /* v2026.0209.018 desktop vial table; v017 mobile vial cards remain unchanged */
 #planner .cycle-vial-mobile-cards{display:none}
 #planner .cycle-vial-desktop-table-wrap{width:100%;min-width:0;overflow-x:auto}
@@ -7186,7 +7195,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0509.08";
+const APP_VERSION="v2026.0509.09";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12877,12 +12886,14 @@ function renderContinuousVialSchedule(plan){
   const dateFinishInput=row=>`<input type="date" aria-label="Vial ${row.index} date finish" data-continuous-vial-finish-date="${row.index}" value="${esc(row.finishDate||"")}">`;
   const prepInput=(row,field,value,step="0.001")=>`<input type="number" min="0" step="${step}" data-continuous-vial-field="${field}" data-continuous-vial-index="${row.index}" value="${esc(value??"")}">`;
   const removeButton=row=>row.index>required?`<button class="btn small danger cycle-vial-remove" type="button" data-continuous-remove-vial="${row.index}">Remove vial</button>`:"";
+  const desktopRows=groupRows=>`<div class="cycle-vial-desktop-table-wrap"><table class="cycle-vial-desktop-table continuous-vial-prep-table"><thead><tr><th>Vial #</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Open</th><th>Finish</th><th>Status</th></tr></thead><tbody>${groupRows.map(row=>`<tr data-continuous-vial-row="${row.index}"><td><strong class="cycle-vial-table-number">${row.index}</strong></td><td>${prepInput(row,"vialMg",row.vialMg)}</td><td>${prepInput(row,"bacWaterMl",row.waterMl)}</td><td><div class="cycle-vial-dose-box">${row.concentration>0?round(row.concentration,3):"—"}</div></td><td><div class="cycle-vial-dose-box cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</div></td><td class="cycle-vial-table-date">${dateOpenInput(row)}</td><td class="cycle-vial-table-date">${dateFinishInput(row)}</td><td><div class="cycle-vial-table-status"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span>${removeButton(row)}</div></td></tr>`).join("")}</tbody></table></div>`;
+  const mobileRows=groupRows=>`<div class="cycle-vial-schedule cycle-vial-mobile-cards">${groupRows.map(row=>`<div class="cycle-vial-schedule-row" data-continuous-vial-row="${row.index}"><div class="cycle-vial-line"><strong class="cycle-vial-number">${row.index}</strong><label class="cycle-vial-dose-field"><span>Vial (mg)</span>${prepInput(row,"vialMg",row.vialMg)}</label><label class="cycle-vial-dose-field"><span>Water (mL)</span>${prepInput(row,"bacWaterMl",row.waterMl)}</label><label class="cycle-vial-dose-field"><span>mg/mL</span><div class="cycle-vial-dose-box">${row.concentration>0?round(row.concentration,3):"—"}</div></label><label class="cycle-vial-dose-field cycle-vial-full-dose-field"><span>Full Dose</span><div class="cycle-vial-dose-box cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</div></label><label class="cycle-vial-date-field"><span>Date Open</span>${dateOpenInput(row)}</label><label class="cycle-vial-date-field"><span>Date Finish</span>${dateFinishInput(row)}</label><div class="cycle-vial-status-wrap"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span></div></div>${row.index>required?`<div class="cycle-vial-row-actions no-print">${removeButton(row)}</div>`:""}</div>`).join("")}</div>`;
+  const renderGroup=(title,groupRows,emptyText)=>`<section class="continuous-vial-group"><div class="continuous-vial-group-heading"><strong>${esc(title)}</strong><span class="continuous-vial-group-count">${groupRows.length}</span></div>${groupRows.length?`${desktopRows(groupRows)}${mobileRows(groupRows)}`:`<div class="continuous-vial-group-empty">${esc(emptyText)}</div>`}</section>`;
+  const activePendingRows=rows.filter(row=>row.status!=="Completed"),completedRows=rows.filter(row=>row.status==="Completed");
   return `<details class="span-2 cycle-vial-schedule-field cycle-subsection continuous-vial-schedule-field" data-cycle-subsection="vial-schedule" data-collapse-key="${esc(key)}"${detailOpenAttr(key,true)}>
     <summary class="cycle-subsection-summary"><strong>Vial Schedule</strong><span class="cycle-subsection-count">${rowCount}</span></summary>
     <div class="cycle-vial-schedule-body">
-      ${rows.length?`<div class="cycle-vial-desktop-table-wrap"><table class="cycle-vial-desktop-table continuous-vial-prep-table"><thead><tr><th>Vial #</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Open</th><th>Finish</th><th>Status</th></tr></thead><tbody>${rows.map(row=>`<tr data-continuous-vial-row="${row.index}"><td><strong class="cycle-vial-table-number">${row.index}</strong></td><td>${prepInput(row,"vialMg",row.vialMg)}</td><td>${prepInput(row,"bacWaterMl",row.waterMl)}</td><td><div class="cycle-vial-dose-box">${row.concentration>0?round(row.concentration,3):"—"}</div></td><td><div class="cycle-vial-dose-box cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</div></td><td class="cycle-vial-table-date">${dateOpenInput(row)}</td><td class="cycle-vial-table-date">${dateFinishInput(row)}</td><td><div class="cycle-vial-table-status"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span>${removeButton(row)}</div></td></tr>`).join("")}</tbody></table></div>
-      <div class="cycle-vial-schedule cycle-vial-mobile-cards">${rows.map(row=>`<div class="cycle-vial-schedule-row" data-continuous-vial-row="${row.index}"><div class="cycle-vial-line"><strong class="cycle-vial-number">${row.index}</strong><label class="cycle-vial-dose-field"><span>Vial (mg)</span>${prepInput(row,"vialMg",row.vialMg)}</label><label class="cycle-vial-dose-field"><span>Water (mL)</span>${prepInput(row,"bacWaterMl",row.waterMl)}</label><label class="cycle-vial-dose-field"><span>mg/mL</span><div class="cycle-vial-dose-box">${row.concentration>0?round(row.concentration,3):"—"}</div></label><label class="cycle-vial-dose-field cycle-vial-full-dose-field"><span>Full Dose</span><div class="cycle-vial-dose-box cycle-vial-full-dose">${Number(row.fullDoseCount)||0}</div></label><label class="cycle-vial-date-field"><span>Date Open</span>${dateOpenInput(row)}</label><label class="cycle-vial-date-field"><span>Date Finish</span>${dateFinishInput(row)}</label><div class="cycle-vial-status-wrap"><span class="cycle-vial-status cycle-vial-status-${row.statusKey}">${esc(row.status)}</span></div></div>${row.index>required?`<div class="cycle-vial-row-actions no-print">${removeButton(row)}</div>`:""}</div>`).join("")}</div>`:`<div class="helper">${esc(computed.reason||"Add Vial (mg) and Water (mL) to calculate the continuous vial schedule.")}</div>`}
-      <div class="actions cycle-vial-schedule-actions no-print"><button class="btn small" type="button" data-continuous-add-vial>Add vial</button></div>
+      ${rows.length?`${renderGroup("Active & Pending Vials",activePendingRows,"No active or pending vials.")}<div class="actions cycle-vial-schedule-actions no-print"><button class="btn small" type="button" data-continuous-add-vial>Add vial</button></div>${renderGroup("Completed Vials",completedRows,"No completed vials yet.")}`:`<div class="helper">${esc(computed.reason||"Add Vial (mg) and Water (mL) to calculate the continuous vial schedule.")}</div><div class="actions cycle-vial-schedule-actions no-print"><button class="btn small" type="button" data-continuous-add-vial>Add vial</button></div>`}
     </div>
   </details>`;
 }
