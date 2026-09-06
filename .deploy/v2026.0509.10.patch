@@ -1,0 +1,110 @@
+--- index.html
++++ index.html
+@@ -9,8 +9,9 @@
+ <meta name="apple-mobile-web-app-title" content="Peptide Planner">
+ <meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0509.09</title>
++<title>Peptide Planner v2026.0509.10</title>
+ <!-- v2026.0509.08: Continuous Open next vial promotes the next scheduled future vial to the actual opened vial; future-dated openings no longer derive an In use status before their open date. -->
++<!-- v2026.0509.10: Owner/User planner parity — all non-admin planner views and treatment controls use the same renderer and interaction path; mandatory user-only onboarding gating is removed; continuous Peptide Settings uses a shared four-column layout. -->
+ <!-- v2026.0509.09: Continuous Vial Schedule is visually separated into Active & Pending Vials and Completed Vials; vial calculations, dates, statuses, editing, and dose-counting logic are unchanged. -->
+ <!-- v2026.0509.07: Continuous-treatment vial preparation is stored per Vial Schedule row (Vial mg, BAC Water, concentration); dose-left converts historical units using the vial active on each administration date and continuous vial scheduling uses each vial's own capacity. -->
+ <!-- v2026.0509.06: Continuous-treatment overview second row is Dose, Dose left in vial, and Current cycle in three columns; Current cycle starts at Month 1 · Week 1 and advances in four-week treatment months. -->
+@@ -5465,6 +5466,18 @@
+ }
+ 
+ 
++/* v2026.0509.10 — owner/user planner parity. Non-admin planner layout is shared across roles. */
++@media (min-width:901px){
++  #planner .peptide-settings-grid.continuous-peptide-settings-grid{
++    grid-template-columns:repeat(4,minmax(0,1fr))!important;
++    align-items:end
++  }
++  #planner .peptide-settings-grid.continuous-peptide-settings-grid > div{
++    grid-column:span 1!important;
++    margin-top:0!important
++  }
++}
++
+ /* v2026.0509.09 — continuous Vial Schedule grouping only; no vial logic changes. */
+ #planner .continuous-vial-group{margin-top:10px}
+ #planner .continuous-vial-group:first-child{margin-top:2px}
+@@ -7195,7 +7208,7 @@
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0509.09";
++const APP_VERSION="v2026.0509.10";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -9623,7 +9636,6 @@
+       await fetchKnowledgeBaseOverrides();
+       await reconcileCloudState({silent:true});
+       const firstUse=!!forceFirstUse||consumePlannerFirstUseAfterInvite();
+-      if(firstUse&&access?.role==="user")forcePlannerFirstUseState();
+       routeInitialPlannerExperience({forceFirstUse:firstUse});
+       return true;
+     }
+@@ -13099,7 +13111,7 @@
+       <details class="peptide-settings" data-collapse-key="${esc(plan.id+":peptide-settings-compact")}"${detailOpenAttr(plan.id+":peptide-settings-compact",false)}>
+         <summary>Peptide Settings</summary>
+         <div class="peptide-settings-body">
+-          <div class="peptide-settings-grid">
++          <div class="peptide-settings-grid ${plan.noCycle?"continuous-peptide-settings-grid":""}">
+             <div><label>Status</label><select data-simple-field="stackStatus"><option value="active" ${plan.stackStatus==="active"?"selected":""}>Current</option><option value="soon" ${plan.stackStatus==="soon"?"selected":""}>Scheduled</option><option value="completed" ${plan.stackStatus==="completed"?"selected":""}>Completed</option></select></div>
+             <div><label>Route</label><select class="route-select" data-simple-field="route">${myPlanRouteOptions(plan.route||"",plan.kbRoutes||[])}</select></div>
+             ${!plan.noCycle?`<div><label>Vial (mg)</label><input type="number" min="0" step="0.001" data-simple-field="vialMg" value="${esc(plan.vialMg||"")}"></div>
+@@ -14588,7 +14600,8 @@
+ 
+ 
+ function plannerFirstTimeGuideRequired(){
+-  return cloudAccess?.status==="active"&&cloudAccess?.role==="user"&&state?.ui?.onboardingIntroComplete===false;
++  // v2026.0509.10: onboarding is guidance, not a role-based access gate.
++  return false;
+ }
+ function plannerProfileComplete(){
+   const p=state.profile||{};
+@@ -14774,7 +14787,7 @@
+   const stage=plannerOnboardingStage();
+   if(action==="current")action=stage==="complete"?"today":(stage==="tour"?"today":stage);
+   if(action==="profile"){openProfileForOnboarding();return}
+-  if(action==="treatment"){if(!plannerProfileComplete()){showProfileWelcome();return}openTreatmentSetupForOnboarding();return}
++  if(action==="treatment"){openTreatmentSetupForOnboarding();return}
+   if(action==="verify"){if(!plannerTreatmentPlans().length){showTreatmentNextStep();return}openVerificationForOnboarding();return}
+   if(action==="today"){
+     const verified=plannerTreatmentPlans().some(plan=>planReadyForToday(plan));
+@@ -14791,7 +14804,7 @@
+   const stage=plannerOnboardingStage();
+   const completeCount=[profileDone,treatmentDone,verified,state.ui?.onboardingComplete].filter(Boolean).length;
+   const progress=document.getElementById("gettingStartedProgress");if(progress)progress.textContent=`${completeCount} of 4 complete`;
+-  const set=(id,status,done,current,enabled=true)=>{const button=document.getElementById(id),small=document.getElementById(id+"Status");if(button){button.classList.toggle("complete",!!done);button.classList.toggle("current",!!current);button.disabled=!enabled}if(small)small.textContent=status};
++  const set=(id,status,done,current,enabled=true)=>{const button=document.getElementById(id),small=document.getElementById(id+"Status");if(button){button.classList.toggle("complete",!!done);button.classList.toggle("current",!!current);button.disabled=false}if(small)small.textContent=status};
+   set("gettingStartedProfile",profileDone?"Complete":"Complete this first",profileDone,stage==="profile",true);
+   set("gettingStartedTreatment",treatmentDone?`${plans.length} treatment${plans.length===1?"":"s"} added`:profileDone?"Add your first treatment":"Complete profile first",treatmentDone,stage==="treatment",profileDone);
+   set("gettingStartedVerify",verified?"Verified":treatmentDone?"Review treatment details":"Add treatment first",verified,stage==="verify",treatmentDone);
+@@ -14816,19 +14829,10 @@
+   set("journeyReady",state.ui?.onboardingComplete?"Ready for daily use":verified?"View quick guide":"Available after verification",state.ui?.onboardingComplete,stage==="tour");
+ }
+ function routeInitialPlannerExperience({forceFirstUse=false}={}){
+-  if(forceFirstUse&&cloudAccess?.role==="user")forcePlannerFirstUseState();
+-  const stage=plannerOnboardingStage();
+-  if(!state.ui?.onboardingIntroComplete){
+-    activateTab("safety");
+-    requestAnimationFrame(()=>showFirstTimeOrientation(0));
+-    return;
+-  }
+-  if(stage==="complete"){activateTab("dashboard");return}
+-  activateTab("guide");
+-  requestAnimationFrame(()=>{
+-    renderGettingStartedJourney();
+-    document.getElementById("gettingStartedJourney")?.scrollIntoView({behavior:"auto",block:"start"});
+-  });
++  // v2026.0509.10: every active account enters the same planner experience.
++  // Getting Started remains available from Account/Guide but never blocks Treatments or Today by role.
++  hideOnboarding({force:true});
++  activateTab("dashboard");
+ }
+ function renderAll({preserveView=true}={}){
+   const view=preserveView?captureRenderView():null;
