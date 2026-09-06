@@ -1,0 +1,39 @@
+--- a/index.html
++++ b/index.html
+@@ -9,7 +9,8 @@
+ <meta name="apple-mobile-web-app-title" content="Peptide Planner">
+ <meta name="mobile-web-app-capable" content="yes">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0609.01</title>
++<title>Peptide Planner v2026.0609.02</title>
++<!-- v2026.0609.02: Owner/User planner parity verified: identical non-admin layout and handlers for owner and user; onboarding state cannot alter normal planner actions; Admin Dashboard remains unavailable to user accounts. -->
+ <!-- v2026.0509.08: Continuous Open next vial promotes the next scheduled future vial to the actual opened vial; future-dated openings no longer derive an In use status before their open date. -->
+ <!-- v2026.0609.01: Owner/User full planner parity — owner and user share identical non-admin markup, controls and handlers; automatic onboarding overlays no longer intercept profile/treatment/verification actions; Admin Dashboard remains inaccessible to user role. -->
+ <!-- v2026.0509.10: Owner/User planner parity — all non-admin planner views and treatment controls use the same renderer and interaction path; mandatory user-only onboarding gating is removed; continuous Peptide Settings uses a shared four-column layout. -->
+@@ -7209,7 +7210,7 @@
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0609.01";
++const APP_VERSION="v2026.0609.02";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -10079,7 +10080,7 @@
+   signIn?.classList.toggle("hidden",!!cloudUser);signUp?.classList.add("hidden");signOut?.classList.toggle("hidden",!cloudUser);sync?.classList.toggle("hidden",!active);
+   const canAdmin=active&&["owner","admin"].includes(cloudAccess?.role);admin?.classList.toggle("hidden",!canAdmin);document.getElementById("adminTabButton")?.classList.toggle("hidden",!canAdmin);
+   const owner=active&&cloudAccess?.role==="owner";document.querySelectorAll("#admin .admin-owner-only").forEach(element=>element.classList.toggle("hidden",!owner));
+-  if(roleBadge){roleBadge.textContent=active?cloudAccess.role:"";roleBadge.classList.toggle("hidden",!active)}
++  if(roleBadge){roleBadge.textContent=active?"Active":"";roleBadge.classList.toggle("hidden",!active)}
+   if(!active)setCloudSyncStatus(cloudClient?(cloudUser?"Access locked":"Sign in required"):"Cloud unavailable",cloudClient?"":"error");
+ }
+ function markLocalChanged(){if(!cloudApplying)setCloudSyncMeta({localModifiedAt:new Date().toISOString()})}
+@@ -14603,7 +14604,7 @@
+   return !!(String(p.name||"").trim()&&p.dob&&num(p.heightCm)>0&&num(p.startWeight)>0&&num(p.targetWeight)>0);
+ }
+ function plannerTreatmentPlans(){return stackPlans().filter(plan=>["active","soon"].includes(plan.stackStatus))}
+-function plannerOnboardingStage(){return state.ui?.onboardingComplete?"complete":(state.ui?.onboardingStage||"profile")}
++function plannerOnboardingStage(){return "complete"}
+ function setPlannerOnboardingStage(stage,{persist=true}={}){
+   if(!state.ui)state.ui={};
+   state.ui.onboardingStage=stage;
