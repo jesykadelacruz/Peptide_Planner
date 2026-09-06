@@ -1,0 +1,74 @@
+name: Test Peptide Planner v2026.0609.02
+
+on:
+  push:
+    paths:
+      - '.github/workflows/test-v2026-0609-02.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact production source
+        run: |
+          test "$(git hash-object index.html)" = "117e5d7b3604e304ffc356ff92ca0b04903f4eaf"
+
+      - name: Apply candidate patch in runner only
+        run: |
+          git apply --check .deploy/v2026.0609.02.patch
+          git apply .deploy/v2026.0609.02.patch
+          test "$(git hash-object index.html)" = "9133568ea6a488f6baba808112f627b0484f8ae4"
+          test "$(sha256sum index.html | awk '{print $1}')" = "9cb099b932c1cda7912e51302eab9b330f783c32923792298212b538f2ac7a35"
+
+      - name: Validate JavaScript and parity guards
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          text=pathlib.Path('index.html').read_text()
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          required=[
+            '<title>Peptide Planner v2026.0609.02</title>',
+            'const APP_VERSION="v2026.0609.02";',
+            'function plannerOnboardingStage(){return "complete"}',
+            'roleBadge.textContent=active?"Active":""',
+            'if(tabId==="admin"&&!["owner","admin"].includes(cloudAccess?.role||""))tabId="dashboard";',
+            'continuous-peptide-settings-grid',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[item for item in required if item not in text]
+          if missing: raise SystemExit('Missing parity/integration markers: '+repr(missing))
+          PY
+          node --check /tmp/app.js
+
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null
+          npx playwright install --with-deps chromium
+
+      - name: Run real desktop and mobile owner/user browser parity test
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/peptide-planner-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          TEST_URL=http://127.0.0.1:4173/index.html node .deploy/v2026.0609.02-parity-test.mjs
+
+      - name: Confirm test-only workflow did not modify repository source
+        run: |
+          git checkout -- index.html
+          test "$(git hash-object index.html)" = "117e5d7b3604e304ffc356ff92ca0b04903f4eaf"
