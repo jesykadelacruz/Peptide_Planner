@@ -1,0 +1,70 @@
+name: Apply Peptide Planner v2026.0509.09
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/apply-v2026-0509-09.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-v09:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply guarded v09 patch
+        run: python .deploy/v2026_0509_09_patch.py
+
+      - name: Validate exact v09 build
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, re
+          p=Path('index.html')
+          data=p.read_bytes()
+          expected='f9805dd4fbfc4a9222aeb19fb2a785194ae4c30818e09505f0ce5fd3ba56028a'
+          actual=hashlib.sha256(data).hexdigest()
+          assert actual==expected, (actual, expected)
+          s=data.decode('utf-8')
+          required=[
+            '<title>Peptide Planner v2026.0509.09</title>',
+            'const APP_VERSION="v2026.0509.09";',
+            'Active & Pending Vials',
+            'Completed Vials',
+            'function continuousVialScheduleComputation(plan,requestedTotal=null)',
+            'function cycleVialScheduleStatus(openDate,finishDate,at=new Date())',
+            'navigator.serviceWorker.register("./peptide-planner-sw.js"',
+            '<link rel="manifest" href="./manifest.webmanifest">',
+            'supabase'
+          ]
+          missing=[x for x in required if x not in s]
+          assert not missing, missing
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
+          largest=max(scripts,key=len)
+          Path('/tmp/peptide-planner-v09.js').write_text(largest)
+          print('Validated SHA',actual)
+          PY
+          node --check /tmp/peptide-planner-v09.js
+          git diff --check
+
+      - name: Commit production v09
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "index.html already at v2026.0509.09"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update Peptide Planner v2026.0509.09"
+          git push origin HEAD:main
