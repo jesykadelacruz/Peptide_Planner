@@ -1,0 +1,73 @@
+name: Apply Peptide Planner v2026.0609.01
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0609-01.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact v2026.0509.10 production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = "710c3c51e963af3cda8ce80a72fbf43b338f6711"
+          test "$(git hash-object peptide-planner-sw.js)" = "37d8864c267c5ec126720f89ae9c4b1c1836308f"
+
+      - name: Apply tested v2026.0609.01 parity patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .deploy/v2026.0609.01.patch
+          git apply .deploy/v2026.0609.01.patch
+
+      - name: Validate exact v2026.0609.01 production files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object index.html)" = "117e5d7b3604e304ffc356ff92ca0b04903f4eaf"
+          test "$(git hash-object peptide-planner-sw.js)" = "a4026018c8a0bee14271482eecefc27f8a3af830"
+          grep -Fq '<title>Peptide Planner v2026.0609.01</title>' index.html
+          grep -Fq 'const APP_VERSION="v2026.0609.01";' index.html
+          grep -Fq 'const CLOUD_SYNC_META_KEY=' index.html
+          grep -Fq 'const SUPABASE_URL=' index.html
+          grep -Fq 'auth.signInWithPassword' index.html
+          grep -Fq 'auth.resetPasswordForEmail' index.html
+          grep -Fq 'signUp' index.html
+          grep -Fq 'if(tabId==="admin"&&!["owner","admin"].includes(cloudAccess?.role||""))tabId="dashboard";' index.html
+          grep -Fq 'navigator.serviceWorker.register(`./peptide-planner-sw.js?v=${encodeURIComponent(APP_VERSION)}`' index.html
+          grep -Fq "const PEPTIDE_PLANNER_SW_VERSION='v2026.0609.01';" peptide-planner-sw.js
+          ! grep -Fq 'let showTourAfter=false;' index.html
+          ! grep -Fq 'if(showTourAfter)setTimeout(showPlannerHowToUse,140);' index.html
+          ! grep -Fq 'if(advanceOnboarding)setTimeout(showVerifyNextStep,120);' index.html
+          ! grep -Fq 'if(advanceOnboarding)setTimeout(showTreatmentNextStep,120);' index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('index.html').read_text()
+          scripts=[m.group(1) for m in re.finditer(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>',text,re.I) if m.group(1).strip()]
+          Path('/tmp/peptide-planner-inline.js').write_text('\n'.join(scripts))
+          PY
+          node --check /tmp/peptide-planner-inline.js
+
+      - name: Commit synchronized production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0609.01"
+          git push
