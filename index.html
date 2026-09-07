@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0709.09</title>
+<title>Peptide Planner v2026.0709.10</title>
+<!-- v2026.0709.10: Custom weekday schedules in the Overview now use the active continuous dose-phase schedule first (for example Saturday or Tuesday / Thursday). The visible historical auto-completion Vial inventory check diagnostic is removed while obsolete records remain excluded from vial-consumption calculations. -->
 <!-- v2026.0709.09: Corrects the v08 field-sizing regression only. Owner and User treatment controls use the compact 40px desktop baseline from v2026.0309.07; mobile historical sizing remains unchanged. The v08 per-vial inventory warning fix and all current treatment logic are preserved. -->
 <!-- v2026.0709.08: Restores shared Owner/User treatment field dimensions to the v2026.0309.07 desktop baseline; removes obsolete vial-strength/final-volume mismatch warnings because per-vial preparation may legitimately differ, while dose-left continues to follow the actually opened vial. -->
 <!-- v2026.0709.07: Owner/User treatment UI returns to one shared Owner layout with no role-specific sizing CSS. Removing/re-adding a treatment now purges treatment runtime residue, library presets no longer prefill from stale prior treatment settings, and fresh unconfirmed setups with no administrations/opened vial reconcile preparation from the pending vial record. -->
@@ -7221,7 +7222,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0709.09";
+const APP_VERSION="v2026.0709.10";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -7757,7 +7758,13 @@ function maintenanceVialDurationUsage(plan,at=new Date()){
 
 function overviewScheduleText(plan,at=new Date()){
   const fullDayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],formatDays=days=>{const clean=[...new Set((days||[]).map(Number).filter(day=>day>=0&&day<=6))].sort((a,b)=>a-b);if(plannerArraysEqual(clean,[0,1,2,3,4,5,6]))return "Daily";if(plannerArraysEqual(clean,[1,2,3,4,5]))return "Weekdays";return clean.length?clean.map(day=>fullDayNames[day]).join(" / "):"Days not set";};
-  if(plan.noCycle){if(plan.scheduleMode==="interval")return num(plan.intervalDays)?`Every ${Number(plan.intervalDays)} days`:"Interval not set";return formatDays(plan.weekdays||[]);}
+  if(plan.noCycle){
+    const start=parseISO(plan?.startDate),day=new Date(at.getFullYear(),at.getMonth(),at.getDate()),week=start&&day>=start?Math.max(1,Math.floor(dayDiff(start,day)/7)+1):1;
+    const phaseDays=phaseWeekdaysForWeek(plan,week);if(phaseDays!==null)return formatDays(phaseDays);
+    const phaseInterval=phaseIntervalDaysForWeek(plan,week);if(phaseInterval!=null)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;
+    if(plan.scheduleMode==="interval")return num(plan.intervalDays)?`Every ${Number(plan.intervalDays)} days`:"Interval not set";
+    return formatDays(plan.weekdays||[]);
+  }
   const config=cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
   const phaseDays=cyclePhaseWeekdays(config,1);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,1);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);
 }
@@ -13142,7 +13149,6 @@ function renderSimplePlanner(){
     const currentDose=currentPosition?.valid&&!currentPosition.washout&&!currentPosition.ended?(plan.noCycle?phaseDose(plan,Math.max(1,currentPosition.week||1)):cyclePhaseDose(cycleConfigForSequence(plan,currentPosition.sequence||1),Math.max(1,currentPosition.week||1))):phaseDose(plan,1);
     const dose=currentDose,calc=calcUnits(plan,dose),status=planStatus(plan);
     const dosesLeft=currentVialDosesLeft(plan,new Date());
-    const vialIntegrity=currentVialIntegrity(plan,new Date());
     const dosesLeftText=dosesLeft.valid?(plan.noCycle?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"} · ${round(dosesLeft.currentRemainingMg??dosesLeft.remainingMg??0,3)} mg left`:(dosesLeft.splitSchedule&&dosesLeft.fullScheduleDays!==dosesLeft.doses?`${dosesLeft.doses} administration${dosesLeft.doses===1?"":"s"} · ${dosesLeft.fullScheduleDays} full day${dosesLeft.fullScheduleDays===1?"":"s"}`:`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`)):esc(dosesLeft.reason||"—");
     const scheduleText=overviewScheduleText(plan);
     const verification=planVerificationCompleteness(plan);
@@ -13184,7 +13190,6 @@ function renderSimplePlanner(){
         </div>
       </summary>
       <div class="simple-plan-body">
-      ${vialIntegrity.warnings.length?`<div class="alert warn"><strong>Vial inventory check</strong><div style="margin-top:5px">${vialIntegrity.warnings.map(item=>esc(item)).join("<br>")}</div></div>`:""}
       <details class="peptide-settings" data-collapse-key="${esc(plan.id+":peptide-settings-compact")}"${detailOpenAttr(plan.id+":peptide-settings-compact",false)}>
         <summary>Peptide Settings</summary>
         <div class="peptide-settings-body">
