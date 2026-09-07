@@ -1,0 +1,61 @@
+name: Apply v2026.0809.01 overview schedule patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0809-01.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch current-week Overview schedule only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='''  const config=cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
+  const phaseDays=cyclePhaseWeekdays(config,1);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,1);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);'''
+          new='''  const position=protocolPositionForDate(plan,at),sequence=position?.valid?Math.max(1,Number(position.sequence)||1):1,week=position?.valid&&!position.washout&&Number(position.week)>0?Math.max(1,Number(position.week)):1;
+  const config=position?.config||(isSeparateCycleStack(plan)?plan:cycleConfigForSequence(plan,sequence))||cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
+  const phaseDays=cyclePhaseWeekdays(config,week);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,week);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);'''
+          if s.count(old)!=1:
+              raise SystemExit(f'overview target count={s.count(old)}')
+          s=s.replace(old,new,1)
+          old_title='<title>Peptide Planner v2026.0709.10</title>'
+          new_title='<title>Peptide Planner v2026.0809.01</title>'
+          if old_title not in s:
+              raise SystemExit('title target missing')
+          s=s.replace(old_title,new_title,1)
+          marker='<!-- v2026.0809.01: Treatment Overview schedule now resolves the active cycle and current treatment week before reading Dose Schedule weekdays/intervals, so phase-specific schedules update automatically as the treatment advances. Shared planner logic applies identically to Owner, Admin and User views. -->\n'
+          anchor=new_title+'\n'
+          s=s.replace(anchor,anchor+marker,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify targeted change
+        run: |
+          grep -F '<title>Peptide Planner v2026.0809.01</title>' index.html
+          grep -F 'const position=protocolPositionForDate(plan,at)' index.html
+          grep -F 'cyclePhaseWeekdays(config,week)' index.html
+          if sed -n '/function overviewScheduleText/,/function sortedPlans/p' index.html | grep -F 'cyclePhaseWeekdays(config,1)'; then exit 1; fi
+          grep -F 'function renderPlanCard' index.html >/dev/null || true
+      - name: Commit index.html only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'v2026.0809.01 use current treatment week in Overview schedule'
+          git push origin main
+      - name: Export exact index
+        run: cp index.html Peptide_Planner_v2026.0809.01.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v2026.0809.01_index
+          path: Peptide_Planner_v2026.0809.01.html
