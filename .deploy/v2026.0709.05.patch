@@ -1,0 +1,90 @@
+diff --git a/index.html b/index.html
+index 48f9443..17ce1f7 100644
+--- a/index.html
++++ b/index.html
+@@ -12,8 +12,8 @@
+ <meta http-equiv="Pragma" content="no-cache">
+ <meta http-equiv="Expires" content="0">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0709.04</title>
+-<!-- v2026.0709.04: User view now uses the exact Owner planner renderer and CSS with no User-only treatment layout/state overrides. Owner view is unchanged; Admin Dashboard remains unavailable to User. -->
++<title>Peptide Planner v2026.0709.05</title>
++<!-- v2026.0709.05: User-only form-control parity fix. Owner view and shared treatment logic remain unchanged. User Peptide Settings and Cycle Settings now force the Owner mobile-app standard field height so input/select controls align consistently across browsers; Admin Dashboard remains unavailable to User. -->
+ <!-- v2026.0709.02: Owner and user use the exact same planner renderer, fields, controls and calculations; only Admin Dashboard access is role-restricted. Restores the owner Peptide Settings layout, preserves vial/cycle row state across reloads, fixes cyclic Add/Remove vial persistence, and makes Personal Profile name the header source of truth. -->
+ <!-- v2026.0709.01: Owner and user share one identical planner renderer, layout and treatment interaction path; only Admin Dashboard access remains role-restricted. Cache-busting is strengthened so user sessions load the current interface. -->
+ <!-- v2026.0509.08: Continuous Open next vial promotes the next scheduled future vial to the actual opened vial; future-dated openings no longer derive an In use status before their open date. -->
+@@ -3831,6 +3831,47 @@ body.onboarding-dialog-open{overflow:hidden!important}
+   }
+ }
+ 
++/* v2026.0709.05 — User view only: make treatment form controls use the same
++   standard dimensions as the existing Owner mobile-app controls.
++   Owner selectors/rendering are intentionally untouched. */
++body.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
++body.planner-user-role #planner .peptide-settings-grid > div > select,
++body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
++body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
++body.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
++body.planner-user-role #planner .cycle-config-grid > div > select{
++  display:block!important;
++  width:100%!important;
++  min-width:0!important;
++  max-width:100%!important;
++  height:50px!important;
++  min-height:50px!important;
++  max-height:50px!important;
++  block-size:50px!important;
++  box-sizing:border-box!important;
++  margin:0!important;
++  padding:11px 12px!important;
++  line-height:1.2!important;
++}
++body.planner-user-role #planner .peptide-settings-grid,
++body.planner-user-role #planner .cycle-config-grid{
++  align-items:end!important;
++}
++@media(max-width:900px){
++  body.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
++  body.planner-user-role #planner .peptide-settings-grid > div > select,
++  body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
++  body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
++  body.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
++  body.planner-user-role #planner .cycle-config-grid > div > select{
++    height:46px!important;
++    min-height:46px!important;
++    max-height:46px!important;
++    block-size:46px!important;
++    padding:0 11px!important;
++  }
++}
++
+ /* Cycle weekday selector — reference My Plan presentation */
+ #planner .cycle-config-card .weekdays{
+   display:grid!important;
+@@ -7203,7 +7244,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0709.04";
++const APP_VERSION="v2026.0709.05";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -10078,6 +10119,7 @@ function renderCloudAccount(){
+   const accountEmail=document.getElementById("accountCurrentEmail");if(accountEmail)accountEmail.textContent=cloudUser?.email||"Not signed in";
+   renderPlannerHeader();
+   const active=!!(cloudUser&&cloudAccess?.status==="active");
++  document.body.classList.toggle("planner-user-role",active&&cloudAccess?.role==="user");
+   signIn?.classList.toggle("hidden",!!cloudUser);signUp?.classList.add("hidden");signOut?.classList.toggle("hidden",!cloudUser);sync?.classList.toggle("hidden",!active);
+   const canAdmin=plannerCanAccessAdmin();admin?.classList.toggle("hidden",!canAdmin);document.getElementById("adminTabButton")?.classList.toggle("hidden",!canAdmin);
+   const owner=active&&cloudAccess?.role==="owner";document.querySelectorAll("#admin .admin-owner-only").forEach(element=>element.classList.toggle("hidden",!owner));
+diff --git a/peptide-planner-sw.js b/peptide-planner-sw.js
+index c86428d..42b912a 100644
+--- a/peptide-planner-sw.js
++++ b/peptide-planner-sw.js
+@@ -1,4 +1,4 @@
+-const PEPTIDE_PLANNER_SW_VERSION='v2026.0709.04';
++const PEPTIDE_PLANNER_SW_VERSION='v2026.0709.05';
+ self.addEventListener('install',event=>{self.skipWaiting();});
+ self.addEventListener('activate',event=>{
+   event.waitUntil((async()=>{
