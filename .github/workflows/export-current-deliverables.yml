@@ -1,0 +1,38 @@
+name: Export current deliverables
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-current-deliverables.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+
+      - name: Create standalone HTML and Cloudflare ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp index.html Peptide_Planner_current.html
+          rm -rf cloudflare-package
+          mkdir -p cloudflare-package
+          cp index.html cloudflare-package/index.html
+          (cd cloudflare-package && zip -q ../Peptide_Planner_Cloudflare_current.zip index.html)
+          test -s Peptide_Planner_current.html
+          test -s Peptide_Planner_Cloudflare_current.zip
+          unzip -l Peptide_Planner_Cloudflare_current.zip
+          cmp -s Peptide_Planner_current.html cloudflare-package/index.html
+
+      - name: Upload deliverables
+        uses: actions/upload-artifact@v4
+        with:
+          name: peptide-planner-deliverables
+          path: |
+            Peptide_Planner_current.html
+            Peptide_Planner_Cloudflare_current.zip
+          if-no-files-found: error
+          retention-days: 7
