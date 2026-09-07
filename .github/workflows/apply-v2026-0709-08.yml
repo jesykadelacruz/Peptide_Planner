@@ -1,0 +1,119 @@
+name: Apply Peptide Planner v2026.0709.08
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-08.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact v2026.0709.07 production source
+        run: |
+          test "$(git hash-object index.html)" = "c9ec8f9f5e6d08b46f6982428982e6601da08277"
+          test "$(git hash-object peptide-planner-sw.js)" = "54c2b1968b5dd05547c705678ac5f02d4dc11a1d"
+          cp index.html /tmp/source-index.html
+
+      - name: Decode and verify v08 production patch
+        run: |
+          base64 -d .deploy/v2026.0709.08.patch.b64 > /tmp/v08.patch
+          test "$(sha256sum /tmp/v08.patch | awk '{print $1}')" = "7ee033dab39df10bcc9316468e9b8f84ca6a88bbe9ad226c1f674f7f7b1b22c2"
+          git apply --check /tmp/v08.patch
+          git apply /tmp/v08.patch
+
+      - name: Validate exact target and regressions
+        run: |
+          test "$(git hash-object index.html)" = "d8bd54d64990303b35e8cb28688229497a0fb793"
+          test "$(git hash-object peptide-planner-sw.js)" = "db5217a2ff7468f964c40b48011c782c3a5519ee"
+          test "$(sha256sum index.html | awk '{print $1}')" = "35c423549aa57e0eb65ce3ab0df64498f9885212d16a6f8a8a77f847ae7fa054"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "f6acafb3f0aa63c2b330a29e5ddc6da5d4f1d66bcec4d8deec5e145794f671a5"
+          python3 - <<'PY'
+          import pathlib,re
+          src=pathlib.Path('/tmp/source-index.html').read_text()
+          text=pathlib.Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.08</title>',
+            'const APP_VERSION="v2026.0709.08";',
+            'min-height:42px!important;',
+            'padding:10px 11px!important;',
+            'function currentVialIntegrity(plan,at=new Date())',
+            'function currentVialDosesLeft(plan,at=new Date())',
+            'const explicitCurrent=currentOpenedVialRecord(plan,at);',
+            'function clearPlanRuntimeArtifacts(planId)',
+            'function reconcileFreshUnconfirmedPreparation(plan)',
+            'if(tabId==="admin"&&!plannerCanAccessAdmin())tabId="dashboard";',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('Missing v08 markers: '+repr(missing))
+          forbidden=[
+            'Scheduled vial strength',
+            'Scheduled vial final volume',
+            'dose-left uses Treatment Settings until the vial is actually opened.',
+            'planner-standard-user',
+            'planner-user-role'
+          ]
+          present=[x for x in forbidden if x in text]
+          if present: raise SystemExit('Obsolete role/warning markers remain: '+repr(present))
+
+          def chunks(s):
+            parts=s.split('\nfunction ')
+            out={}
+            for part in parts[1:]:
+              name=part.split('(',1)[0].strip()
+              out[name]='function '+part
+            return out
+          a,b=chunks(src),chunks(text)
+          unchanged=[
+            'calcUnits','phaseUnitCalculation','planCyclesPerYear',
+            'continuousVialPrepForDate','continuousVialPrepForRecord',
+            'currentContinuousVialScheduleRows','currentScheduledVialRecord',
+            'currentActualOpenedVialRecord','currentOpenedVialRecord','currentVialDosesLeft',
+            'administrationConsumedMg','scheduleForDate','todayAdministrationMissed',
+            'cycleVialScheduleComputation','cycleConfigVialScheduleComputation',
+            'continuousVialScheduleComputation','continuousCurrentCycleText',
+            'renderSimplePlanner','renderContinuousPlanPanel','renderPlanCyclePanels',
+            'renderContinuousVialSchedule','renderCycleConfigVialSchedule',
+            'clearPlanRuntimeArtifacts','reconcileFreshUnconfirmedPreparation','save'
+          ]
+          for name in unchanged:
+            if name not in a or name not in b: raise SystemExit('Required function missing: '+name)
+            if a[name] != b[name]: raise SystemExit('Core function changed unexpectedly: '+name)
+
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Vial warning regression
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          text=pathlib.Path('index.html').read_text()
+          i=text.index('function currentVialIntegrity')
+          j=text.index('\nfunction scheduledAdministrationRecorded',i)
+          fn=text[i:j]
+          js='''let state={administrations:[]};\nlet actual=null,scheduled={record:{vialMg:50,finalMl:5}};\nfunction currentActualOpenedVialRecord(){return actual}\nfunction currentScheduledVialRecord(){return scheduled}\nfunction administrationMatchesScheduledStructure(){return true}\n'''+fn+'''\nconst plan={id:"new-user-plan",noCycle:false,vialMg:100,finalMl:10};\nlet r=currentVialIntegrity(plan,new Date("2026-09-07T10:00:00Z"));\nif(r.warnings.length)throw new Error("scheduled per-vial variation still warns: "+JSON.stringify(r.warnings));\nactual={record:{vialMg:50,finalMl:5}};r=currentVialIntegrity(plan,new Date("2026-09-07T10:00:00Z"));\nif(r.warnings.length)throw new Error("opened per-vial variation still warns: "+JSON.stringify(r.warnings));\nif(!r.actualRecord||Number(r.actualRecord.vialMg)!==50)throw new Error("opened vial record lost");\nconsole.log("v08 vial warning regression PASS");\n'''
+          pathlib.Path('/tmp/vial-warning-test.js').write_text(js)
+          PY
+          node /tmp/vial-warning-test.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.08"
+          git push origin HEAD:main
