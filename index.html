@@ -12992,6 +12992,44 @@ function cycleSetupVisualState(config){
   return "current";
 }
 
+function cycleSchedulePresetValue(config){
+  if(config?.scheduleMode==="interval"){
+    const days=Math.max(1,Math.floor(num(config?.intervalDays)||0));
+    if(days===2)return "every-other-day";
+    if(days===7)return "weekly";
+    return "manual-interval";
+  }
+  const days=[...new Set((config?.weekdays||[]).map(Number).filter(day=>day>=0&&day<=6))].sort((a,b)=>a-b);
+  if(plannerArraysEqual(days,[0,1,2,3,4,5,6]))return "daily";
+  if(plannerArraysEqual(days,[1,2,3,4,5]))return "weekdays";
+  if(plannerArraysEqual(days,[1,3,5]))return "mwf";
+  return "manual-weekdays";
+}
+function cycleSchedulePresetOptions(config){
+  const selected=cycleSchedulePresetValue(config);
+  return [["every-other-day","Every 2 days"],["weekly","Every 7 days"],["daily","Daily"],["weekdays","Weekdays"],["mwf","Mon / Wed / Fri"],["manual-interval","Custom interval"],["manual-weekdays","Choose weekdays"]].map(([value,label])=>`<option value="${value}" ${selected===value?"selected":""}>${label}</option>`).join("");
+}
+function applyCycleSchedulePreset(config,preset){
+  if(!config)return;
+  const phases=Array.isArray(config.phases)?config.phases:[];
+  if(preset==="every-other-day"||preset==="weekly"||preset==="manual-interval"){
+    const interval=preset==="every-other-day"?2:preset==="weekly"?7:Math.max(1,Math.floor(num(config.intervalDays)||7));
+    config.scheduleMode="interval";config.intervalDays=interval;config.weekdays=[];
+    phases.forEach(phase=>{phase.weekdays=[];phase.intervalDays=interval;});
+    return;
+  }
+  const presetDays=preset==="daily"?[0,1,2,3,4,5,6]:preset==="weekdays"?[1,2,3,4,5]:preset==="mwf"?[1,3,5]:null;
+  config.scheduleMode="weekdays";config.intervalDays="";
+  if(presetDays){
+    config.weekdays=clone(presetDays);
+    phases.forEach(phase=>{phase.weekdays=clone(presetDays);phase.intervalDays="";});
+  }else{
+    const retained=[...new Set((config.weekdays||[]).map(Number).filter(day=>day>=0&&day<=6))].sort((a,b)=>a-b);
+    config.weekdays=retained;
+    phases.forEach(phase=>{phase.intervalDays="";if(!Array.isArray(phase.weekdays))phase.weekdays=clone(retained);});
+  }
+}
+
 function renderContinuousPlanPanel(plan){
   const key=`${plan.id}:continuous-config`,sectionKey=`${plan.id}:cycle-settings`;
   return `<details class="planner-section-details cycle-settings-details cycle-setup-section continuous-schedule-section" data-collapse-key="${esc(sectionKey)}"${detailOpenAttr(sectionKey,false)}>
@@ -13005,8 +13043,8 @@ function renderContinuousPlanPanel(plan){
               <div><label>Start date</label><input type="date" data-cycle-config-field="startDate" data-cycle-sequence="0" value="${esc(plan.startDate||"")}"></div>
               <div><label>End date <span class="helper">(optional)</span></label><input type="date" data-cycle-config-field="endDate" data-cycle-sequence="0" min="${esc(plan.startDate||"")}" value="${esc(plan.endDate||"")}"></div>
               <div><label>Time</label><input type="time" data-cycle-config-field="injectionTime" data-cycle-sequence="0" value="${esc(plan.injectionTime||"")}"></div>
-              <div><label>Schedule</label><select data-cycle-config-field="scheduleMode" data-cycle-sequence="0"><option value="interval" ${plan.scheduleMode!=="weekdays"?"selected":""}>Every N days</option><option value="weekdays" ${plan.scheduleMode==="weekdays"?"selected":""}>Choose weekdays</option></select></div>
-              <div><label>Interval</label><input type="number" min="1" step="1" data-cycle-config-field="intervalDays" data-cycle-sequence="0" value="${esc(plan.intervalDays??"")}" ${plan.scheduleMode==="weekdays"?"disabled":""}></div>
+              <div><label>Schedule</label><select data-cycle-schedule-preset data-cycle-sequence="0">${cycleSchedulePresetOptions(plan)}</select></div>
+              <div><label>Interval</label><input type="number" min="1" step="1" data-cycle-config-field="intervalDays" data-cycle-sequence="0" value="${esc(plan.intervalDays??"")}" ${cycleSchedulePresetValue(plan)==="manual-interval"?"":"disabled"}></div>
               ${renderContinuousVialSchedule(plan)}
             </div>
             ${renderContinuousDoseSchedule(plan)}
@@ -13030,8 +13068,8 @@ function renderPlanCyclePanels(plan){
           <div class="cycle-config-grid">
             <div><label>Start date</label><input type="date" data-cycle-config-field="startDate" data-cycle-sequence="${sequence}" value="${esc(config.startDate||"")}"></div>
             <div><label>Time</label><input type="time" data-cycle-config-field="injectionTime" data-cycle-sequence="${sequence}" value="${esc(config.injectionTime||"")}"></div>
-            <div><label>Schedule</label><select data-cycle-config-field="scheduleMode" data-cycle-sequence="${sequence}"><option value="interval" ${config.scheduleMode!=="weekdays"?"selected":""}>Every N days</option><option value="weekdays" ${config.scheduleMode==="weekdays"?"selected":""}>Choose weekdays</option></select></div>
-            <div><label>Interval</label><input type="number" min="1" step="1" data-cycle-config-field="intervalDays" data-cycle-sequence="${sequence}" value="${esc(config.intervalDays??"")}" ${config.scheduleMode==="weekdays"?"disabled":""}></div>
+            <div><label>Schedule</label><select data-cycle-schedule-preset data-cycle-sequence="${sequence}">${cycleSchedulePresetOptions(config)}</select></div>
+            <div><label>Interval</label><input type="number" min="1" step="1" data-cycle-config-field="intervalDays" data-cycle-sequence="${sequence}" value="${esc(config.intervalDays??"")}" ${cycleSchedulePresetValue(config)==="manual-interval"?"":"disabled"}></div>
             ${renderCycleConfigVialSchedule(plan,config,sequence)}
           </div>
 
@@ -13348,6 +13386,11 @@ function renderSimplePlanner(){
       if(field==="startDate"&&sequence>0)config.startAuto=sequence===1?false:false;
       if(field==="intervalDays")config.intervalDays=Math.max(1,Math.floor(num(control.value)||1));
       if(field==="scheduleMode"&&control.value==="weekdays")config.intervalDays=config.intervalDays||7;
+      if(sequence===1)syncLegacyPlanFromCycleConfigs(plan);recalculateConfiguredCycleStarts(plan);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();
+    }));
+    card.querySelectorAll("[data-cycle-schedule-preset]").forEach(control=>control.addEventListener("change",()=>{
+      const rawSequence=Number(control.dataset.cycleSequence),sequence=plan.noCycle&&rawSequence===0?0:Math.max(1,rawSequence||1),config=cycleConfigForSequence(plan,sequence);if(!config)return;
+      applyCycleSchedulePreset(config,control.value);
       if(sequence===1)syncLegacyPlanFromCycleConfigs(plan);recalculateConfiguredCycleStarts(plan);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-config-weekday]").forEach(control=>control.addEventListener("change",()=>{
