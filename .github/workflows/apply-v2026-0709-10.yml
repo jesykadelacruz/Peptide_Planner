@@ -1,4 +1,4 @@
-name: Export v2026.0709.10 deliverables
+name: Export v2026.0709.10 index
 
 on:
   push:
@@ -18,17 +18,9 @@ jobs:
           grep -F 'phaseWeekdaysForWeek(plan,week)' index.html
           if grep -F '${vialIntegrity.warnings.length?' index.html; then exit 1; fi
           grep -F 'administrationMatchesScheduledStructure(plan,record)' index.html
-      - name: Build deliverables
-        run: |
-          mkdir -p deliverables/cloudflare
-          cp index.html deliverables/Peptide_Planner_v2026.0709.10.html
-          cp index.html deliverables/cloudflare/index.html
-          cp _headers manifest.webmanifest peptide-planner-sw.js deliverables/cloudflare/
-          cd deliverables/cloudflare
-          zip -q ../Peptide_Planner_v2026.0709.10_Cloudflare.zip index.html _headers manifest.webmanifest peptide-planner-sw.js
+      - name: Prepare standalone HTML
+        run: cp index.html Peptide_Planner_v2026.0709.10.html
       - uses: actions/upload-artifact@v4
         with:
-          name: Peptide_Planner_v2026.0709.10_deliverables
-          path: |
-            deliverables/Peptide_Planner_v2026.0709.10.html
-            deliverables/Peptide_Planner_v2026.0709.10_Cloudflare.zip
+          name: Peptide_Planner_v2026.0709.10_index
+          path: Peptide_Planner_v2026.0709.10.html
