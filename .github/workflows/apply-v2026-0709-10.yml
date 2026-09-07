@@ -1,0 +1,79 @@
+name: Apply v2026.0709.10 targeted patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-10.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch index.html only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='''function overviewScheduleText(plan,at=new Date()){
+  const fullDayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],formatDays=days=>{const clean=[...new Set((days||[]).map(Number).filter(day=>day>=0&&day<=6))].sort((a,b)=>a-b);if(plannerArraysEqual(clean,[0,1,2,3,4,5,6]))return "Daily";if(plannerArraysEqual(clean,[1,2,3,4,5]))return "Weekdays";return clean.length?clean.map(day=>fullDayNames[day]).join(" / "):"Days not set";};
+  if(plan.noCycle){if(plan.scheduleMode==="interval")return num(plan.intervalDays)?`Every ${Number(plan.intervalDays)} days`:"Interval not set";return formatDays(plan.weekdays||[]);}
+  const config=cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
+  const phaseDays=cyclePhaseWeekdays(config,1);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,1);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);
+}'''
+          new='''function overviewScheduleText(plan,at=new Date()){
+  const fullDayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],formatDays=days=>{const clean=[...new Set((days||[]).map(Number).filter(day=>day>=0&&day<=6))].sort((a,b)=>a-b);if(plannerArraysEqual(clean,[0,1,2,3,4,5,6]))return "Daily";if(plannerArraysEqual(clean,[1,2,3,4,5]))return "Weekdays";return clean.length?clean.map(day=>fullDayNames[day]).join(" / "):"Days not set";};
+  if(plan.noCycle){
+    if(plan.scheduleMode==="interval")return num(plan.intervalDays)?`Every ${Number(plan.intervalDays)} days`:"Interval not set";
+    const phase=cyclePhaseForWeek(plan,Math.max(1,continuousWeekOn(plan,at)||1)),phaseDays=Array.isArray(phase?.weekdays)&&phase.weekdays.length?phase.weekdays:null;
+    return formatDays(phaseDays||plan.weekdays||[]);
+  }
+  const sequence=Math.max(1,Number(activeCycleSequence(plan)||1)),config=cycleConfigForSequence(plan,sequence);if(!config)return "Cycle schedule not set";
+  const week=Math.max(1,Number(cycleWeekOn(plan,at)||1)),phaseDays=cyclePhaseWeekdays(config,week);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,week);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);
+}'''
+          if old not in s:
+              raise SystemExit('overviewScheduleText target not found')
+          s=s.replace(old,new,1)
+          warn='''  if(obsolete.length)warnings.push(`${obsolete.length} historical auto-completion record${obsolete.length===1?"":"s"} no longer match the current split/unsplit schedule and are excluded from vial consumption.`);\n'''
+          if warn not in s:
+              raise SystemExit('legacy vial warning target not found')
+          s=s.replace(warn,'',1)
+          s=s.replace('<title>Peptide Planner v2026.0709.09</title>','<title>Peptide Planner v2026.0709.10</title>',1)
+          marker='<!-- v2026.0709.10: Overview custom weekday schedules now show the configured active-phase day(s), and the obsolete historical auto-completion vial inventory warning is no longer displayed; vial-consumption exclusion logic is preserved. -->\n'
+          anchor='<title>Peptide Planner v2026.0709.10</title>\n'
+          if marker not in s:
+              s=s.replace(anchor,anchor+marker,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify targeted patch
+        run: |
+          grep -F '<title>Peptide Planner v2026.0709.10</title>' index.html
+          grep -F 'phaseDays||plan.weekdays||[]' index.html
+          ! grep -F 'historical auto-completion record${obsolete.length===1?' index.html
+          grep -F 'administrationMatchesScheduledStructure(plan,record)' index.html
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'v2026.0709.10 show custom schedule days and hide legacy vial warning'
+          git push origin main
+      - name: Build deliverables
+        run: |
+          mkdir -p deliverables/cloudflare
+          cp index.html deliverables/Peptide_Planner_v2026.0709.10.html
+          cp index.html deliverables/cloudflare/index.html
+          for f in _headers manifest.webmanifest peptide-planner-sw.js; do cp "$f" deliverables/cloudflare/; done
+          (cd deliverables/cloudflare && zip -q ../Peptide_Planner_v2026.0709.10_Cloudflare.zip index.html _headers manifest.webmanifest peptide-planner-sw.js)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v2026.0709.10_deliverables
+          path: |
+            deliverables/Peptide_Planner_v2026.0709.10.html
+            deliverables/Peptide_Planner_v2026.0709.10_Cloudflare.zip
