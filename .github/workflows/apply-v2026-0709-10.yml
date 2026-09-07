@@ -1,0 +1,148 @@
+name: Apply Peptide Planner v2026.0709.10
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-10.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "60838da0c72bcdc30d6475ad981b0964b03970bf"
+          test "$(git hash-object peptide-planner-sw.js)" = "b1ce1e1fb4fa2e4fce120d3b9d4a1804eabc1f78"
+          test "$(sha256sum .deploy/v2026.0709.10-schedule.patch | awk '{print $1}')" = "f5b844d7a3283ac53eb8080f9d04ff269d17946ba22ecc086882f0a6c1e2df8a"
+          cp index.html /tmp/source-index.html
+
+      - name: Apply schedule correction only
+        run: |
+          git apply --check .deploy/v2026.0709.10-schedule.patch
+          git apply .deploy/v2026.0709.10-schedule.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          index=Path('index.html')
+          text=index.read_text()
+          old='<title>Peptide Planner v2026.0709.09</title>'
+          new='''<title>Peptide Planner v2026.0709.10</title>
+          <!-- v2026.0709.10: Cycle Settings schedule choices now match Add Treatment for continuous and cycled treatments. Effective dose-phase weekdays/intervals drive schedule summaries and frequency, so configured days such as Saturday no longer fall back to "Days not set"; that fallback remains for genuinely unset schedules. -->'''
+          if text.count(old)!=1: raise SystemExit('Unexpected v09 title marker count')
+          text=text.replace(old,new,1)
+          old='const APP_VERSION="v2026.0709.09";'
+          new='const APP_VERSION="v2026.0709.10";'
+          if text.count(old)!=1: raise SystemExit('Unexpected v09 APP_VERSION marker count')
+          text=text.replace(old,new,1)
+          index.write_text(text)
+
+          sw=Path('peptide-planner-sw.js')
+          sw_text=sw.read_text()
+          old="const PEPTIDE_PLANNER_SW_VERSION='v2026.0709.09';"
+          new="const PEPTIDE_PLANNER_SW_VERSION='v2026.0709.10';"
+          if sw_text.count(old)!=1: raise SystemExit('Unexpected v09 service-worker marker count')
+          sw.write_text(sw_text.replace(old,new,1))
+          PY
+
+      - name: Validate schedule UI and regression behavior
+        run: |
+          git diff --check
+          test "$(git diff --name-only | sort)" = $'index.html\npeptide-planner-sw.js'
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.10</title>',
+            'const APP_VERSION="v2026.0709.10";',
+            'function effectiveCycleSchedule(config,week=1)',
+            'function effectivePlanSchedule(plan,cycleNumber=1,at=new Date())',
+            'function cycleSchedulePresetOptions(config)',
+            'function applyCycleSchedulePreset(config,preset)',
+            'data-cycle-config-schedule-preset',
+            '["every-other-day","Every 2 days"]',
+            '["weekly","Every 7 days"]',
+            '["daily","Daily"]',
+            '["weekdays","Weekdays"]',
+            '["mwf","Mon / Wed / Fri"]',
+            '["manual-interval","Custom interval"]',
+            '["manual-weekdays","Choose weekdays"]',
+            'return clean.length?clean.map(day=>fullDayNames[day]).join(" / "):"Days not set";',
+            'return days.length?`${days.length} day${days.length===1?"":"s"}/week`:"Days not set";',
+            'plan.noCycle&&rawSequence===0?0:Math.max(1,rawSequence||1)',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[item for item in required if item not in text]
+          if missing: raise SystemExit('Missing v10 markers: '+repr(missing))
+          if '<select data-cycle-config-field="scheduleMode" data-cycle-sequence=' in text:
+            raise SystemExit('Old two-option Cycle Settings schedule selector still present')
+
+          def fn(name):
+            start=text.index('function '+name)
+            end=text.find('\nfunction ',start+10)
+            return text[start:end if end!=-1 else len(text)]
+
+          options=fn('cycleSchedulePresetOptions')
+          if 'Mon / Thu' in options: raise SystemExit('Cycle Settings unexpectedly contains Mon / Thu')
+          if '"Days not set"' not in fn('overviewScheduleText') or '"Days not set"' not in fn('cycleFrequencyText'):
+            raise SystemExit('Days not set fallback was removed')
+
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          Path('/tmp/app.js').write_text(max(scripts,key=len))
+
+          names=['normalisedScheduleDays','effectiveCycleSchedule','effectivePlanSchedule','cycleSchedulePresetValue','applyCycleSchedulePreset','overviewScheduleText','cycleFrequencyText']
+          functions='\n'.join(fn(name) for name in names)
+          test=r'''
+          const WEEKDAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+          function enteredPlanNumber(v){if(v===""||v==null)return null;const n=Number(v);return Number.isFinite(n)?n:null}
+          function num(v){const n=Number(v);return Number.isFinite(n)?n:null}
+          function clone(v){return JSON.parse(JSON.stringify(v))}
+          function plannerArraysEqual(a,b){return JSON.stringify(a)===JSON.stringify(b)}
+          function parseISO(s){if(!s)return null;const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
+          function dayDiff(a,b){return Math.round((new Date(b.getFullYear(),b.getMonth(),b.getDate())-new Date(a.getFullYear(),a.getMonth(),a.getDate()))/86400000)}
+          function phaseForWeek(plan,week){return (plan.phases||[]).find(p=>week>=Number(p.startWeek||1)&&week<=Number(p.endWeek||1))||null}
+          function cyclePhaseForWeek(config,week){return phaseForWeek(config,week)}
+          function cycleConfigForSequence(plan,n){return plan.cycleConfigs?.[n-1]||null}
+          function round(v,d=2){const p=10**d;return Math.round(v*p)/p}
+          '''+functions+r'''
+          function assert(cond,msg){if(!cond)throw new Error(msg)}
+          const at=new Date(2026,8,7);
+          const continuous={noCycle:true,startDate:"2026-09-01",scheduleMode:"weekdays",weekdays:[],intervalDays:"",phases:[{startWeek:1,endWeek:99,weekdays:[6],intervalDays:""}]};
+          assert(overviewScheduleText(continuous,at)==="Sat","Continuous Saturday summary failed: "+overviewScheduleText(continuous,at));
+          assert(cycleFrequencyText(continuous,1,at)==="1 day/week","Continuous Saturday frequency failed");
+          const blank={noCycle:true,startDate:"2026-09-01",scheduleMode:"weekdays",weekdays:[],intervalDays:"",phases:[{startWeek:1,endWeek:99,weekdays:[],intervalDays:""}]};
+          assert(overviewScheduleText(blank,at)==="Days not set","Days not set fallback must remain for an empty continuous schedule");
+          const config={scheduleMode:"weekdays",weekdays:[],intervalDays:"",phases:[{startWeek:1,endWeek:8,weekdays:[6],intervalDays:""}]};
+          const cyclic={noCycle:false,cycleConfigs:[config]};
+          assert(overviewScheduleText(cyclic,at)==="Sat","Cycled Saturday summary failed: "+overviewScheduleText(cyclic,at));
+          assert(cycleSchedulePresetValue(config)==="manual-weekdays","Saturday should resolve to Choose weekdays");
+          applyCycleSchedulePreset(config,"weekly");
+          assert(config.scheduleMode==="interval"&&config.intervalDays===7&&config.phases[0].intervalDays===7&&config.phases[0].weekdays.length===0,"Every 7 days preset did not synchronize");
+          applyCycleSchedulePreset(config,"mwf");
+          assert(JSON.stringify(config.weekdays)==="[1,3,5]"&&JSON.stringify(config.phases[0].weekdays)==="[1,3,5]","Mon / Wed / Fri preset did not synchronize");
+          config.scheduleMode="weekdays";config.weekdays=[];config.intervalDays="";config.phases[0].weekdays=[];config.phases[0].intervalDays="";
+          assert(cycleFrequencyText(cyclic,1,at)==="Days not set","Days not set fallback must remain for an empty cycled schedule");
+          console.log("v2026.0709.10 schedule regression PASS");
+          '''
+          Path('/tmp/schedule-regression.js').write_text(test)
+          PY
+          node --check /tmp/app.js
+          node /tmp/schedule-regression.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.10"
+          git push origin HEAD:main
