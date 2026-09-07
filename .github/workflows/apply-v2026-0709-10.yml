@@ -1,41 +1,29 @@
-name: Apply v2026.0709.10 targeted patch
+name: Export v2026.0709.10 deliverables
 
 on:
   push:
     paths:
       - '.github/workflows/apply-v2026-0709-10.yml'
 
-permissions:
-  contents: write
-
 jobs:
-  patch:
+  export:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Patch index.html only
-        run: echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnA9UGF0aCgiaW5kZXguaHRtbCIpCnM9cC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKb2xkPSIiImZ1bmN0aW9uIG92ZXJ2aWV3U2NoZWR1bGVUZXh0KHBsYW4sYXQ9bmV3IERhdGUoKSl7CiAgY29uc3QgZnVsbERheU5hbWVzPVsiU3VuIiwiTW9uIiwiVHVlIiwiV2VkIiwiVGh1IiwiRnJpIiwiU2F0Il0sZm9ybWF0RGF5cz1kYXlzPT57Y29uc3QgY2xlYW49Wy4uLm5ldyBTZXQoKGRheXN8fFtdKS5tYXAoTnVtYmVyKS5maWx0ZXIoZGF5PT5kYXk+PTAmJmRheTw9NikpXS5zb3J0KChhLGIpPT5hLWIpO2lmKHBsYW5uZXJBcnJheXNFcXVhbChjbGVhbixbMCwxLDIsMyw0LDUsNl0pKXJldHVybiAiRGFpbHkiO2lmKHBsYW5uZXJBcnJheXNFcXVhbChjbGVhbixbMSwyLDMsNCw1XSkpcmV0dXJuICJXZWVrZGF5cyI7cmV0dXJuIGNsZWFuLmxlbmd0aD9jbGVhbi5tYXAoZGF5PT5mdWxsRGF5TmFtZXNbZGF5XSkuam9pbigiIC8gIik6IkRheXMgbm90IHNldCI7fTsKICBpZihwbGFuLm5vQ3ljbGUpe2lmKHBsYW4uc2NoZWR1bGVNb2RlPT09ImludGVydmFsIilyZXR1cm4gbnVtKHBsYW4uaW50ZXJ2YWxEYXlzKT9gRXZlcnkgJHtOdW1iZXIocGxhbi5pbnRlcnZhbERheXMpfSBkYXlzYDoiSW50ZXJ2YWwgbm90IHNldCI7cmV0dXJuIGZvcm1hdERheXMocGxhbi53ZWVrZGF5c3x8W10pO30KICBjb25zdCBjb25maWc9Y3ljbGVDb25maWdGb3JTZXF1ZW5jZShwbGFuLDEpO2lmKCFjb25maWcpcmV0dXJuICJDeWNsZSBzY2hlZHVsZSBub3Qgc2V0IjsKICBjb25zdCBwaGFzZURheXM9Y3ljbGVQaGFzZVdlZWtkYXlzKGNvbmZpZywxKTtpZihwaGFzZURheXMhPT1udWxsKXJldHVybiBmb3JtYXREYXlzKHBoYXNlRGF5cyk7Y29uc3QgcGhhc2VJbnRlcnZhbD1jeWNsZVBoYXNlSW50ZXJ2YWwoY29uZmlnLDEpO2lmKHBoYXNlSW50ZXJ2YWwpcmV0dXJuIGBFdmVyeSAke3BoYXNlSW50ZXJ2YWx9IGRheSR7cGhhc2VJbnRlcnZhbD09PTE/IiI6InMifWA7cmV0dXJuIGN5Y2xlU2NoZWR1bGVMYWJlbChjb25maWcpOwp9IiIiCm5ldz0iIiJmdW5jdGlvbiBvdmVydmlld1NjaGVkdWxlVGV4dChwbGFuLGF0PW5ldyBEYXRlKCkpewogIGNvbnN0IGZ1bGxEYXlOYW1lcz1bIlN1biIsIk1vbiIsIlR1ZSIsIldlZCIsIlRodSIsIkZyaSIsIlNhdCJdLGZvcm1hdERheXM9ZGF5cz0+e2NvbnN0IGNsZWFuPVsuLi5uZXcgU2V0KChkYXlzfHxbXSkubWFwKE51bWJlcikuZmlsdGVyKGRheT0+ZGF5Pj0wJiZkYXk8PTYpKV0uc29ydCgoYSxiKT0+YS1iKTtpZihwbGFubmVyQXJyYXlzRXF1YWwoY2xlYW4sWzAsMSwyLDMsNCw1LDZdKSlyZXR1cm4gIkRhaWx5IjtpZihwbGFubmVyQXJyYXlzRXF1YWwoY2xlYW4sWzEsMiwzLDQsNV0pKXJldHVybiAiV2Vla2RheXMiO3JldHVybiBjbGVhbi5sZW5ndGg/Y2xlYW4ubWFwKGRheT0+ZnVsbERheU5hbWVzW2RheV0pLmpvaW4oIiAvICIpOiJEYXlzIG5vdCBzZXQiO307CiAgaWYocGxhbi5ub0N5Y2xlKXsKICAgIGlmKHBsYW4uc2NoZWR1bGVNb2RlPT09ImludGVydmFsIilyZXR1cm4gbnVtKHBsYW4uaW50ZXJ2YWxEYXlzKT9gRXZlcnkgJHtOdW1iZXIocGxhbi5pbnRlcnZhbERheXMpfSBkYXlzYDoiSW50ZXJ2YWwgbm90IHNldCI7CiAgICBjb25zdCBwaGFzZT1jeWNsZVBoYXNlRm9yV2VlayhwbGFuLE1hdGgubWF4KDEsY29udGludW91c1dlZWtPbihwbGFuLGF0KXx8MSkpLHBoYXNlRGF5cz1BcnJheS5pc0FycmF5KHBoYXNlPy53ZWVrZGF5cykmJnBoYXNlLndlZWtkYXlzLmxlbmd0aD9waGFzZS53ZWVrZGF5czpudWxsOwogICAgcmV0dXJuIGZvcm1hdERheXMocGhhc2VEYXlzfHxwbGFuLndlZWtkYXlzfHxbXSk7CiAgfQogIGNvbnN0IHNlcXVlbmNlPU1hdGgubWF4KDEsTnVtYmVyKGFjdGl2ZUN5Y2xlU2VxdWVuY2UocGxhbil8fDEpKSxjb25maWc9Y3ljbGVDb25maWdGb3JTZXF1ZW5jZShwbGFuLHNlcXVlbmNlKTtpZighY29uZmlnKXJldHVybiAiQ3ljbGUgc2NoZWR1bGUgbm90IHNldCI7CiAgY29uc3Qgd2Vlaz1NYXRoLm1heCgxLE51bWJlcihjeWNsZVdlZWtPbihwbGFuLGF0KXx8MSkpLHBoYXNlRGF5cz1jeWNsZVBoYXNlV2Vla2RheXMoY29uZmlnLHdlZWspO2lmKHBoYXNlRGF5cyE9PW51bGwpcmV0dXJuIGZvcm1hdERheXMocGhhc2VEYXlzKTtjb25zdCBwaGFzZUludGVydmFsPWN5Y2xlUGhhc2VJbnRlcnZhbChjb25maWcsd2Vlayk7aWYocGhhc2VJbnRlcnZhbClyZXR1cm4gYEV2ZXJ5ICR7cGhhc2VJbnRlcnZhbH0gZGF5JHtwaGFzZUludGVydmFsPT09MT8iIjoicyJ9YDtyZXR1cm4gY3ljbGVTY2hlZHVsZUxhYmVsKGNvbmZpZyk7Cn0iIiIKaWYgb2xkIG5vdCBpbiBzOiByYWlzZSBTeXN0ZW1FeGl0KCJvdmVydmlldyB0YXJnZXQgbm90IGZvdW5kIikKcz1zLnJlcGxhY2Uob2xkLG5ldywxKQp3YXJuPScgIGlmKG9ic29sZXRlLmxlbmd0aCl3YXJuaW5ncy5wdXNoKGAke29ic29sZXRlLmxlbmd0aH0gaGlzdG9yaWNhbCBhdXRvLWNvbXBsZXRpb24gcmVjb3JkJHtvYnNvbGV0ZS5sZW5ndGg9PT0xPyIiOiJzIn0gbm8gbG9uZ2VyIG1hdGNoIHRoZSBjdXJyZW50IHNwbGl0L3Vuc3BsaXQgc2NoZWR1bGUgYW5kIGFyZSBleGNsdWRlZCBmcm9tIHZpYWwgY29uc3VtcHRpb24uYCk7XG4nCmlmIHdhcm4gbm90IGluIHM6IHJhaXNlIFN5c3RlbUV4aXQoIndhcm5pbmcgdGFyZ2V0IG5vdCBmb3VuZCIpCnM9cy5yZXBsYWNlKHdhcm4sIiIsMSkKcz1zLnJlcGxhY2UoJzx0aXRsZT5QZXB0aWRlIFBsYW5uZXIgdjIwMjYuMDcwOS4wOTwvdGl0bGU+JywnPHRpdGxlPlBlcHRpZGUgUGxhbm5lciB2MjAyNi4wNzA5LjEwPC90aXRsZT4nLDEpCmFuY2hvcj0nPHRpdGxlPlBlcHRpZGUgUGxhbm5lciB2MjAyNi4wNzA5LjEwPC90aXRsZT5cbicKbWFya2VyPSc8IS0tIHYyMDI2LjA3MDkuMTA6IE92ZXJ2aWV3IGN1c3RvbSB3ZWVrZGF5IHNjaGVkdWxlcyBub3cgc2hvdyB0aGUgY29uZmlndXJlZCBhY3RpdmUtcGhhc2UgZGF5KHMpLCBhbmQgdGhlIG9ic29sZXRlIGhpc3RvcmljYWwgYXV0by1jb21wbGV0aW9uIHZpYWwgaW52ZW50b3J5IHdhcm5pbmcgaXMgbm8gbG9uZ2VyIGRpc3BsYXllZDsgdmlhbC1jb25zdW1wdGlvbiBleGNsdXNpb24gbG9naWMgaXMgcHJlc2VydmVkLiAtLT5cbicKaWYgbWFya2VyIG5vdCBpbiBzOiBzPXMucmVwbGFjZShhbmNob3IsYW5jaG9yK21hcmtlciwxKQpwLndyaXRlX3RleHQocyxlbmNvZGluZz0idXRmLTgiKQo=' | base64 -d | python
-      - name: Verify targeted patch
+      - name: Verify current build
         run: |
           grep -F '<title>Peptide Planner v2026.0709.10</title>' index.html
-          grep -F 'phaseDays||plan.weekdays||[]' index.html
-          if grep -F 'historical auto-completion record${obsolete.length===1?' index.html; then exit 1; fi
+          grep -F 'phaseWeekdaysForWeek(plan,week)' index.html
+          if grep -F '${vialIntegrity.warnings.length?' index.html; then exit 1; fi
           grep -F 'administrationMatchesScheduledStructure(plan,record)' index.html
-      - name: Commit patch
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html
-          git commit -m 'v2026.0709.10 show custom schedule days and hide legacy vial warning'
-          git push origin main
       - name: Build deliverables
         run: |
           mkdir -p deliverables/cloudflare
           cp index.html deliverables/Peptide_Planner_v2026.0709.10.html
           cp index.html deliverables/cloudflare/index.html
-          for f in _headers manifest.webmanifest peptide-planner-sw.js; do cp "$f" deliverables/cloudflare/; done
+          cp _headers manifest.webmanifest peptide-planner-sw.js deliverables/cloudflare/
           cd deliverables/cloudflare
           zip -q ../Peptide_Planner_v2026.0709.10_Cloudflare.zip index.html _headers manifest.webmanifest peptide-planner-sw.js
       - uses: actions/upload-artifact@v4
