@@ -1,0 +1,107 @@
+name: Apply Peptide Planner v2026.0709.04
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-04.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "47886215c10f3ed95fda757b9e3ed6c257b4e3be"
+          test "$(git hash-object peptide-planner-sw.js)" = "701a4249fc429095af5c77252f1e82fae70a1209"
+          cp index.html /tmp/source-index.html
+
+      - name: Apply exact v2026.0709.04 patch
+        run: |
+          git apply --check .deploy/v2026.0709.04.patch
+          git apply .deploy/v2026.0709.04.patch
+
+      - name: Validate exact target and regression guards
+        run: |
+          test "$(git hash-object index.html)" = "48f9443d1566c36ccb5f49e705909e8cb5297204"
+          test "$(git hash-object peptide-planner-sw.js)" = "c86428d57d953cfa928e69fc0e0768235e08f5b6"
+          test "$(sha256sum index.html | awk '{print $1}')" = "667296386373553dcbcd022b3c1b7a7368390490583c2cf3b33594d44e46f34e"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "f1ab5f7324b2a459a60ec419f528ae5644f23641c1629765ad1127f95acc72a3"
+          python3 - <<'PY'
+          import pathlib,re
+          src=pathlib.Path('/tmp/source-index.html').read_text()
+          text=pathlib.Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.04</title>',
+            'const APP_VERSION="v2026.0709.04";',
+            'function plannerCanAccessAdmin()',
+            '["owner","admin"].includes(cloudAccess?.role||"")',
+            'if(tabId==="admin"&&!plannerCanAccessAdmin())tabId="dashboard";',
+            'const firstName=plannerFirstName(profileName||cloudAccess?.name||"");',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('Missing required v04 markers: '+repr(missing))
+          forbidden=['planner-standard-user','applyStandardUserOwnerParityState']
+          present=[x for x in forbidden if x in text]
+          if present: raise SystemExit('User-only planner path still present: '+repr(present))
+
+          def extract(s,name):
+            marker='function '+name+'('
+            start=s.find(marker)
+            if start<0: raise SystemExit('Missing function '+name)
+            brace=s.find('{',start); depth=0; i=brace; quote=None; esc=False; line=False; block=False
+            while i<len(s):
+              c=s[i]; n=s[i+1] if i+1<len(s) else ''
+              if line:
+                if c=='\n': line=False
+                i+=1; continue
+              if block:
+                if c=='*' and n=='/': block=False; i+=2; continue
+                i+=1; continue
+              if quote:
+                if esc: esc=False
+                elif c=='\\': esc=True
+                elif c==quote: quote=None
+                i+=1; continue
+              if c=='/' and n=='/': line=True; i+=2; continue
+              if c=='/' and n=='*': block=True; i+=2; continue
+              if c in ('"',"'",'`'): quote=c; i+=1; continue
+              if c=='{': depth+=1
+              elif c=='}':
+                depth-=1
+                if depth==0: return s[start:i+1]
+              i+=1
+            raise SystemExit('Unterminated function '+name)
+          unchanged=[
+            'renderSimplePlanner','renderContinuousPlanPanel','renderPlanCyclePanels',
+            'renderContinuousVialSchedule','renderCycleConfigVialSchedule','calcUnits',
+            'continuousVialPrepForDate','continuousVialPrepForRecord',
+            'continuousVialScheduleComputation','cycleConfigVialScheduleComputation',
+            'currentVialDosesLeft','scheduleForDate','todayAdministrationMissed',
+            'renderPlannerHeader','plannerCanAccessAdmin','activateTab'
+          ]
+          for name in unchanged:
+            if extract(src,name)!=extract(text,name):
+              raise SystemExit('Owner/shared function changed unexpectedly: '+name)
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.04"
+          git push origin HEAD:main
