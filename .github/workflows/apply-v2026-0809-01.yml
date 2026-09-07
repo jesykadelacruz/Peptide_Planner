@@ -16,36 +16,13 @@ jobs:
         with:
           ref: main
       - name: Patch current-week Overview schedule only
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          old='''  const config=cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
-  const phaseDays=cyclePhaseWeekdays(config,1);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,1);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);'''
-          new='''  const position=protocolPositionForDate(plan,at),sequence=position?.valid?Math.max(1,Number(position.sequence)||1):1,week=position?.valid&&!position.washout&&Number(position.week)>0?Math.max(1,Number(position.week)):1;
-  const config=position?.config||(isSeparateCycleStack(plan)?plan:cycleConfigForSequence(plan,sequence))||cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
-  const phaseDays=cyclePhaseWeekdays(config,week);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,week);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);'''
-          if s.count(old)!=1:
-              raise SystemExit(f'overview target count={s.count(old)}')
-          s=s.replace(old,new,1)
-          old_title='<title>Peptide Planner v2026.0709.10</title>'
-          new_title='<title>Peptide Planner v2026.0809.01</title>'
-          if old_title not in s:
-              raise SystemExit('title target missing')
-          s=s.replace(old_title,new_title,1)
-          marker='<!-- v2026.0809.01: Treatment Overview schedule now resolves the active cycle and current treatment week before reading Dose Schedule weekdays/intervals, so phase-specific schedules update automatically as the treatment advances. Shared planner logic applies identically to Owner, Admin and User views. -->\n'
-          anchor=new_title+'\n'
-          s=s.replace(anchor,anchor+marker,1)
-          p.write_text(s,encoding='utf-8')
-          PY
+        run: echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnA9UGF0aCgiaW5kZXguaHRtbCIpCnM9cC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKb2xkPScnJyAgY29uc3QgY29uZmlnPWN5Y2xlQ29uZmlnRm9yU2VxdWVuY2UocGxhbiwxKTtpZighY29uZmlnKXJldHVybiAiQ3ljbGUgc2NoZWR1bGUgbm90IHNldCI7CiAgY29uc3QgcGhhc2VEYXlzPWN5Y2xlUGhhc2VXZWVrZGF5cyhjb25maWcsMSk7aWYocGhhc2VEYXlzIT09bnVsbClyZXR1cm4gZm9ybWF0RGF5cyhwaGFzZURheXMpO2NvbnN0IHBoYXNlSW50ZXJ2YWw9Y3ljbGVQaGFzZUludGVydmFsKGNvbmZpZywxKTtpZihwaGFzZUludGVydmFsKXJldHVybiBgRXZlcnkgJHtwaGFzZUludGVydmFsfSBkYXkke3BoYXNlSW50ZXJ2YWw9PT0xPyIiOiJzIn1gO3JldHVybiBjeWNsZVNjaGVkdWxlTGFiZWwoY29uZmlnKTsnJycKbmV3PScnJyAgY29uc3QgcG9zaXRpb249cHJvdG9jb2xQb3NpdGlvbkZvckRhdGUocGxhbixhdCksc2VxdWVuY2U9cG9zaXRpb24/LnZhbGlkP01hdGgubWF4KDEsTnVtYmVyKHBvc2l0aW9uLnNlcXVlbmNlKXx8MSk6MSx3ZWVrPXBvc2l0aW9uPy52YWxpZCYmIXBvc2l0aW9uLndhc2hvdXQmJk51bWJlcihwb3NpdGlvbi53ZWVrKT4wP01hdGgubWF4KDEsTnVtYmVyKHBvc2l0aW9uLndlZWspKToxOwogIGNvbnN0IGNvbmZpZz1wb3NpdGlvbj8uY29uZmlnfHwoaXNTZXBhcmF0ZUN5Y2xlU3RhY2socGxhbik/cGxhbjpjeWNsZUNvbmZpZ0ZvclNlcXVlbmNlKHBsYW4sc2VxdWVuY2UpKXx8Y3ljbGVDb25maWdGb3JTZXF1ZW5jZShwbGFuLDEpO2lmKCFjb25maWcpcmV0dXJuICJDeWNsZSBzY2hlZHVsZSBub3Qgc2V0IjsKICBjb25zdCBwaGFzZURheXM9Y3ljbGVQaGFzZVdlZWtkYXlzKGNvbmZpZyx3ZWVrKTtpZihwaGFzZURheXMhPT1udWxsKXJldHVybiBmb3JtYXREYXlzKHBoYXNlRGF5cyk7Y29uc3QgcGhhc2VJbnRlcnZhbD1jeWNsZVBoYXNlSW50ZXJ2YWwoY29uZmlnLHdlZWspO2lmKHBoYXNlSW50ZXJ2YWwpcmV0dXJuIGBFdmVyeSAke3BoYXNlSW50ZXJ2YWx9IGRheSR7cGhhc2VJbnRlcnZhbD09PTE/IiI6InMifWA7cmV0dXJuIGN5Y2xlU2NoZWR1bGVMYWJlbChjb25maWcpOycnJwppZiBzLmNvdW50KG9sZCkhPTE6CiAgICByYWlzZSBTeXN0ZW1FeGl0KGYib3ZlcnZpZXcgdGFyZ2V0IGNvdW50PXtzLmNvdW50KG9sZCl9IikKcz1zLnJlcGxhY2Uob2xkLG5ldywxKQpvbGRfdGl0bGU9Ijx0aXRsZT5QZXB0aWRlIFBsYW5uZXIgdjIwMjYuMDcwOS4xMDwvdGl0bGU+IgpuZXdfdGl0bGU9Ijx0aXRsZT5QZXB0aWRlIFBsYW5uZXIgdjIwMjYuMDgwOS4wMTwvdGl0bGU+IgppZiBvbGRfdGl0bGUgbm90IGluIHM6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJ0aXRsZSB0YXJnZXQgbWlzc2luZyIpCnM9cy5yZXBsYWNlKG9sZF90aXRsZSxuZXdfdGl0bGUsMSkKbWFya2VyPSI8IS0tIHYyMDI2LjA4MDkuMDE6IFRyZWF0bWVudCBPdmVydmlldyBzY2hlZHVsZSBub3cgcmVzb2x2ZXMgdGhlIGFjdGl2ZSBjeWNsZSBhbmQgY3VycmVudCB0cmVhdG1lbnQgd2VlayBiZWZvcmUgcmVhZGluZyBEb3NlIFNjaGVkdWxlIHdlZWtkYXlzL2ludGVydmFscywgc28gcGhhc2Utc3BlY2lmaWMgc2NoZWR1bGVzIHVwZGF0ZSBhdXRvbWF0aWNhbGx5IGFzIHRoZSB0cmVhdG1lbnQgYWR2YW5jZXMuIFNoYXJlZCBwbGFubmVyIGxvZ2ljIGFwcGxpZXMgaWRlbnRpY2FsbHkgdG8gT3duZXIsIEFkbWluIGFuZCBVc2VyIHZpZXdzLiAtLT5cbiIKYW5jaG9yPW5ld190aXRsZSsiXG4iCnM9cy5yZXBsYWNlKGFuY2hvcixhbmNob3IrbWFya2VyLDEpCnAud3JpdGVfdGV4dChzLGVuY29kaW5nPSJ1dGYtOCIpCg==' | base64 -d | python
       - name: Verify targeted change
         run: |
           grep -F '<title>Peptide Planner v2026.0809.01</title>' index.html
           grep -F 'const position=protocolPositionForDate(plan,at)' index.html
           grep -F 'cyclePhaseWeekdays(config,week)' index.html
           if sed -n '/function overviewScheduleText/,/function sortedPlans/p' index.html | grep -F 'cyclePhaseWeekdays(config,1)'; then exit 1; fi
-          grep -F 'function renderPlanCard' index.html >/dev/null || true
       - name: Commit index.html only
         run: |
           git config user.name 'github-actions[bot]'
