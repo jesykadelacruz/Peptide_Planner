@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0709.05</title>
+<title>Peptide Planner v2026.0709.06</title>
+<!-- v2026.0709.06: User-view sizing only. Peptide Settings and Cycle Settings controls are fixed to the same 40px height and 8px 10px padding used by Vial Schedule Vial/Water controls; Owner view, shared treatment logic and calculations are unchanged. -->
 <!-- v2026.0709.05: User-only form-control parity fix. Owner view and shared treatment logic remain unchanged. User Peptide Settings and Cycle Settings now force the Owner mobile-app standard field height so input/select controls align consistently across browsers; Admin Dashboard remains unavailable to User. -->
 <!-- v2026.0709.02: Owner and user use the exact same planner renderer, fields, controls and calculations; only Admin Dashboard access is role-restricted. Restores the owner Peptide Settings layout, preserves vial/cycle row state across reloads, fixes cyclic Add/Remove vial persistence, and makes Personal Profile name the header source of truth. -->
 <!-- v2026.0709.01: Owner and user share one identical planner renderer, layout and treatment interaction path; only Admin Dashboard access remains role-restricted. Cache-busting is strengthened so user sessions load the current interface. -->
@@ -5664,6 +5665,55 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     overflow-wrap:normal!important;
   }
 }
+
+/* v2026.0709.06 — User view only: match Peptide/Cycle controls to the existing Vial Schedule Vial/Water field dimensions. */
+body.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
+body.planner-user-role #planner .peptide-settings-grid > div > select,
+body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
+body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
+body.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
+body.planner-user-role #planner .cycle-config-grid > div > select{
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  block-size:40px!important;
+  padding:8px 10px!important;
+  border-radius:10px!important;
+  box-sizing:border-box!important;
+}
+body.mobile-app.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
+body.mobile-app.planner-user-role #planner .peptide-settings-grid > div > select,
+body.mobile-app.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
+body.mobile-app.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
+body.mobile-app.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
+body.mobile-app.planner-user-role #planner .cycle-config-grid > div > select{
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  block-size:40px!important;
+  padding:8px 10px!important;
+  border-radius:10px!important;
+  box-sizing:border-box!important;
+}
+
+body.planner-user-role #planner .cycle-config-grid .date-control,
+body.mobile-app.planner-user-role #planner .cycle-config-grid .date-control{
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  block-size:40px!important;
+  box-sizing:border-box!important;
+}
+body.planner-user-role #planner .cycle-config-grid .date-control .date-display,
+body.mobile-app.planner-user-role #planner .cycle-config-grid .date-control .date-display{
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  block-size:40px!important;
+  padding:8px 48px 8px 10px!important;
+  border-radius:10px!important;
+  box-sizing:border-box!important;
+}
 </style>
 
 
@@ -7244,7 +7294,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0709.05";
+const APP_VERSION="v2026.0709.06";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
