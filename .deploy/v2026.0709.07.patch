@@ -1,0 +1,302 @@
+diff --git a/index.html b/index.html
+index 7d14553..c9ec8f9 100644
+--- a/index.html
++++ b/index.html
+@@ -12,7 +12,8 @@
+ <meta http-equiv="Pragma" content="no-cache">
+ <meta http-equiv="Expires" content="0">
+ <link rel="manifest" href="./manifest.webmanifest">
+-<title>Peptide Planner v2026.0709.06</title>
++<title>Peptide Planner v2026.0709.07</title>
++<!-- v2026.0709.07: Owner/User treatment UI returns to one shared Owner layout with no role-specific sizing CSS. Removing/re-adding a treatment now purges treatment runtime residue, library presets no longer prefill from stale prior treatment settings, and fresh unconfirmed setups with no administrations/opened vial reconcile preparation from the pending vial record. -->
+ <!-- v2026.0709.06: User-view sizing only. Peptide Settings and Cycle Settings controls are fixed to the same 40px height and 8px 10px padding used by Vial Schedule Vial/Water controls; Owner view, shared treatment logic and calculations are unchanged. -->
+ <!-- v2026.0709.05: User-only form-control parity fix. Owner view and shared treatment logic remain unchanged. User Peptide Settings and Cycle Settings now force the Owner mobile-app standard field height so input/select controls align consistently across browsers; Admin Dashboard remains unavailable to User. -->
+ <!-- v2026.0709.02: Owner and user use the exact same planner renderer, fields, controls and calculations; only Admin Dashboard access is role-restricted. Restores the owner Peptide Settings layout, preserves vial/cycle row state across reloads, fixes cyclic Add/Remove vial persistence, and makes Personal Profile name the header source of truth. -->
+@@ -3832,47 +3833,6 @@ body.onboarding-dialog-open{overflow:hidden!important}
+   }
+ }
+ 
+-/* v2026.0709.05 — User view only: make treatment form controls use the same
+-   standard dimensions as the existing Owner mobile-app controls.
+-   Owner selectors/rendering are intentionally untouched. */
+-body.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
+-body.planner-user-role #planner .peptide-settings-grid > div > select,
+-body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
+-body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
+-body.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
+-body.planner-user-role #planner .cycle-config-grid > div > select{
+-  display:block!important;
+-  width:100%!important;
+-  min-width:0!important;
+-  max-width:100%!important;
+-  height:50px!important;
+-  min-height:50px!important;
+-  max-height:50px!important;
+-  block-size:50px!important;
+-  box-sizing:border-box!important;
+-  margin:0!important;
+-  padding:11px 12px!important;
+-  line-height:1.2!important;
+-}
+-body.planner-user-role #planner .peptide-settings-grid,
+-body.planner-user-role #planner .cycle-config-grid{
+-  align-items:end!important;
+-}
+-@media(max-width:900px){
+-  body.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
+-  body.planner-user-role #planner .peptide-settings-grid > div > select,
+-  body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
+-  body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
+-  body.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
+-  body.planner-user-role #planner .cycle-config-grid > div > select{
+-    height:46px!important;
+-    min-height:46px!important;
+-    max-height:46px!important;
+-    block-size:46px!important;
+-    padding:0 11px!important;
+-  }
+-}
+-
+ /* Cycle weekday selector — reference My Plan presentation */
+ #planner .cycle-config-card .weekdays{
+   display:grid!important;
+@@ -5666,54 +5626,6 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
+   }
+ }
+ 
+-/* v2026.0709.06 — User view only: match Peptide/Cycle controls to the existing Vial Schedule Vial/Water field dimensions. */
+-body.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
+-body.planner-user-role #planner .peptide-settings-grid > div > select,
+-body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
+-body.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
+-body.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
+-body.planner-user-role #planner .cycle-config-grid > div > select{
+-  height:40px!important;
+-  min-height:40px!important;
+-  max-height:40px!important;
+-  block-size:40px!important;
+-  padding:8px 10px!important;
+-  border-radius:10px!important;
+-  box-sizing:border-box!important;
+-}
+-body.mobile-app.planner-user-role #planner .peptide-settings-grid > div > input:not([type="hidden"]),
+-body.mobile-app.planner-user-role #planner .peptide-settings-grid > div > select,
+-body.mobile-app.planner-user-role #planner .peptide-settings-grid .dispose-by-control > input,
+-body.mobile-app.planner-user-role #planner .peptide-settings-grid .dispose-by-control > select,
+-body.mobile-app.planner-user-role #planner .cycle-config-grid > div > input:not([type="checkbox"]),
+-body.mobile-app.planner-user-role #planner .cycle-config-grid > div > select{
+-  height:40px!important;
+-  min-height:40px!important;
+-  max-height:40px!important;
+-  block-size:40px!important;
+-  padding:8px 10px!important;
+-  border-radius:10px!important;
+-  box-sizing:border-box!important;
+-}
+-
+-body.planner-user-role #planner .cycle-config-grid .date-control,
+-body.mobile-app.planner-user-role #planner .cycle-config-grid .date-control{
+-  height:40px!important;
+-  min-height:40px!important;
+-  max-height:40px!important;
+-  block-size:40px!important;
+-  box-sizing:border-box!important;
+-}
+-body.planner-user-role #planner .cycle-config-grid .date-control .date-display,
+-body.mobile-app.planner-user-role #planner .cycle-config-grid .date-control .date-display{
+-  height:40px!important;
+-  min-height:40px!important;
+-  max-height:40px!important;
+-  block-size:40px!important;
+-  padding:8px 48px 8px 10px!important;
+-  border-radius:10px!important;
+-  box-sizing:border-box!important;
+-}
+ </style>
+ 
+ 
+@@ -7294,7 +7206,7 @@ body.mobile-app.planner-user-role #planner .cycle-config-grid .date-control .dat
+ "use strict";
+ const STORAGE_KEY="peptideTreatmentPlanner_v4";
+ const LEGACY_KEY="personalTreatmentTracker_v1";
+-const APP_VERSION="v2026.0709.06";
++const APP_VERSION="v2026.0709.07";
+ const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+ const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+ const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+@@ -7900,18 +7812,43 @@ function setPlanStackStatus(plan,status){
+   reconcilePlanStackStatus(plan);
+   save();
+ }
++function clearPlanRuntimeArtifacts(planId){
++  if(!planId)return;
++  state.vialRecords=(state.vialRecords||[]).filter(record=>record?.planId!==planId);
++  state.administrations=(state.administrations||[]).filter(record=>record?.planId!==planId);
++  [state.completedInjections,state.completedDoseWeeks,state.usedVials,state.boughtVials].forEach(bucket=>{
++    if(!bucket||typeof bucket!=="object")return;
++    Object.keys(bucket).filter(key=>key.startsWith(planId+"|")).forEach(key=>delete bucket[key]);
++  });
++  if(state.ui?.sectionOpen&&typeof state.ui.sectionOpen==="object")Object.keys(state.ui.sectionOpen).filter(key=>key.startsWith(planId+":")).forEach(key=>delete state.ui.sectionOpen[key]);
++}
++function reconcileFreshUnconfirmedPreparation(plan){
++  if(!plan||plan.noCycle||plan.confirmed||!["active","soon"].includes(plan.stackStatus))return false;
++  const start=parseISO(plan.startDate),today=parseISO(todayISO());
++  if(!start||!today||start<today)return false;
++  const hasAdmin=(state.administrations||[]).some(record=>record?.planId===plan.id&&record?.status==="Administered");
++  const hasOpened=(state.vialRecords||[]).some(record=>{
++    if(record?.planId!==plan.id)return false;
++    const opened=parseISO(String(record?.startDate||""));
++    return !!(opened&&opened<=today);
++  });
++  if(hasAdmin||hasOpened)return false;
++  const pending=(state.vialRecords||[]).find(record=>record?.planId===plan.id&&!String(record?.startDate||"").trim()&&num(record?.vialMg)>0&&(num(record?.finalMl)>0||num(record?.bacWaterMl)>0));
++  if(!pending)return false;
++  let changed=false;
++  if(num(pending.vialMg)>0&&Math.abs(num(plan.vialMg)-num(pending.vialMg))>0.000001){plan.vialMg=pending.vialMg;changed=true}
++  const pendingWater=num(pending.bacWaterMl)>0?pending.bacWaterMl:pending.finalMl;
++  const pendingFinal=num(pending.finalMl)>0?pending.finalMl:pendingWater;
++  if(num(pendingWater)>0&&Math.abs(num(plan.bacWaterMl)-num(pendingWater))>0.000001){plan.bacWaterMl=pendingWater;changed=true}
++  if(num(pendingFinal)>0&&Math.abs(num(plan.finalMl)-num(pendingFinal))>0.000001){plan.finalMl=pendingFinal;changed=true}
++  return changed;
++}
+ function deleteProtocolById(planId){
+   const plan=state.plans.find(item=>item.id===planId);
+   if(TEMPLATE_LIBRARY[planId]||REFERENCES.some(reference=>reference.id===planId)){if(!state.deletedProtocolIds.includes(planId))state.deletedProtocolIds.push(planId)}
+   state.plans=state.plans.filter(item=>item.id!==planId);
+-  state.vialRecords=state.vialRecords.filter(record=>record.planId!==planId);
+-  state.administrations=state.administrations.filter(record=>record.planId!==planId);
++  clearPlanRuntimeArtifacts(planId);
+   state.hiddenReferenceIds=state.hiddenReferenceIds.filter(id=>id!==planId);
+-  Object.keys(state.completedInjections).filter(key=>key.startsWith(planId+"|")).forEach(key=>delete state.completedInjections[key]);
+-  Object.keys(state.completedDoseWeeks).filter(key=>key.startsWith(planId+"|")).forEach(key=>delete state.completedDoseWeeks[key]);
+-  Object.keys(state.usedVials).filter(key=>key.startsWith(planId+"|")).forEach(key=>delete state.usedVials[key]);
+-  Object.keys(state.boughtVials).filter(key=>key.startsWith(planId+"|")).forEach(key=>delete state.boughtVials[key]);
+-  Object.keys(state.ui.sectionOpen).filter(key=>key.startsWith(planId+":")).forEach(key=>delete state.ui.sectionOpen[key]);
+   save();return plan
+ }
+@@ -8202,6 +8139,7 @@ function normaliseState(){
+   reconcileCycleStackStartDates();
+   state.plans.forEach(reconcilePlanStackStatus);
+   state.plans.forEach(initialisePlanPhaseEntryModes);
++  let freshPreparationReconciled=false;state.plans.forEach(plan=>{if(reconcileFreshUnconfirmedPreparation(plan))freshPreparationReconciled=true});
+   /* User verification is retained; Today readiness remains gated by planReadyForToday(plan). */
+   if(!onboardingFlagPresent){
+@@ -8216,6 +8154,7 @@ function normaliseState(){
+     if(state.ui.onboardingComplete)state.ui.onboardingStage="complete";
+     else if(!["profile","treatment","verify","tour","complete"].includes(state.ui.onboardingStage))state.ui.onboardingStage="profile";
+   }
++  return freshPreparationReconciled;
+ }
+ normaliseState();
+ 
+@@ -8525,7 +8464,6 @@ function renderCloudAccount(){
+   const accountEmail=document.getElementById("accountCurrentEmail");if(accountEmail)accountEmail.textContent=cloudUser?.email||"Not signed in";
+   renderPlannerHeader();
+   const active=!!(cloudUser&&cloudAccess?.status==="active");
+-  document.body.classList.toggle("planner-user-role",active&&cloudAccess?.role==="user");
+   signIn?.classList.toggle("hidden",!!cloudUser);signUp?.classList.add("hidden");signOut?.classList.toggle("hidden",!cloudUser);sync?.classList.toggle("hidden",!active);
+   const canAdmin=plannerCanAccessAdmin();admin?.classList.toggle("hidden",!canAdmin);document.getElementById("adminTabButton")?.classList.toggle("hidden",!canAdmin);
+   const owner=active&&cloudAccess?.role==="owner";document.querySelectorAll("#admin .admin-owner-only").forEach(element=>element.classList.toggle("hidden",!owner));
+@@ -10198,13 +10136,16 @@ async function snapshotLocalState(reason="local_device_backup"){
+ }
+ function applyCloudPlannerState(remoteState,remoteStamp){
+   if(!remoteState||typeof remoteState!=="object"||!cloudUser?.id)return false;
++  let reconciledFreshPreparation=false;
+   cloudApplying=true;
+   try{
+-    state={...defaultState(),...remoteState};normaliseState();plannerStateUserId=cloudUser.id;
++    state={...defaultState(),...remoteState};reconciledFreshPreparation=!!normaliseState();plannerStateUserId=cloudUser.id;
+     const key=plannerUserStorageKey(cloudUser.id);if(key)localStorage.setItem(key,JSON.stringify(state));
+     setCloudSyncMeta({lastSyncedAt:remoteStamp||new Date().toISOString(),localModifiedAt:remoteStamp||new Date().toISOString()},cloudUser.id);
+   }finally{cloudApplying=false}
+-  renderAll({preserveView:false});return true;
++  renderAll({preserveView:false});
++  if(reconciledFreshPreparation){markLocalChanged();scheduleCloudSave()}
++  return true;
+ }
+ async function reconcileCloudState({silent=false}={}){
+   if(!cloudClient||!cloudUser||cloudAccess?.status!=="active")return;
+@@ -12165,30 +12106,31 @@ function applySimpleCycleSuggestion(plan,requestedCycle=null){
+ 
+ function fillSimpleSetupFromPlan(plan){
+   if(!plan)return;
+-  document.getElementById("simpleTreatmentName").value=plan.name||"";
++  const baseId=planBaseId(plan),source=plan.stackStatus==="library"&&TEMPLATE_LIBRARY[baseId]?makePlan(baseId):plan;
++  document.getElementById("simpleTreatmentName").value=plan.name||source.name||"";
+   document.getElementById("simpleTreatmentStatus").value=["active","soon"].includes(plan.stackStatus)?plan.stackStatus:"active";
+-  document.getElementById("simpleTreatmentStart").value=plan.startDate||todayISO();
+-  applySimpleCycleSuggestion(plan);
+-  document.getElementById("simpleTreatmentTime").value=plan.injectionTime||"";
+-  document.getElementById("simpleTreatmentSchedule").value=plannerSchedulePresetValue(plan)||"weekly";
+-  document.getElementById("simpleTreatmentRoute").innerHTML=myPlanRouteOptions(plan.route||"",plan.kbRoutes||[]);
+-  // Existing user plans keep their current dose. Library presets do not prescribe a dose.
+-  document.getElementById("simpleTreatmentDose").value=plan.stackStatus==="library"?"":(phaseDose(plan,1)??"");
+-  document.getElementById("simpleTreatmentVial").value=plan.vialMg||plan.defaultVialMg||plan.reconstitutions?.[0]?.vialMg||"";
+-  document.getElementById("simpleTreatmentBacWater").value=plan.bacWaterMl!==""&&plan.bacWaterMl!=null?plan.bacWaterMl:(plan.reconstitutions?.[0]?.bacWaterMl??"");
+-  document.getElementById("simpleTreatmentVolume").value=plan.finalMl||plan.reconstitutions?.[0]?.finalMl||"";
+-  document.getElementById("simpleTreatmentCycleMode").value=plan.noCycle?"ongoing":"cycle";
+-  document.getElementById("simpleTreatmentActiveWeeks").value=plan.noCycle?"":(plan.activeWeeks||"");
+-  document.getElementById("simpleTreatmentBreakWeeks").value=plan.noCycle?"":(plan.breakWeeks??"");
+-  document.getElementById("simpleTreatmentCycles").value=Math.max(1,Number(plan.fullCyclesPerYear??plan.cyclesPerYear??plan.repeatCycles)||1);
++  document.getElementById("simpleTreatmentStart").value=source.startDate||todayISO();
++  applySimpleCycleSuggestion(source);
++  document.getElementById("simpleTreatmentTime").value=source.injectionTime||"";
++  document.getElementById("simpleTreatmentSchedule").value=plannerSchedulePresetValue(source)||"weekly";
++  document.getElementById("simpleTreatmentRoute").innerHTML=myPlanRouteOptions(source.route||"",source.kbRoutes||plan.kbRoutes||[]);
++  // Existing user plans keep their current dose. Library presets do not prescribe a dose or reuse prior treatment runtime settings.
++  document.getElementById("simpleTreatmentDose").value=plan.stackStatus==="library"?"":(phaseDose(source,1)??"");
++  document.getElementById("simpleTreatmentVial").value=source.vialMg||source.defaultVialMg||source.reconstitutions?.[0]?.vialMg||"";
++  document.getElementById("simpleTreatmentBacWater").value=source.bacWaterMl!==""&&source.bacWaterMl!=null?source.bacWaterMl:(source.reconstitutions?.[0]?.bacWaterMl??"");
++  document.getElementById("simpleTreatmentVolume").value=source.finalMl||source.reconstitutions?.[0]?.finalMl||"";
++  document.getElementById("simpleTreatmentCycleMode").value=source.noCycle?"ongoing":"cycle";
++  document.getElementById("simpleTreatmentActiveWeeks").value=source.noCycle?"":(source.activeWeeks||"");
++  document.getElementById("simpleTreatmentBreakWeeks").value=source.noCycle?"":(source.breakWeeks??"");
++  document.getElementById("simpleTreatmentCycles").value=Math.max(1,Number(source.fullCyclesPerYear??source.cyclesPerYear??source.repeatCycles)||1);
+   updateSimpleVialEstimate();
+-  document.getElementById("simpleTreatmentInterval").value=plan.intervalDays||"";
+-  document.getElementById("simpleTreatmentUnitsPerMl").value=plan.unitsPerMl||100;
+-  document.getElementById("simpleTreatmentCapacity").value=plan.syringeCapacity||100;
+-  document.getElementById("simpleTreatmentSyringe").value=simpleSyringePresetFromValues(plan.unitsPerMl||100,plan.syringeCapacity||100);
+-  document.getElementById("simpleTreatmentNotes").value=plan.custom?plan.notes||"":"";
+-  document.querySelectorAll("[data-simple-add-weekday]").forEach(box=>box.checked=(plan.weekdays||[]).map(Number).includes(Number(box.dataset.simpleAddWeekday)));
+-  const finalEl=document.getElementById("simpleTreatmentVolume");if(finalEl)finalEl.dataset.manualFinal=(plan.finalMl!==""&&plan.finalMl!=null&&Number(plan.finalMl)!==Number(plan.bacWaterMl))?"true":"false";
++  document.getElementById("simpleTreatmentInterval").value=source.intervalDays||"";
++  document.getElementById("simpleTreatmentUnitsPerMl").value=source.unitsPerMl||100;
++  document.getElementById("simpleTreatmentCapacity").value=source.syringeCapacity||100;
++  document.getElementById("simpleTreatmentSyringe").value=simpleSyringePresetFromValues(source.unitsPerMl||100,source.syringeCapacity||100);
++  document.getElementById("simpleTreatmentNotes").value=plan.custom?source.notes||"":"";
++  document.querySelectorAll("[data-simple-add-weekday]").forEach(box=>box.checked=(source.weekdays||[]).map(Number).includes(Number(box.dataset.simpleAddWeekday)));
++  const finalEl=document.getElementById("simpleTreatmentVolume");if(finalEl)finalEl.dataset.manualFinal=(source.finalMl!==""&&source.finalMl!=null&&Number(source.finalMl)!==Number(source.bacWaterMl))?"true":"false";
+   updateSimpleCalculatedUnits();
+ }
+ function updateSimpleCalculatedUnits(){
+@@ -13582,7 +13524,7 @@ function renderSimplePlanner(){
+     card.querySelectorAll('[data-simple-maint-phase-field="doseMg"], [data-simple-maint-phase-split-parts]').forEach(control=>control.addEventListener("input",()=>updateSimplePhaseUnitRows(card,plan)));
+ 
+     card.querySelector("[data-simple-open-kb]")?.addEventListener("click",()=>openKnowledgeBaseRecord(plan.id));
+-    card.querySelector("[data-simple-remove]")?.addEventListener("click",()=>{if(confirm(`Remove ${cycleStackName(plan)} from Treatments? Its Knowledge Base treatment remains available as a preset.`)){if(plan.id!==planBaseId(plan))deleteProtocolById(plan.id);else setPlanStackStatus(plan,"library");renderAll()}});
++    card.querySelector("[data-simple-remove]")?.addEventListener("click",()=>{if(confirm(`Remove ${cycleStackName(plan)} from Treatments? Its Knowledge Base treatment remains available as a preset.`)){if(plan.id!==planBaseId(plan))deleteProtocolById(plan.id);else{clearPlanRuntimeArtifacts(plan.id);setPlanStackStatus(plan,"library")}renderAll()}});
+   });
+ }
+ 
+@@ -13594,7 +13536,9 @@ function addSimpleTreatmentToMyPlan(){
+     if(!basePlan){alert("Choose a treatment from the Knowledge Base.");return false;}
+     const baseId=planBaseId(basePlan),existing=(state.plans||[]).find(item=>planBaseId(item)===baseId&&item.stackStatus!=="library");
+     if(existing){alert(`${basePlan.name} is already in Treatments. Edit its cycle setup in the existing treatment.`);return false;}
+-    const plan=basePlan.id===baseId&&basePlan.stackStatus==="library"?basePlan:clone(basePlan),enteredDose=document.getElementById("simpleTreatmentDose")?.value??"";
++    const reactivatingLibrary=basePlan.id===baseId&&basePlan.stackStatus==="library";
++    if(reactivatingLibrary)clearPlanRuntimeArtifacts(basePlan.id);
++    const plan=reactivatingLibrary?basePlan:clone(basePlan),enteredDose=document.getElementById("simpleTreatmentDose")?.value??"";
+     plan.stackStatus=["active","soon"].includes(document.getElementById("simpleTreatmentStatus")?.value||"active")?(document.getElementById("simpleTreatmentStatus")?.value||"active"):"active";
+     plan.startDate=document.getElementById("simpleTreatmentStart")?.value||todayISO();plan.injectionTime=document.getElementById("simpleTreatmentTime")?.value||"";plan.route=document.getElementById("simpleTreatmentRoute")?.value||plan.route||"";
+     plan.vialMg=document.getElementById("simpleTreatmentVial")?.value??plan.vialMg;plan.bacWaterMl=document.getElementById("simpleTreatmentBacWater")?.value??plan.bacWaterMl;plan.finalMl=document.getElementById("simpleTreatmentVolume")?.value||plan.bacWaterMl||"";
+diff --git a/peptide-planner-sw.js b/peptide-planner-sw.js
+index 138836b..54c2b19 100644
+--- a/peptide-planner-sw.js
++++ b/peptide-planner-sw.js
+@@ -1,4 +1,4 @@
+-const PEPTIDE_PLANNER_SW_VERSION='v2026.0709.06';
++const PEPTIDE_PLANNER_SW_VERSION='v2026.0709.07';
+ self.addEventListener('install',event=>{self.skipWaiting();});
+ self.addEventListener('activate',event=>{
+   event.waitUntil((async()=>{
