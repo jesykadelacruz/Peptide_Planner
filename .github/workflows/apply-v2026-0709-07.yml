@@ -22,10 +22,23 @@ jobs:
           test "$(git hash-object peptide-planner-sw.js)" = "138836bca6c50678456032af80d84908ac36e496"
           cp index.html /tmp/source-index.html
 
-      - name: Apply exact v2026.0709.07 patch
+      - name: Decode and verify exact v2026.0709.07 patch segments
         run: |
-          git apply --check .deploy/v2026.0709.07.patch
-          git apply .deploy/v2026.0709.07.patch
+          base64 -d .deploy/v2026.0709.07.A.patch.b64 > /tmp/v07-A.patch
+          base64 -d .deploy/v2026.0709.07.B.patch.b64 > /tmp/v07-B.patch
+          base64 -d .deploy/v2026.0709.07.C.patch.b64 > /tmp/v07-C.patch
+          base64 -d .deploy/v2026.0709.07.D.patch.b64 > /tmp/v07-D.patch
+          test "$(sha256sum /tmp/v07-A.patch | awk '{print $1}')" = "df017308316f11b82acd2c36055859ec367a674ebb0457f1da083c3410d60f9f"
+          test "$(sha256sum /tmp/v07-B.patch | awk '{print $1}')" = "8e6b6021924fe046f252d1bde9a64524086d9f42f38b35b29a8ff3d559a65af3"
+          test "$(sha256sum /tmp/v07-C.patch | awk '{print $1}')" = "3e7bd63cf922ebb9ca3ffb547a0c21392d7a824a4e3fa892729605c9aca708bc"
+          test "$(sha256sum /tmp/v07-D.patch | awk '{print $1}')" = "debde474200f16339231b42eaa2c6abc89fa824b3b7e3dcf7b59c7d7cccd030d"
+
+      - name: Apply exact v2026.0709.07 patch segments
+        run: |
+          for patch in /tmp/v07-A.patch /tmp/v07-B.patch /tmp/v07-C.patch /tmp/v07-D.patch; do
+            git apply --check "$patch"
+            git apply "$patch"
+          done
 
       - name: Validate exact target and regressions
         run: |
