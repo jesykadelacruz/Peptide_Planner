@@ -1,0 +1,95 @@
+name: Apply Peptide Planner v2026.0709.06
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-06.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "17ce1f7d29e3717aa386a9cad2cf00fb61d60089"
+          test "$(git hash-object peptide-planner-sw.js)" = "42b912a2e482e19de506745a19271c964216adf1"
+          cp index.html /tmp/source-index.html
+
+      - name: Apply exact v2026.0709.06 patch
+        run: |
+          git apply --check .deploy/v2026.0709.06.patch
+          git apply .deploy/v2026.0709.06.patch
+
+      - name: Validate exact target and regression guards
+        run: |
+          test "$(git hash-object index.html)" = "7d145535fcbdabfa5f3164a7a847270b39818046"
+          test "$(git hash-object peptide-planner-sw.js)" = "138836bca6c50678456032af80d84908ac36e496"
+          test "$(sha256sum index.html | awk '{print $1}')" = "41c8123744594e44c782de8c7a81b7ccf6cadbf263015f2e5f903024379ebe95"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "5bc65f9d3ef1cb63654ac3c239e6bd779ef801914ef913c5026d8b1159e514d4"
+          python3 - <<'PY'
+          import pathlib,re
+          src=pathlib.Path('/tmp/source-index.html').read_text()
+          text=pathlib.Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.06</title>',
+            'const APP_VERSION="v2026.0709.06";',
+            'document.body.classList.toggle("planner-user-role",active&&cloudAccess?.role==="user");',
+            'body.planner-user-role #planner .peptide-settings-grid > div > select',
+            'body.mobile-app.planner-user-role #planner .cycle-config-grid > div > select',
+            'body.planner-user-role #planner .cycle-config-grid .date-control',
+            'height:40px!important;',
+            'padding:8px 10px!important;',
+            'padding:8px 48px 8px 10px!important;',
+            'if(tabId==="admin"&&!plannerCanAccessAdmin())tabId="dashboard";',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('Missing required v2026.0709.06 markers: '+repr(missing))
+
+          def chunks(s):
+            parts=s.split('\nfunction ')
+            out={}
+            for part in parts[1:]:
+              name=part.split('(',1)[0].strip()
+              out[name]='function '+part
+            return out
+          a,b=chunks(src),chunks(text)
+          changed=[name for name in a.keys() & b.keys() if a[name]!=b[name]]
+          if changed:
+            raise SystemExit('Unexpected top-level function changes: '+repr(changed))
+          unchanged=[
+            'calcUnits','planCyclesPerYear','continuousVialPrepForDate','continuousVialPrepForRecord',
+            'currentContinuousVialScheduleRows','currentActualOpenedVialRecord','currentOpenedVialRecord',
+            'currentVialDosesLeft','scheduleForDate','todayAdministrationMissed',
+            'cycleVialScheduleComputation','cycleConfigVialScheduleComputation',
+            'continuousVialScheduleComputation','continuousCurrentCycleText',
+            'renderSimplePlanner','renderContinuousPlanPanel','renderPlanCyclePanels',
+            'renderCloudAccount'
+          ]
+          for name in unchanged:
+            if name not in a or name not in b: raise SystemExit('Required function missing: '+name)
+            if a[name] != b[name]: raise SystemExit('Owner/shared function changed unexpectedly: '+name)
+
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.06"
+          git push origin HEAD:main
