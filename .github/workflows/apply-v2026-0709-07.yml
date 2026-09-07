@@ -1,0 +1,104 @@
+name: Apply Peptide Planner v2026.0709.07
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-07.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "7d145535fcbdabfa5f3164a7a847270b39818046"
+          test "$(git hash-object peptide-planner-sw.js)" = "138836bca6c50678456032af80d84908ac36e496"
+          cp index.html /tmp/source-index.html
+
+      - name: Apply exact v2026.0709.07 patch
+        run: |
+          git apply --check .deploy/v2026.0709.07.patch
+          git apply .deploy/v2026.0709.07.patch
+
+      - name: Validate exact target and regressions
+        run: |
+          test "$(git hash-object index.html)" = "c9ec8f9f5e6d08b46f6982428982e6601da08277"
+          test "$(git hash-object peptide-planner-sw.js)" = "54c2b1968b5dd05547c705678ac5f02d4dc11a1d"
+          test "$(sha256sum index.html | awk '{print $1}')" = "38727c40f87dcb97153edf4d995e1d426792131422080123cfb87bac35acb767"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "18b5363a6c0602a3cadd255bf358a5e56ccf989b01ae54dd7300b9de045be1e6"
+          python3 - <<'PY'
+          import pathlib,re
+          src=pathlib.Path('/tmp/source-index.html').read_text()
+          text=pathlib.Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.07</title>',
+            'const APP_VERSION="v2026.0709.07";',
+            'function clearPlanRuntimeArtifacts(planId)',
+            'function reconcileFreshUnconfirmedPreparation(plan)',
+            'if(reactivatingLibrary)clearPlanRuntimeArtifacts(basePlan.id);',
+            'clearPlanRuntimeArtifacts(plan.id);setPlanStackStatus(plan,"library")',
+            'if(tabId==="admin"&&!plannerCanAccessAdmin())tabId="dashboard";',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('Missing v07 markers: '+repr(missing))
+          if 'planner-user-role' in text:
+            raise SystemExit('Role-specific planner sizing/class still present')
+
+          def chunks(s):
+            parts=s.split('\nfunction ')
+            out={}
+            for part in parts[1:]:
+              name=part.split('(',1)[0].strip()
+              out[name]='function '+part
+            return out
+          a,b=chunks(src),chunks(text)
+          unchanged=[
+            'calcUnits','planCyclesPerYear','continuousVialPrepForDate','continuousVialPrepForRecord',
+            'currentContinuousVialScheduleRows','currentActualOpenedVialRecord','currentOpenedVialRecord',
+            'currentVialDosesLeft','scheduleForDate','todayAdministrationMissed',
+            'cycleVialScheduleComputation','cycleConfigVialScheduleComputation',
+            'continuousVialScheduleComputation','continuousCurrentCycleText',
+            'renderContinuousPlanPanel','renderPlanCyclePanels'
+          ]
+          for name in unchanged:
+            if name not in a or name not in b: raise SystemExit('Required function missing: '+name)
+            if a[name] != b[name]: raise SystemExit('Core calculation/function changed unexpectedly: '+name)
+
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Runtime stale-preparation regression
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          text=pathlib.Path('index.html').read_text()
+          def fn(name):
+            i=text.index('function '+name)
+            j=text.find('\nfunction ',i+10)
+            return text[i:j]
+          js='''const state={administrations:[],vialRecords:[{id:"ghk-cu:forecast:1",planId:"ghk-cu",vialMg:50,bacWaterMl:5,finalMl:5,startDate:"",status:"Need to buy"}],completedInjections:{"ghk-cu|x":true},completedDoseWeeks:{"ghk-cu|x":true},usedVials:{"ghk-cu|x":true},boughtVials:{"ghk-cu|x":true},ui:{sectionOpen:{"ghk-cu:test":true}}};\nfunction num(v){const n=Number(v);return Number.isFinite(n)?n:null}\nfunction parseISO(v){if(!v)return null;const d=new Date(v+"T00:00:00");return isNaN(d)?null:d}\nfunction todayISO(){return "2026-09-07"}\n'''+fn('clearPlanRuntimeArtifacts')+'\n'+fn('reconcileFreshUnconfirmedPreparation')+'''\nconst plan={id:"ghk-cu",noCycle:false,confirmed:false,stackStatus:"active",startDate:"2026-09-07",vialMg:100,bacWaterMl:10,finalMl:10};\nif(!reconcileFreshUnconfirmedPreparation(plan))throw new Error("fresh prep was not reconciled");\nif(Number(plan.vialMg)!==50||Number(plan.bacWaterMl)!==5||Number(plan.finalMl)!==5)throw new Error("fresh prep values incorrect");\nstate.administrations=[{planId:"ghk-cu",status:"Administered"}];const p2={...plan,vialMg:100,bacWaterMl:10,finalMl:10};if(reconcileFreshUnconfirmedPreparation(p2))throw new Error("historical administered plan must not be reconciled");\nstate.administrations=[];state.vialRecords=[{planId:"ghk-cu",vialMg:50,bacWaterMl:5,finalMl:5,startDate:"2026-09-07"}];const p3={...plan,vialMg:100,bacWaterMl:10,finalMl:10};if(reconcileFreshUnconfirmedPreparation(p3))throw new Error("opened vial plan must not be reconciled");\nstate.vialRecords=[{planId:"ghk-cu"},{planId:"other"}];state.administrations=[{planId:"ghk-cu"},{planId:"other"}];clearPlanRuntimeArtifacts("ghk-cu");if(state.vialRecords.some(x=>x.planId==="ghk-cu")||state.administrations.some(x=>x.planId==="ghk-cu"))throw new Error("runtime residue not purged");if(!state.vialRecords.some(x=>x.planId==="other")||!state.administrations.some(x=>x.planId==="other"))throw new Error("other plan runtime changed");\nconsole.log("v07 runtime regression PASS");\n'''
+          pathlib.Path('/tmp/runtime-test.js').write_text(js)
+          PY
+          node /tmp/runtime-test.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.07"
+          git push origin HEAD:main
