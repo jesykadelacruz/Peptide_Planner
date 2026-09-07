@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0709.07</title>
+<title>Peptide Planner v2026.0709.08</title>
+<!-- v2026.0709.08: Restores shared Owner/User treatment field dimensions to the v2026.0309.07 desktop baseline; removes obsolete vial-strength/final-volume mismatch warnings because per-vial preparation may legitimately differ, while dose-left continues to follow the actually opened vial. -->
 <!-- v2026.0709.07: Owner/User treatment UI returns to one shared Owner layout with no role-specific sizing CSS. Removing/re-adding a treatment now purges treatment runtime residue, library presets no longer prefill from stale prior treatment settings, and fresh unconfirmed setups with no administrations/opened vial reconcile preparation from the pending vial record. -->
 <!-- v2026.0709.06: User-view sizing only. Peptide Settings and Cycle Settings controls are fixed to the same 40px height and 8px 10px padding used by Vial Schedule Vial/Water controls; Owner view, shared treatment logic and calculations are unchanged. -->
 <!-- v2026.0709.05: User-only form-control parity fix. Owner view and shared treatment logic remain unchanged. User Peptide Settings and Cycle Settings now force the Owner mobile-app standard field height so input/select controls align consistently across browsers; Admin Dashboard remains unavailable to User. -->
@@ -3650,6 +3651,18 @@ body.onboarding-dialog-open{overflow:hidden!important}
   grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);
   gap:7px
 }
+/* v2026.0709.08 — shared Owner/User desktop field dimensions restored to v2026.0309.07 baseline. */
+@media (min-width:641px){
+  #planner .peptide-settings-grid input:not([type="checkbox"]),
+  #planner .peptide-settings-grid select,
+  #planner .cycle-config-grid input:not([type="checkbox"]),
+  #planner .cycle-config-grid select{
+    min-height:42px!important;
+    height:auto!important;
+    padding:10px 11px!important;
+    font-size:inherit!important
+  }
+}
 #planner .vial-schedule-settings{
   margin-top:12px;
   border:1px solid var(--line);
@@ -7206,7 +7219,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0709.07";
+const APP_VERSION="v2026.0709.08";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -10529,18 +10542,9 @@ function currentOpenedVialRecord(plan,at=new Date()){
   return {...scheduled,record,inventorySource:"schedule-settings"};
 }
 function currentVialIntegrity(plan,at=new Date()){
-  const actual=currentActualOpenedVialRecord(plan,at),scheduled=currentScheduledVialRecord(plan,at),candidate=actual||scheduled;
+  const actual=currentActualOpenedVialRecord(plan,at),scheduled=currentScheduledVialRecord(plan,at);
   const warnings=[];
-  if(plan?.noCycle)return {warnings,actualRecord:actual?.record||null,scheduledRecord:scheduled?.record||null};
-  if(candidate?.record){
-    const record=candidate.record,planMg=num(plan?.vialMg),recordMg=num(record?.vialMg),planMl=num(plan?.finalMl),recordMl=num(record?.finalMl);
-    if(planMg>0&&recordMg>0&&Math.abs(planMg-recordMg)>0.000001){
-      warnings.push(`${actual?"Opened vial":"Scheduled vial"} strength ${round(recordMg,3)} mg differs from Treatment Settings ${round(planMg,3)} mg${actual?".":"; dose-left uses Treatment Settings until the vial is actually opened."}`);
-    }
-    if(planMl>0&&recordMl>0&&Math.abs(planMl-recordMl)>0.000001){
-      warnings.push(`${actual?"Opened vial":"Scheduled vial"} final volume ${round(recordMl,3)} mL differs from Treatment Settings ${round(planMl,3)} mL${actual?".":"; dose-left uses Treatment Settings until the vial is actually opened."}`);
-    }
-  }
+  /* Per-vial preparation is authoritative once a vial is opened. Different vial strengths/volumes are intentional and must not be treated as an inventory error. */
   const obsolete=(state.administrations||[]).filter(record=>record?.planId===plan.id&&record?.status==="Administered"&&String(record?.dateTime||"")&&new Date(record.dateTime)<=at&&!administrationMatchesScheduledStructure(plan,record));
   if(obsolete.length)warnings.push(`${obsolete.length} historical auto-completion record${obsolete.length===1?"":"s"} no longer match the current split/unsplit schedule and are excluded from vial consumption.`);
   return {warnings,actualRecord:actual?.record||null,scheduledRecord:scheduled?.record||null};
