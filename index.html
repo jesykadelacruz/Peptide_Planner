@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0709.08</title>
+<title>Peptide Planner v2026.0709.09</title>
+<!-- v2026.0709.09: Corrects the v08 field-sizing regression only. Owner and User treatment controls use the compact 40px desktop baseline from v2026.0309.07; mobile historical sizing remains unchanged. The v08 per-vial inventory warning fix and all current treatment logic are preserved. -->
 <!-- v2026.0709.08: Restores shared Owner/User treatment field dimensions to the v2026.0309.07 desktop baseline; removes obsolete vial-strength/final-volume mismatch warnings because per-vial preparation may legitimately differ, while dose-left continues to follow the actually opened vial. -->
 <!-- v2026.0709.07: Owner/User treatment UI returns to one shared Owner layout with no role-specific sizing CSS. Removing/re-adding a treatment now purges treatment runtime residue, library presets no longer prefill from stale prior treatment settings, and fresh unconfirmed setups with no administrations/opened vial reconcile preparation from the pending vial record. -->
 <!-- v2026.0709.06: User-view sizing only. Peptide Settings and Cycle Settings controls are fixed to the same 40px height and 8px 10px padding used by Vial Schedule Vial/Water controls; Owner view, shared treatment logic and calculations are unchanged. -->
@@ -3651,18 +3652,6 @@ body.onboarding-dialog-open{overflow:hidden!important}
   grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);
   gap:7px
 }
-/* v2026.0709.08 — shared Owner/User desktop field dimensions restored to v2026.0309.07 baseline. */
-@media (min-width:641px){
-  #planner .peptide-settings-grid input:not([type="checkbox"]),
-  #planner .peptide-settings-grid select,
-  #planner .cycle-config-grid input:not([type="checkbox"]),
-  #planner .cycle-config-grid select{
-    min-height:42px!important;
-    height:auto!important;
-    padding:10px 11px!important;
-    font-size:inherit!important
-  }
-}
 #planner .vial-schedule-settings{
   margin-top:12px;
   border:1px solid var(--line);
@@ -5758,6 +5747,19 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   body.mobile-app #planner .simple-plan-toggle-head{padding-right:72px}
   body.mobile-app #planner .simple-plan-toggle::after{top:12px!important;right:11px!important}
 }
+
+/* v2026.0709.09 — exact compact desktop treatment-control height from v2026.0309.07. */
+@media (min-width:761px){
+  body.mobile-app #planner .peptide-settings-grid input:not([type="checkbox"]),
+  body.mobile-app #planner .peptide-settings-grid select,
+  body.mobile-app #planner .cycle-config-grid input:not([type="checkbox"]),
+  body.mobile-app #planner .cycle-config-grid select{
+    height:40px!important;
+    min-height:40px!important;
+    max-height:40px!important;
+    box-sizing:border-box!important
+  }
+}
 </style>
 </head>
 <body class="mobile-app access-locked">
@@ -7219,7 +7221,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0709.08";
+const APP_VERSION="v2026.0709.09";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
