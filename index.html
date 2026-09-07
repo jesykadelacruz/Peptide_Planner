@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0709.10</title>
+<title>Peptide Planner v2026.0809.01</title>
+<!-- v2026.0809.01: Treatment Overview schedule now resolves the active cycle and current treatment week before reading Dose Schedule weekdays/intervals, so phase-specific schedules update automatically as the treatment advances. Shared planner logic applies identically to Owner, Admin and User views. -->
 <!-- v2026.0709.10: Custom weekday schedules in the Overview now use the active continuous dose-phase schedule first (for example Saturday or Tuesday / Thursday). The visible historical auto-completion Vial inventory check diagnostic is removed while obsolete records remain excluded from vial-consumption calculations. -->
 <!-- v2026.0709.09: Corrects the v08 field-sizing regression only. Owner and User treatment controls use the compact 40px desktop baseline from v2026.0309.07; mobile historical sizing remains unchanged. The v08 per-vial inventory warning fix and all current treatment logic are preserved. -->
 <!-- v2026.0709.08: Restores shared Owner/User treatment field dimensions to the v2026.0309.07 desktop baseline; removes obsolete vial-strength/final-volume mismatch warnings because per-vial preparation may legitimately differ, while dose-left continues to follow the actually opened vial. -->
@@ -7765,8 +7766,9 @@ function overviewScheduleText(plan,at=new Date()){
     if(plan.scheduleMode==="interval")return num(plan.intervalDays)?`Every ${Number(plan.intervalDays)} days`:"Interval not set";
     return formatDays(plan.weekdays||[]);
   }
-  const config=cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
-  const phaseDays=cyclePhaseWeekdays(config,1);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,1);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);
+  const position=protocolPositionForDate(plan,at),sequence=position?.valid?Math.max(1,Number(position.sequence)||1):1,week=position?.valid&&!position.washout&&Number(position.week)>0?Math.max(1,Number(position.week)):1;
+  const config=position?.config||(isSeparateCycleStack(plan)?plan:cycleConfigForSequence(plan,sequence))||cycleConfigForSequence(plan,1);if(!config)return "Cycle schedule not set";
+  const phaseDays=cyclePhaseWeekdays(config,week);if(phaseDays!==null)return formatDays(phaseDays);const phaseInterval=cyclePhaseInterval(config,week);if(phaseInterval)return `Every ${phaseInterval} day${phaseInterval===1?"":"s"}`;return cycleScheduleLabel(config);
 }
 function sortedPlans(){
   return [...(state.plans||[])].sort((a,b)=>{
