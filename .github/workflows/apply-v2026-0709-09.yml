@@ -1,0 +1,102 @@
+name: Apply Peptide Planner v2026.0709.09
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0709-09.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "d8bd54d64990303b35e8cb28688229497a0fb793"
+          test "$(git hash-object peptide-planner-sw.js)" = "db5217a2ff7468f964c40b48011c782c3a5519ee"
+          cp index.html /tmp/source-index.html
+
+      - name: Verify and apply exact v2026.0709.09 patch
+        run: |
+          test "$(sha256sum .deploy/v2026.0709.09.patch | awk '{print $1}')" = "ee3063a00c43e6d8bf2ae1a5d8dba6d71ac702a4d6a8123cd4c0278bed29f2d1"
+          git apply --check .deploy/v2026.0709.09.patch
+          git apply .deploy/v2026.0709.09.patch
+
+      - name: Validate exact target and regressions
+        run: |
+          test "$(git hash-object index.html)" = "60838da0c72bcdc30d6475ad981b0964b03970bf"
+          test "$(git hash-object peptide-planner-sw.js)" = "b1ce1e1fb4fa2e4fce120d3b9d4a1804eabc1f78"
+          test "$(sha256sum index.html | awk '{print $1}')" = "5afcd71974f1cf32bb2bf0bcdd4258cb09b2da4cab5299bd032100c3536a8bba"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "c0f139f62c26f0eaf773554df50ec789030f38ffa7cb00de3c7dd324fa56b04e"
+          python3 - <<'PY'
+          import pathlib,re
+          src=pathlib.Path('/tmp/source-index.html').read_text()
+          text=pathlib.Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0709.09</title>',
+            'const APP_VERSION="v2026.0709.09";',
+            'height:40px!important;',
+            'min-height:40px!important;',
+            'max-height:40px!important;',
+            'body.mobile-app #planner .peptide-settings-grid',
+            'body.mobile-app #planner .cycle-config-grid',
+            'function clearPlanRuntimeArtifacts(planId)',
+            'function reconcileFreshUnconfirmedPreparation(plan)',
+            'if(tabId==="admin"&&!plannerCanAccessAdmin())tabId="dashboard";',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('Missing v09 markers: '+repr(missing))
+          forbidden=[
+            'planner-user-role','planner-standard-user',
+            'Scheduled vial strength','Scheduled vial final volume',
+            'dose-left uses Treatment Settings until the vial is actually opened',
+            'min-height:42px!important;\n    height:auto!important;\n    padding:10px 11px!important;'
+          ]
+          bad=[x for x in forbidden if x in text]
+          if bad: raise SystemExit('Forbidden v09 regression markers: '+repr(bad))
+
+          def chunks(s):
+            parts=s.split('\nfunction ')
+            return {p.split('(',1)[0].strip():'function '+p for p in parts[1:]}
+          a,b=chunks(src),chunks(text)
+          for name in sorted(set(a)&set(b)):
+            if a[name] != b[name]:
+              raise SystemExit('Function changed unexpectedly in CSS-only v09 correction: '+name)
+
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          pathlib.Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Inventory mismatch regression
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          text=pathlib.Path('index.html').read_text()
+          def fn(name):
+            i=text.index('function '+name)
+            j=text.find('\nfunction ',i+10)
+            return text[i:j]
+          js='''const state={administrations:[]};\nfunction num(v){const n=Number(v);return Number.isFinite(n)?n:null}\nfunction round(v,d=2){const p=10**d;return Math.round(v*p)/p}\nfunction currentActualOpenedVialRecord(){return null}\nfunction currentScheduledVialRecord(){return {record:{vialMg:50,finalMl:5}}}\nfunction administrationMatchesScheduledStructure(){return true}\n'''+fn('currentVialIntegrity')+'''\nconst r=currentVialIntegrity({id:"x",noCycle:false,vialMg:100,finalMl:10},new Date("2026-09-07T12:00:00"));\nif(r.warnings.length)throw new Error("Unexpected mismatch warning: "+r.warnings.join(" | "));\nconsole.log("inventory mismatch regression PASS");\n'''
+          pathlib.Path('/tmp/inventory-test.js').write_text(js)
+          PY
+          node /tmp/inventory-test.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0709.09"
+          git push origin HEAD:main
