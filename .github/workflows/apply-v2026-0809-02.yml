@@ -16,7 +16,74 @@ jobs:
         with:
           ref: main
       - name: Patch cross-device sync only
-        run: echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnA9UGF0aCgiaW5kZXguaHRtbCIpCnM9cC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKb2xkPSc8dGl0bGU+UGVwdGlkZSBQbGFubmVyIHYyMDI2LjA4MDkuMDE8L3RpdGxlPic7IG5ldz0nPHRpdGxlPlBlcHRpZGUgUGxhbm5lciB2MjAyNi4wODA5LjAyPC90aXRsZT4nCmFzc2VydCBzLmNvdW50KG9sZCk9PTEsIChvbGRbOjYwXSxzLmNvdW50KG9sZCkpCnM9cy5yZXBsYWNlKG9sZCxuZXcsMSkKb2xkPSdjb25zdCBBUFBfVkVSU0lPTj0idjIwMjYuMDcwOS4xMCI7JzsgbmV3PSdjb25zdCBBUFBfVkVSU0lPTj0idjIwMjYuMDgwOS4wMiI7Jwphc3NlcnQgcy5jb3VudChvbGQpPT0xLCAob2xkWzo2MF0scy5jb3VudChvbGQpKQpzPXMucmVwbGFjZShvbGQsbmV3LDEpCm9sZD0nZnVuY3Rpb24gbWFya0xvY2FsQ2hhbmdlZCgpe2lmKCFjbG91ZEFwcGx5aW5nKXNldENsb3VkU3luY01ldGEoe2xvY2FsTW9kaWZpZWRBdDpuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCl9KX0nOyBuZXc9J2Z1bmN0aW9uIG1hcmtMb2NhbENoYW5nZWQoKXtpZighY2xvdWRBcHBseWluZylzZXRDbG91ZFN5bmNNZXRhKHtsb2NhbE1vZGlmaWVkQXQ6bmV3IERhdGUoKS50b0lTT1N0cmluZygpLGxvY2FsRGlydHk6dHJ1ZX0pfScKYXNzZXJ0IHMuY291bnQob2xkKT09MSwgKG9sZFs6NjBdLHMuY291bnQob2xkKSkKcz1zLnJlcGxhY2Uob2xkLG5ldyw xKQptYXJrZXI9JzwhLS0gdjIwMjYuMDgwOS4wMjogQ3Jvc3MtZGV2aWNlIGNsb3VkIHN5bmMgbm8gbG9uZ2VyIGNvbXBhcmVzIGRldmljZSBjbG9ja3MgdG8gZGVjaWRlIHdoaWNoIHBsYW5uZXIgc3RhdGUgaXMgbmV3ZXIuIExvY2FsIGVkaXRzIGFyZSB0cmFja2VkIHdpdGggYW4gZXhwbGljaXQgZGlydHkgZmxhZzsgY2xlYW4gc2Vzc2lvbnMgYWx3YXlzIHB1bGwgdGhlIGN1cnJlbnQgY2xvdWQgc3RhdGUsIHBlbmRpbmcgbG9jYWwgZWRpdHMgcHVzaCBvbmx5IHdoZW4gdGhlIGNsb3VkIGhhcyBub3QgY2hhbmdlZCBzaW5jZSB0aGUgbGFzdCBzeW5jLCBhbmQgY3Jvc3MtZGV2aWNlIGNvbmZsaWN0cyBwcmVzZXJ2ZSBhIHNuYXBzaG90IGJlZm9yZSBhcHBseWluZyB0aGUgbmV3ZXIgY2xvdWQgc3RhdGUuIEFQUF9WRVJTSU9OIGlzIGFkdmFuY2VkIHNvIG1vYmlsZSBhbmQgZGVza3RvcCByZWZyZXNoIHRoZSBzYW1lIHJ1bnRpbWUuIC0tPlxuJwphbmNob3I9Jzx0aXRsZT5QZXB0aWRlIFBsYW5uZXIgdjIwMjYuMDgwOS4wMjwvdGl0bGU+XG4nCmlmIG1hcmtlciBub3QgaW4gczogcz1zLnJlcGxhY2UoYW5jaG9yLGFuY2hvcittYXJrZXIsMSkKb2xkPSdhc3luYyBmdW5jdGlvbiBwdXNoQ2xvdWRTdGF0ZShyZWFzb249ImF1dG9tYXRpYyIpe1xuICBpZighY2xvdWRDbGllbnR8fCFjbG91ZFVzZXJ8fGNsb3VkQXBwbHlpbmd8fGNsb3VkQWNjZXNzPy5zdGF0dXMhPT0iYWN0aXZlIilyZXR1cm4gZmFsc2U7XG4gIGNsZWFyVGltZW91dChjbG91ZFNhdmVUaW1lcik7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jaW5n4oCmIiwic3luY2luZyIpO1xuICBjb25zdCBzdGFtcD1uZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCk7XG4gIHRyeXtcbiAgICBjb25zdCB7ZXJyb3J9PWF3YWl0IGNsb3VkQ2xpZW50LmZyb20oInBsYW5uZXJfc3RhdGUiKS51cHNlcnQoe3VzZXJfaWQ6Y2xvdWRVc2VyLmlkLHN0YXRlOnN0YXRlLGFwcF92ZXJzaW9uOkFQUF9WRVJTSU9OLGNsaWVudF91cGRhdGVkX2F0OnN0YW1wfSx7b25Db25mbGljdDoidXNlcl9pZCJ9KTtcbiAgICBpZihlcnJvcil0aHJvdyBlcnJvcjtcbiAgICBzZXRDbG91ZFN5bmNNZXRhKHt1c2VySWQ6Y2xvdWRVc2VyLmlkLGxhc3RTeW5jZWRBdDpzdGFtcCxsb2NhbE1vZGlmaWVkQXQ6c3RhbXB9KTtzZXRDbG91ZFN5bmNTdGF0dXMoIlN5bmNlZCIsInN5bmNlZCIpO3JldHVybiB0cnVlO1xuICB9Y2F0Y2goZXJyb3Ipe2NvbnNvbGUuZXJyb3IoIkNsb3VkIHN5bmMgZmFpbGVkIixlcnJvcik7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jIGVycm9yIiwiZXJyb3IiKTtyZXR1cm4gZmFsc2V9XG59JzsgbmV3PSdhc3luYyBmdW5jdGlvbiBwdXNoQ2xvdWRTdGF0ZShyZWFzb249ImF1dG9tYXRpYyIpe1xuICBpZighY2xvdWRDbGllbnR8fCFjbG91ZFVzZXJ8fGNsb3VkQXBwbHlpbmd8fGNsb3VkQWNjZXNzPy5zdGF0dXMhPT0iYWN0aXZlIilyZXR1cm4gZmFsc2U7XG4gIGNsZWFyVGltZW91dChjbG91ZFNhdmVUaW1lcik7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jaW5n4oCmIiwic3luY2luZyIpO1xuICBjb25zdCBzdGFtcD1uZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCk7XG4gIHRyeXtcbiAgICBjb25zdCB7ZGF0YSxlcnJvcn09YXdhaXQgY2xvdWRDbGllbnQuZnJvbSgicGxhbm5lcl9zdGF0ZSIpLnVwc2VydCh7dXNlcl9pZDpjbG91ZFVzZXIuaWQsc3RhdGU6c3RhdGUsYXBwX3ZlcnNpb246QVBQX1ZFUlNJT04sY2xpZW50X3VwZGF0ZWRfYXQ6c3RhbXB9LHtvbkNvbmZsaWN0OiJ1c2VyX2lkIn0pLnNlbGVjdCgidXBkYXRlZF9hdCxjbGllbnRfdXBkYXRlZF9hdCIpLm1heWJlU2luZ2xlKCk7XG4gICAgaWYoZXJyb3IpdGhyb3cgZXJyb3I7XG4gICAgY29uc3QgcmVtb3RlU3RhbXA9ZGF0YT8udXBkYXRlZF9hdHx8ZGF0YT8uY2xpZW50X3VwZGF0ZWRfYXR8fHN0YW1wO1xuICAgIHNldENsb3VkU3luY01ldGEoe3VzZXJJZDpjbG91ZFVzZXIuaWQsbGFzdFN5bmNlZEF0OnN0YW1wLGxvY2FsTW9kaWZpZWRBdDpzdGFtcCxsb2NhbERpcnR5OmZhbHNlLGxhc3RSZW1vdGVVcGRhdGVkQXQ6cmVtb3RlU3RhbXB9KTtzZXRDbG91ZFN5bmNTdGF0dXMoIlN5bmNlZCIsInN5bmNlZCIpO3JldHVybiB0cnVlO1xuICB9Y2F0Y2goZXJyb3Ipe2NvbnNvbGUuZXJyb3IoIkNsb3VkIHN5bmMgZmFpbGVkIixlcnJvcik7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jIGVycm9yIiwiZXJyb3IiKTtyZXR1cm4gZmFsc2V9XG59Jwphc3NlcnQgcy5jb3VudChvbGQpPT0xLCBzLmNvdW50KG9sZCkKcz1zLnJlcGxhY2Uob2xkLG5ldyw xKQpvbGQ9JyAgICBzZXRDbG91ZFN5bmNNZXRhKHtsYXN0U3luY2VkQXQ6cmVtb3RlU3RhbXB8fG5ldyBEYXRlKCkudG9JU09TdHJpbmcoKSxsb2NhbE1vZGlmaWVkQXQ6cmVtb3RlU3RhbXB8fG5ldyBEYXRlKCkudG9JU09TdHJpbmcoKX0sY2xvdWRVc2VyLmlkKTsnOyBuZXc9JyAgICBjb25zdCBhcHBsaWVkU3RhbXA9cmVtb3RlU3RhbXB8fG5ldyBEYXRlKCkudG9JU09TdHJpbmcoKTtcbiAgICBzZXRDbG91ZFN5bmNNZXRhKHtsYXN0U3luY2VkQXQ6YXBwbGllZFN0YW1wLGxvY2FsTW9kaWZpZWRBdDphcHBsaWVkU3RhbXAsbG9jYWxEaXJ0eTpmYWxzZSxsYXN0UmVtb3RlVXBkYXRlZEF0OmFwcGxpZWRTdGFtcH0sY2xvdWRVc2VyLmlkKTsnCmFzc2VydCBzLmNvdW50KG9sZCk9PTEsIHMuY291bnQob2xkKQpzPXMucmVwbGFjZShvbGQsbmV3LDEpCm9sZD0nICAgIGNvbnN0IHJlbW90ZVN0YW1wPWRhdGEuY2xpZW50X3VwZGF0ZWRfYXR8fGRhdGEudXBkYXRlZF9hdHx8IiI7XG4gICAgY29uc3QgbWV0YT1nZXRDbG91ZFN5bmNNZXRhKGNsb3VkVXNlci5pZCk7XG4gICAgY29uc3QgbG9jYWxTdGFtcD1tZXRhLmxvY2FsTW9kaWZpZWRBdHx8bWV0YS5sYXN0U3luY2VkQXR8fCIiO1xuICAgIGlmKGhhc01lYW5pbmdmdWxQbGFubmVyRGF0YShzdGF0ZSkmJmlzb01zKGxvY2FsU3RhbXApPmlzb01zKHJlbW90ZVN0YW1wKSsxMDAwKXthd2FpdCBwdXNoQ2xvdWRTdGF0ZSgibG9jYWxfbmV3ZXIiKTtyZXR1cm59XG4gICAgaWYoIWhhc01lYW5pbmdmdWxQbGFubmVyRGF0YShzdGF0ZSl8fGlzb01zKHJlbW90ZVN0YW1wKT49aXNvTXMobG9jYWxTdGFtcCktMTAwMCl7YXBwbHlDbG91ZFBsYW5uZXJTdGF0ZShkYXRhLnN0YXRlLHJlbW90ZVN0YW1wKX1cbiAgICBzZXRDbG91ZFN5bmNTdGF0dXMoIlN5bmNlZCIsInN5bmNlZCIpOyc7IG5ldz0nICAgIGNvbnN0IHJlbW90ZVN0YW1wPWRhdGEudXBkYXRlZF9hdHx8ZGF0YS5jbGllbnRfdXBkYXRlZF9hdHx8IiI7XG4gICAgY29uc3QgbWV0YT1nZXRDbG91ZFN5bmNNZXRhKGNsb3VkVXNlci5pZCk7XG4gICAgY29uc3QgbG9jYWxEaXJ0eT1tZXRhLmxvY2FsRGlydHk9PT10cnVlO1xuICAgIGlmKGxvY2FsRGlydHkmJmhhc01lYW5pbmdmdWxQbGFubmVyRGF0YShzdGF0ZSkpe1xuICAgICAgY29uc3QgcmVtb3RlQ2hhbmdlZFNpbmNlTGFzdFN5bmM9ISFtZXRhLmxhc3RSZW1vdGVVcGRhdGVkQXQmJmlzb01zKHJlbW90ZVN0YW1wKT5pc29NcyhtZXRhLmxhc3RSZW1vdGVVcGRhdGVkQXQpKzE7XG4gICAgICBpZihyZW1vdGVDaGFuZ2VkU2luY2VMYXN0U3luYyl7XG4gICAgICAgIGF3YWl0IHNuYXBzaG90TG9jYWxTdGF0ZSgiY3Jvc3NfZGV2aWNlX2NvbmZsaWN0X2JhY2t1cCIpO1xuICAgICAgICBhcHBseUNsb3VkUGxhbm5lclN0YXRlKGRhdGEuc3RhdGUscmVtb3RlU3RhbXApO1xuICAgICAgICBzZXRDbG91ZFN5bmNTdGF0dXMoIlN5bmNlZCIsInN5bmNlZCIpO1xuICAgICAgICByZXR1cm47XG4gICAgICB9XG4gICAgICBhd2FpdCBwdXNoQ2xvdWRTdGF0ZSgibG9jYWxfcGVuZGluZyIpO1xuICAgICAgcmV0dXJuO1xuICAgIH1cbiAgICBhcHBseUNsb3VkUGxhbm5lclN0YXRlKGRhdGEuc3RhdGUse3JlbW90ZVN0YW1wfSk7XG4gICAgc2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jZWQiLCJzeW5jZWQiKTsnCmFzc2VydCBzLmNvdW50KG9sZCk9PTEsIHMuY291bnQob2xkKQpzPXMucmVwbGFjZShvbGQsbmV3LDEpCnAud3JpdGVfdGV4dChzLGVuY29kaW5nPSJ1dGYtOCIpCg==' | base64 -d | python
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          def once(old,new):
+              global s
+              if s.count(old)!=1:
+                  raise SystemExit(f'target count={s.count(old)}: {old[:70]}')
+              s=s.replace(old,new,1)
+          once('<title>Peptide Planner v2026.0809.01</title>','<title>Peptide Planner v2026.0809.02</title>')
+          once('const APP_VERSION="v2026.0709.10";','const APP_VERSION="v2026.0809.02";')
+          once('function markLocalChanged(){if(!cloudApplying)setCloudSyncMeta({localModifiedAt:new Date().toISOString()})}','function markLocalChanged(){if(!cloudApplying)setCloudSyncMeta({localModifiedAt:new Date().toISOString(),localDirty:true})}')
+          marker='<!-- v2026.0809.02: Cross-device cloud sync no longer compares device clocks to decide which planner state is newer. Local edits are tracked with an explicit dirty flag; clean sessions always pull the current cloud state, pending local edits push only when the cloud has not changed since the last sync, and cross-device conflicts preserve a snapshot before applying the newer cloud state. APP_VERSION is advanced so mobile and desktop refresh the same runtime. -->\n'
+          anchor='<title>Peptide Planner v2026.0809.02</title>\n'
+          if marker not in s:
+              s=s.replace(anchor,anchor+marker,1)
+          new_push='''async function pushCloudState(reason="automatic"){
+            if(!cloudClient||!cloudUser||cloudApplying||cloudAccess?.status!=="active")return false;
+            clearTimeout(cloudSaveTimer);setCloudSyncStatus("Syncing…","syncing");
+            const stamp=new Date().toISOString();
+            try{
+              const {data,error}=await cloudClient.from("planner_state").upsert({user_id:cloudUser.id,state:state,app_version:APP_VERSION,client_updated_at:stamp},{onConflict:"user_id"}).select("updated_at,client_updated_at").maybeSingle();
+              if(error)throw error;
+              const remoteStamp=data?.updated_at||data?.client_updated_at||stamp;
+              setCloudSyncMeta({userId:cloudUser.id,lastSyncedAt:stamp,localModifiedAt:stamp,localDirty:false,lastRemoteUpdatedAt:remoteStamp});setCloudSyncStatus("Synced","synced");return true;
+            }catch(error){console.error("Cloud sync failed",error);setCloudSyncStatus("Sync error","error");return false}
+          }'''
+          s,n=re.subn(r'async function pushCloudState\(reason="automatic"\)\{.*?\n\}(?=\nasync function snapshotLocalState)',new_push,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'push function count={n}')
+          once('    setCloudSyncMeta({lastSyncedAt:remoteStamp||new Date().toISOString(),localModifiedAt:remoteStamp||new Date().toISOString()},cloudUser.id);','    const appliedStamp=remoteStamp||new Date().toISOString();\n    setCloudSyncMeta({lastSyncedAt:appliedStamp,localModifiedAt:appliedStamp,localDirty:false,lastRemoteUpdatedAt:appliedStamp},cloudUser.id);')
+          new_reconcile='''async function reconcileCloudState({silent=false}={}){
+            if(!cloudClient||!cloudUser||cloudAccess?.status!=="active")return;
+            loadPlannerStateForUser(cloudUser.id);
+            if(!silent)setCloudSyncStatus("Syncing…","syncing");
+            try{
+              const {data,error}=await cloudClient.from("planner_state").select("state,app_version,client_updated_at,updated_at").eq("user_id",cloudUser.id).maybeSingle();
+              if(error)throw error;
+              if(!data){
+                if(hasMeaningfulPlannerData(state))await pushCloudState("first_user_upload");
+                else setCloudSyncStatus("New planner","synced");
+                return;
+              }
+              const remoteStamp=data.updated_at||data.client_updated_at||"";
+              const meta=getCloudSyncMeta(cloudUser.id);
+              const localDirty=meta.localDirty===true;
+              if(localDirty&&hasMeaningfulPlannerData(state)){
+                const remoteChangedSinceLastSync=!!meta.lastRemoteUpdatedAt&&isoMs(remoteStamp)>isoMs(meta.lastRemoteUpdatedAt)+1;
+                if(remoteChangedSinceLastSync){
+                  await snapshotLocalState("cross_device_conflict_backup");
+                  applyCloudPlannerState(data.state,remoteStamp);
+                  setCloudSyncStatus("Synced","synced");
+                  return;
+                }
+                await pushCloudState("local_pending");
+                return;
+              }
+              applyCloudPlannerState(data.state,remoteStamp);
+              setCloudSyncStatus("Synced","synced");
+            }catch(error){console.error("Cloud restore failed",error);setCloudSyncStatus("Sync error","error")}
+          }'''
+          s,n=re.subn(r'async function reconcileCloudState\(\{silent=false\}=\{\}\)\{.*?\n\}(?=\nasync function fetchKnowledgeBaseOverrides)',new_reconcile,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'reconcile function count={n}')
+          p.write_text(s,encoding='utf-8')
+          PY
       - name: Verify JavaScript and sync invariants
         run: |
           python - <<'PY'
