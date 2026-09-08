@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0809.01</title>
+<title>Peptide Planner v2026.0809.02</title>
+<!-- v2026.0809.02: Cross-device cloud sync no longer compares device clocks to decide which planner state is newer. Local edits are tracked with an explicit dirty flag; clean sessions always pull the current cloud state, pending local edits push only when the cloud has not changed since the last sync, and cross-device conflicts preserve a snapshot before applying the newer cloud state. APP_VERSION is advanced so mobile and desktop refresh the same runtime. -->
 <!-- v2026.0809.01: Treatment Overview schedule now resolves the active cycle and current treatment week before reading Dose Schedule weekdays/intervals, so phase-specific schedules update automatically as the treatment advances. Shared planner logic applies identically to Owner, Admin and User views. -->
 <!-- v2026.0709.10: Custom weekday schedules in the Overview now use the active continuous dose-phase schedule first (for example Saturday or Tuesday / Thursday). The visible historical auto-completion Vial inventory check diagnostic is removed while obsolete records remain excluded from vial-consumption calculations. -->
 <!-- v2026.0709.09: Corrects the v08 field-sizing regression only. Owner and User treatment controls use the compact 40px desktop baseline from v2026.0309.07; mobile historical sizing remains unchanged. The v08 per-vial inventory warning fix and all current treatment logic are preserved. -->
@@ -7223,7 +7224,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0709.10";
+const APP_VERSION="v2026.0809.02";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -10138,7 +10139,7 @@ function renderCloudAccount(){
   if(roleBadge){roleBadge.textContent=active?cloudAccess.role:"";roleBadge.classList.toggle("hidden",!active)}
   if(!active)setCloudSyncStatus(cloudClient?(cloudUser?"Access locked":"Sign in required"):"Cloud unavailable",cloudClient?"":"error");
 }
-function markLocalChanged(){if(!cloudApplying)setCloudSyncMeta({localModifiedAt:new Date().toISOString()})}
+function markLocalChanged(){if(!cloudApplying)setCloudSyncMeta({localModifiedAt:new Date().toISOString(),localDirty:true})}
 function scheduleCloudSave(){
   if(cloudApplying||!cloudClient||!cloudUser||cloudAccess?.status!=="active")return;
   clearTimeout(cloudSaveTimer);setCloudSyncStatus("Changes pending","syncing");
@@ -10149,9 +10150,10 @@ async function pushCloudState(reason="automatic"){
   clearTimeout(cloudSaveTimer);setCloudSyncStatus("Syncing…","syncing");
   const stamp=new Date().toISOString();
   try{
-    const {error}=await cloudClient.from("planner_state").upsert({user_id:cloudUser.id,state:state,app_version:APP_VERSION,client_updated_at:stamp},{onConflict:"user_id"});
+    const {data,error}=await cloudClient.from("planner_state").upsert({user_id:cloudUser.id,state:state,app_version:APP_VERSION,client_updated_at:stamp},{onConflict:"user_id"}).select("updated_at,client_updated_at").maybeSingle();
     if(error)throw error;
-    setCloudSyncMeta({userId:cloudUser.id,lastSyncedAt:stamp,localModifiedAt:stamp});setCloudSyncStatus("Synced","synced");return true;
+    const remoteStamp=data?.updated_at||data?.client_updated_at||stamp;
+    setCloudSyncMeta({userId:cloudUser.id,lastSyncedAt:stamp,localModifiedAt:stamp,localDirty:false,lastRemoteUpdatedAt:remoteStamp});setCloudSyncStatus("Synced","synced");return true;
   }catch(error){console.error("Cloud sync failed",error);setCloudSyncStatus("Sync error","error");return false}
 }
 async function snapshotLocalState(reason="local_device_backup"){
@@ -10165,7 +10167,8 @@ function applyCloudPlannerState(remoteState,remoteStamp){
   try{
     state={...defaultState(),...remoteState};reconciledFreshPreparation=!!normaliseState();plannerStateUserId=cloudUser.id;
     const key=plannerUserStorageKey(cloudUser.id);if(key)localStorage.setItem(key,JSON.stringify(state));
-    setCloudSyncMeta({lastSyncedAt:remoteStamp||new Date().toISOString(),localModifiedAt:remoteStamp||new Date().toISOString()},cloudUser.id);
+    const appliedStamp=remoteStamp||new Date().toISOString();
+    setCloudSyncMeta({lastSyncedAt:appliedStamp,localModifiedAt:appliedStamp,localDirty:false,lastRemoteUpdatedAt:appliedStamp},cloudUser.id);
   }finally{cloudApplying=false}
   renderAll({preserveView:false});
   if(reconciledFreshPreparation){markLocalChanged();scheduleCloudSave()}
@@ -10183,11 +10186,21 @@ async function reconcileCloudState({silent=false}={}){
       else setCloudSyncStatus("New planner","synced");
       return;
     }
-    const remoteStamp=data.client_updated_at||data.updated_at||"";
+    const remoteStamp=data.updated_at||data.client_updated_at||"";
     const meta=getCloudSyncMeta(cloudUser.id);
-    const localStamp=meta.localModifiedAt||meta.lastSyncedAt||"";
-    if(hasMeaningfulPlannerData(state)&&isoMs(localStamp)>isoMs(remoteStamp)+1000){await pushCloudState("local_newer");return}
-    if(!hasMeaningfulPlannerData(state)||isoMs(remoteStamp)>=isoMs(localStamp)-1000){applyCloudPlannerState(data.state,remoteStamp)}
+    const localDirty=meta.localDirty===true;
+    if(localDirty&&hasMeaningfulPlannerData(state)){
+      const remoteChangedSinceLastSync=!!meta.lastRemoteUpdatedAt&&isoMs(remoteStamp)>isoMs(meta.lastRemoteUpdatedAt)+1;
+      if(remoteChangedSinceLastSync){
+        await snapshotLocalState("cross_device_conflict_backup");
+        applyCloudPlannerState(data.state,remoteStamp);
+        setCloudSyncStatus("Synced","synced");
+        return;
+      }
+      await pushCloudState("local_pending");
+      return;
+    }
+    applyCloudPlannerState(data.state,remoteStamp);
     setCloudSyncStatus("Synced","synced");
   }catch(error){console.error("Cloud restore failed",error);setCloudSyncStatus("Sync error","error")}
 }
