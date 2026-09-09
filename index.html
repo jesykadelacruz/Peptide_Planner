@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide_Planner_v20261009.01</title>
+<title>Peptide_Planner_v20261009.02</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -7309,7 +7309,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="Peptide_Planner_v20261009.01";
+const APP_VERSION="Peptide_Planner_v20261009.02";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12499,13 +12499,8 @@ function vialDoseCountForDisplay(events,startCursor,openDate,unitsPerVial,throug
   return count;
 }
 function cycleFullDoseCountForDisplay(events,startCursor,openDate,unitsPerVial){
-  const open=parseISO(openDate);
-  if(!open||!unitsPerVial||unitsPerVial<=0||!Array.isArray(events)||!events.length)return 0;
-  let cursor=Math.max(0,startCursor);
-  while(cursor<events.length&&events[cursor].date<open)cursor+=1;
-  const ordered=[];
-  for(let index=cursor;index<events.length;index+=1){const eventUnits=num(events[index]?.units);if(eventUnits>0)ordered.push(eventUnits);}
-  for(let index=0;index<Math.min(cursor,events.length);index+=1){const eventUnits=num(events[index]?.units);if(eventUnits>0)ordered.push(eventUnits);}
+  if(!unitsPerVial||unitsPerVial<=0||!Array.isArray(events)||!events.length)return 0;
+  const ordered=events.map(event=>num(event?.units)).filter(eventUnits=>eventUnits>0);
   if(!ordered.length)return 0;
   let remaining=unitsPerVial,count=0,index=0,safety=0;
   while(remaining>0.000001&&safety<100000){
@@ -12525,14 +12520,14 @@ function simulateCycleVialWindow(events,startCursor,openDate,unitsPerVial,dispos
   while(cursor<events.length){
     const event=events[cursor];
     if(manualFinish&&event.date>manualFinish){reason="Manual finish";break;}
-    if(!manualFinish&&dispose&&event.date>=dispose){reason="Disposal limit";break;}
+    if(!manualFinish&&dispose&&event.date>dispose){reason="Disposal limit";break;}
     if(event.units>unitsPerVial+0.000001)return {nextCursor:cursor,finishDate:openDate,lastFullDoseDate:"",usedUnits:0,fullDoseCount:0,remainingUnits:unitsPerVial,reason:"Dose exceeds vial capacity",invalid:true};
     if(event.units>remaining+0.000001){reason="Vial capacity";break;}
     remaining=round(remaining-event.units,6);usedUnits=round(usedUnits+event.units,6);fullDoseCount+=1;lastFullDoseDate=event.dateISO;cursor+=1;
     if(remaining<=0.000001){reason="Vial capacity";break;}
   }
   if(manualFinish)return {nextCursor:cursor,finishDate:manualFinishDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason:reason||"Manual finish"};
-  if(reason==="Disposal limit")return {nextCursor:cursor,finishDate:disposeDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason};
+  if(reason==="Disposal limit")return {nextCursor:cursor,finishDate:lastFullDoseDate||openDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason};
   if(reason==="Vial capacity")return {nextCursor:cursor,finishDate:lastFullDoseDate||openDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason};
   if(cursor>=events.length){
     if(lastFullDoseDate)return {nextCursor:cursor,finishDate:lastFullDoseDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason:"Last planned dose in cycle"};
