@@ -5767,6 +5767,70 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     box-sizing:border-box!important
   }
 }
+
+
+/* v20260909.03 — compact Peptide Settings and cycled-treatment controls; UI dimensions only. */
+#planner .peptide-settings-grid{
+  grid-template-columns:repeat(auto-fit,minmax(112px,1fr))!important;
+  gap:7px!important;
+  align-items:end!important;
+}
+#planner .peptide-settings-grid>div{
+  grid-column:auto!important;
+  margin-top:0!important;
+  min-width:0!important;
+}
+#planner .peptide-settings-grid>.peptide-settings-dispose{
+  grid-column:span 2!important;
+}
+#planner .peptide-settings-grid input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+#planner .peptide-settings-grid select,
+#planner .cycle-config-card input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+#planner .cycle-config-card select,
+#planner .cycle-vial-schedule-field [data-cycle-vial-row] input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+#planner .cycle-vial-schedule-field [data-cycle-vial-row] select,
+#planner .cycle-vial-schedule-field [data-cycle-vial-row] .cycle-vial-dose-box{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:36px!important;
+  min-height:36px!important;
+  max-height:36px!important;
+  block-size:36px!important;
+  box-sizing:border-box!important;
+  padding-top:0!important;
+  padding-bottom:0!important;
+  line-height:1.15!important;
+  overflow:hidden!important;
+}
+#planner .cycle-vial-schedule-field [data-cycle-vial-row] .cycle-vial-dose-box{
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+}
+#planner .peptide-settings-grid label,
+#planner .cycle-config-card label,
+#planner .cycle-vial-schedule-field [data-cycle-vial-row] label{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow-wrap:anywhere;
+}
+@media(max-width:760px){
+  #planner .peptide-settings-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  #planner .peptide-settings-grid>.peptide-settings-dispose{
+    grid-column:1/-1!important;
+  }
+}
+@media(max-width:420px){
+  #planner .peptide-settings-grid{
+    grid-template-columns:1fr!important;
+  }
+  #planner .peptide-settings-grid>.peptide-settings-dispose{
+    grid-column:auto!important;
+  }
+}
+
 </style>
 </head>
 <body class="mobile-app access-locked">
@@ -13260,11 +13324,9 @@ function renderSimplePlanner(){
           <div class="peptide-settings-grid">
             <div><label>Status</label><select data-simple-field="stackStatus"><option value="active" ${plan.stackStatus==="active"?"selected":""}>Current</option><option value="soon" ${plan.stackStatus==="soon"?"selected":""}>Scheduled</option><option value="completed" ${plan.stackStatus==="completed"?"selected":""}>Completed</option></select></div>
             <div><label>Route</label><select class="route-select" data-simple-field="route">${myPlanRouteOptions(plan.route||"",plan.kbRoutes||[])}</select></div>
-            ${!plan.noCycle?`<div><label>Vial (mg)</label><input type="number" min="0" step="0.001" data-simple-field="vialMg" value="${esc(plan.vialMg||"")}"></div>
-            <div><label>Water (mL)</label><input type="number" min="0" step="0.001" data-simple-field="bacWaterMl" value="${esc(plan.bacWaterMl||"")}"></div>
-            <div><label>Concentration (mg/mL)</label><input type="text" data-simple-concentration readonly value="${num(plan.vialMg)>0&&num(plan.bacWaterMl)>0?esc(round(num(plan.vialMg)/num(plan.bacWaterMl),3)):""}"></div><input type="hidden" data-simple-field="finalMl" value="${esc(plan.bacWaterMl||plan.finalMl||"")}">`:""}
+            ${!plan.noCycle?`<input type="hidden" data-simple-field="vialMg" value="${esc(plan.vialMg||"")}"><input type="hidden" data-simple-field="bacWaterMl" value="${esc(plan.bacWaterMl||"")}"><input type="hidden" data-simple-field="finalMl" value="${esc(plan.bacWaterMl||plan.finalMl||"")}">`:""}
 
-            <div><label>Dispose by</label><div class="dispose-by-control"><input type="number" min="1" step="1" data-simple-dispose-value value="${esc(disposeByControlValue(plan))}" aria-label="Dispose by period"><select data-simple-dispose-unit aria-label="Dispose by unit"><option value="days" ${disposeByControlUnit(plan)==="days"?"selected":""}>Days</option><option value="weeks" ${disposeByControlUnit(plan)==="weeks"?"selected":""}>Weeks</option><option value="months" ${disposeByControlUnit(plan)==="months"?"selected":""}>Months</option></select></div></div>
+            <div class="peptide-settings-dispose"><label>Dispose by</label><div class="dispose-by-control"><input type="number" min="1" step="1" data-simple-dispose-value value="${esc(disposeByControlValue(plan))}" aria-label="Dispose by period"><select data-simple-dispose-unit aria-label="Dispose by unit"><option value="days" ${disposeByControlUnit(plan)==="days"?"selected":""}>Days</option><option value="weeks" ${disposeByControlUnit(plan)==="weeks"?"selected":""}>Weeks</option><option value="months" ${disposeByControlUnit(plan)==="months"?"selected":""}>Months</option></select></div></div>
             ${!plan.noCycle?`<div><label>On</label><input type="number" min="1" step="1" data-plan-active-weeks value="${esc(plan.activeWeeks||1)}"></div><div><label>Off</label><input type="number" min="0" step="1" data-plan-break-weeks value="${esc(plan.breakWeeks??0)}"></div>`:""}
             <div><label>Cycles/Year</label><select data-plan-cycles-per-year><option value="continuous" ${plan.noCycle?"selected":""}>Continuous</option>${Array.from({length:52},(_,index)=>index+1).map(value=>`<option value="${value}" ${!plan.noCycle&&planCyclesPerYear(plan)===value?"selected":""}>${value}</option>`).join("")}</select></div>
           </div>
