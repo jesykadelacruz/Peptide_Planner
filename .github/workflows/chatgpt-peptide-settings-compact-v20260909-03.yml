@@ -1,4 +1,4 @@
-name: Temporary cycled vial preparation inspection
+name: Temporary corrected cycled vial source release
 
 on:
   push:
@@ -6,30 +6,89 @@ on:
     paths:
       - '.github/workflows/chatgpt-peptide-settings-compact-v20260909-03.yml'
 
+permissions:
+  contents: write
+
 jobs:
-  inspect:
+  patch-test-package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout latest main
+        uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-      - name: Print additional cycled vial contexts
+
+      - name: Apply audited correction
+        run: python .deploy/apply_peptide_settings_compact_v20260909_03.py
+
+      - name: Validate corrected source of truth and syntax
+        shell: bash
         run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git status --short | awk '{print $2}')" = "index.html"
           python - <<'PY'
           from pathlib import Path
-          s=Path('index.html').read_text(encoding='utf-8')
-          needles=[
-            'function cycleConfigVialScheduleUsage',
-            'function cycleConfigVialScheduleComputation',
-            'function renderCycleConfigVialSchedule',
-            'function createManualVialRecord',
-            'data-continuous-vial-field',
-            'function updateSimplePhaseUnitRows',
-            'function protocolPositionForDate'
-          ]
-          for needle in needles:
-              p=s.find(needle)
-              print(f'\n===== {needle} @ {p} =====\n')
-              if p>=0: print(s[max(0,p-1200):min(len(s),p+8000)])
+          import re
+          html=Path('index.html').read_text(encoding='utf-8')
+          start=html.index('<details class="peptide-settings"')
+          end=html.index('</details>',start)
+          settings=html[start:end]
+          for forbidden in ['<label>Vial (mg)</label>','<label>Water (mL)</label>','<label>Concentration (mg/mL)</label>','data-simple-field="vialMg"','data-simple-field="bacWaterMl"','data-simple-field="finalMl"']:
+              assert forbidden not in settings, forbidden
+          assert '<th>#</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in html
+          assert 'function cycleVialPrepForSequence(' in html
+          assert 'function cycleVialPrepForDate(' in html
+          assert 'function syncCyclePhaseCalculationsForSequence(' in html
+          assert 'const prep=cycleVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;' in html
+          assert 'syncCyclePhaseCalculationsForSequence(plan,record.scheduleCycleNumber);' in html
+          assert 'out.units=phaseResolvedUnits(plan,phase,date,position.sequence)' in html
+          assert '/* v20260909.04 — compact treatment controls; UI dimensions only. */' in html
+          assert '<title>Peptide Planner v2026.0909.04</title>' in html
+          assert 'const APP_VERSION="v2026.0909.04";' in html
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,re.S)
+          for i,script in enumerate(scripts):Path(f'/tmp/peptide-inline-{i}.js').write_text(script,encoding='utf-8')
+          print(f'Prepared {len(scripts)} inline scripts')
           PY
+          for f in /tmp/peptide-inline-*.js; do node --check "$f"; done
+          node --check peptide-planner-sw.js
+
+      - name: Commit corrected planner behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "jesykadelacruz"
+          git config user.email "84807985+jesykadelacruz@users.noreply.github.com"
+          git add index.html
+          git commit -m "Use cycled Vial Schedule preparation as source of truth"
+          git push origin HEAD:main
+
+      - name: Build exact Cloudflare package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/peptide-package
+          mkdir -p /tmp/peptide-package
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js /tmp/peptide-package/
+          python - <<'PY'
+          from pathlib import Path
+          expected={'_headers','index.html','manifest.webmanifest','peptide-planner-sw.js'}
+          actual={p.name for p in Path('/tmp/peptide-package').iterdir() if p.is_file()}
+          assert actual==expected,(actual,expected)
+          PY
+          (cd /tmp/peptide-package && zip -q "$GITHUB_WORKSPACE/Peptide_Planner_v20260909.04.zip" _headers index.html manifest.webmanifest peptide-planner-sw.js)
+          unzip -t Peptide_Planner_v20260909.04.zip
+          python - <<'PY'
+          import zipfile
+          expected=['_headers','index.html','manifest.webmanifest','peptide-planner-sw.js']
+          with zipfile.ZipFile('Peptide_Planner_v20260909.04.zip') as z: assert sorted(z.namelist())==sorted(expected),z.namelist()
+          PY
+          sha256sum Peptide_Planner_v20260909.04.zip
+
+      - name: Upload Cloudflare ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20260909.04
+          path: Peptide_Planner_v20260909.04.zip
+          if-no-files-found: error
