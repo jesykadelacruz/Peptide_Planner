@@ -1,0 +1,115 @@
+name: Temporary v20261009.01 release
+on:
+  push:
+    branches: [chatgpt-v20261009-01-temp]
+    paths: ['.github/workflows/chatgpt-v20261009-01.yml']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt-v20261009-01-temp
+          fetch-depth: 0
+      - name: Prepare clean production worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "40667e83eb37385e4b6dada1ef9952978b3f9ab6"
+          git worktree add /tmp/prod origin/main
+      - name: Apply audited cycled vial patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/prod
+          python "$GITHUB_WORKSPACE/.deploy/apply_v20261009_01_cycle_vial_sync.py"
+      - name: Validate exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/prod
+          git diff --check
+          test "$(git status --short | awk '{print $2}' | sort | tr '\n' ' ')" = "index.html peptide-planner-sw.js "
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          h=Path('index.html').read_text(encoding='utf-8')
+          sw=Path('peptide-planner-sw.js').read_text(encoding='utf-8')
+          base=subprocess.check_output(['git','show','HEAD:index.html'],text=True)
+          base_sw=subprocess.check_output(['git','show','HEAD:peptide-planner-sw.js'],text=True)
+          version='Peptide_Planner_v20261009.01'
+          assert f'<title>{version}</title>' in h
+          assert f'const APP_VERSION="{version}";' in h
+          assert f"const PEPTIDE_PLANNER_SW_VERSION='{version}';" in sw
+          assert '<title>Peptide_Planner_v20260909.12</title>' not in h
+          assert 'const APP_VERSION="Peptide_Planner_v20260909.12";' not in h
+          assert "const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20260909.12';" not in sw
+          # No styling/layout change.
+          styles=lambda text: re.findall(r'<style(?:\s[^>]*)?>(.*?)</style>',text,re.S)
+          assert styles(h)==styles(base), 'CSS/style changed unexpectedly'
+          # Cycled Vial Schedule must remain the established nine-column layout.
+          for token in ['Full Dose','Cycle Dose','Open','Finish','Status']:
+              assert token in h
+          # Requested cycled behavior.
+          assert 'const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):fallbackOpenDate;' in h
+          assert 'const automaticFinishDate=autoWindow.lastFullDoseDate||autoWindow.finishDate;' in h
+          assert 'const fullDoseCount=cycleFullDoseCountForDisplay(rowEvents,0,localDateISO(dosePlan.period.start),capacityUnits);' in h
+          assert 'const cycleDoseCount=effectiveWindow.fullDoseCount;' in h
+          assert 'calculatedFinishDate:automaticFinishDate' in h
+          # Preserve shared simulation and all Continuous Vial Schedule logic byte-for-byte.
+          def block(text,start,end):
+              a=text.index(start);b=text.index(end,a);return text[a:b]
+          assert block(h,'function simulateCycleVialWindow(','function automaticVialOpenDateForCursor(')==block(base,'function simulateCycleVialWindow(','function automaticVialOpenDateForCursor(')
+          assert block(h,'function continuousVialScheduleComputation(','function ensureContinuousVialScheduleRecord(')==block(base,'function continuousVialScheduleComputation(','function ensureContinuousVialScheduleRecord(')
+          # Preserve active-week dose/unit resolver and Vial Schedule prep architecture.
+          for start,end in [
+              ('function cycleVialPrepRecords(','function cycleVialPrepForRecord('),
+              ('function cyclePhaseReferenceDate(','function cyclePhaseDoseForDate('),
+              ('function scheduleForDate(','function calendarScheduleForDate(')
+          ]:
+              assert block(h,start,end)==block(base,start,end), f'Unexpected change in {start}'
+          # Service worker change is version-only.
+          assert base_sw.replace("Peptide_Planner_v20260909.12","Peptide_Planner_v20261009.01",1)==sw
+          # JS syntax extraction.
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',h,re.S)
+          for i,s in enumerate(scripts): Path(f'/tmp/pp-{i}.js').write_text(s,encoding='utf-8')
+          print('Validated Peptide_Planner_v20261009.01 exact scope')
+          PY
+          for f in /tmp/pp-*.js; do node --check "$f"; done
+          node --check peptide-planner-sw.js
+      - name: Commit production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/prod
+          git config user.name jesykadelacruz
+          git config user.email 84807985+jesykadelacruz@users.noreply.github.com
+          git add index.html peptide-planner-sw.js
+          git commit -m "Peptide_Planner_v20261009.01"
+          git push origin HEAD:main
+      - name: Build exact Cloudflare package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/prod
+          rm -rf /tmp/pkg && mkdir -p /tmp/pkg
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js /tmp/pkg/
+          cd /tmp/pkg
+          zip -q "$GITHUB_WORKSPACE/Peptide_Planner_v20261009.01.zip" _headers index.html manifest.webmanifest peptide-planner-sw.js
+          cd "$GITHUB_WORKSPACE"
+          unzip -t Peptide_Planner_v20261009.01.zip
+          python - <<'PY'
+          import zipfile
+          z=zipfile.ZipFile('Peptide_Planner_v20261009.01.zip')
+          assert z.namelist()==['_headers','index.html','manifest.webmanifest','peptide-planner-sw.js']
+          assert z.testzip() is None
+          print('Cloudflare ZIP validated')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20261009.01
+          path: Peptide_Planner_v20261009.01.zip
+          if-no-files-found: error
