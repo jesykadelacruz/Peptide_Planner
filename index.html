@@ -5793,10 +5793,10 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   width:100%!important;
   min-width:0!important;
   max-width:100%!important;
-  height:36px!important;
-  min-height:36px!important;
-  max-height:36px!important;
-  block-size:36px!important;
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  block-size:40px!important;
   box-sizing:border-box!important;
   padding-top:0!important;
   padding-bottom:0!important;
@@ -5817,10 +5817,10 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 /* Keep enhanced date wrappers exactly the same height as their visible date fields. */
 #planner .cycle-config-card .date-control,
 #planner .cycle-vial-schedule-field [data-cycle-vial-row] .date-control{
-  height:36px!important;
-  min-height:36px!important;
-  max-height:36px!important;
-  block-size:36px!important;
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  block-size:40px!important;
   box-sizing:border-box!important;
 }
 #planner .continuous-vial-schedule-field [data-continuous-vial-row] .date-control,
@@ -12397,10 +12397,9 @@ function currentVialPerCycle(plan,cycleUsage,at=new Date()){
   if(!period?.valid)return {valid:false};
   const cycleStart=new Date(period.start),day=new Date(at.getFullYear(),at.getMonth(),at.getDate());
   const rows=currentCycleVialScheduleRows(plan,at,cycleUsage);
-  const forecastTotal=Math.max(0,Math.floor(num(cycleUsage.wholeVials)||0));
   const required=rows.reduce((max,row)=>row?.autoRequired?Math.max(max,Number(row.index)||0):max,0);
   const started=rows.filter(row=>row?.openDate&&row.status!=="Pending").length;
-  const total=Math.max(1,forecastTotal,required,started);
+  const total=Math.max(1,required,started);
   if(day<cycleStart)return {valid:true,current:0,total};
   return {valid:true,current:started,total};
 }
@@ -12635,9 +12634,8 @@ function cycleConfigVialScheduleUsage(plan,sequence){
   return {valid:true,mode:"cycle",cycleNumber:Math.max(1,Math.floor(num(sequence)||1)),wholeVials:0,openings:[],lastDoses:[]};
 }
 function cycleConfigVialScheduleTargetCount(config,usage){
-  const forecastRequired=usage?.valid&&usage.mode==="cycle"?Math.max(0,Math.floor(num(usage.wholeVials)||0)):0;
   const stored=Math.max(0,Math.floor(num(config?.vialScheduleRowCount)||0));
-  return Math.max(forecastRequired,stored);
+  return stored;
 }
 function cycleConfigVialScheduleComputation(plan,config,sequence){
   const usage=cycleConfigVialScheduleUsage(plan,sequence);
@@ -12653,8 +12651,7 @@ function renderCycleConfigVialSchedule(plan,config,sequence){
   const usage=cycleConfigVialScheduleUsage(plan,sequence);
   const computed=cycleConfigVialScheduleComputation(plan,config,sequence);
   const rows=computed.rows;
-  const forecastRequired=usage?.valid&&usage.mode==="cycle"?Math.max(0,Math.floor(num(usage.wholeVials)||0)):0;
-  const required=Math.max(computed.required,forecastRequired),rowCount=rows.length;
+  const required=computed.required,rowCount=rows.length;
   const key=`${plan.id}:cycle-config:${sequence}:vial-schedule`;
   const dateOpenInput=row=>`<input type="date" aria-label="Vial ${row.index} date open" data-cycle-vial-open-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.openDate||"")}">`;
   const dateFinishInput=row=>`<input type="date" aria-label="Vial ${row.index} date finish" data-cycle-vial-finish-date="${row.index}" data-cycle-vial-cycle="${sequence}" data-cycle-vial-config="${sequence}" value="${esc(row.finishDate||"")}">`;
@@ -13562,8 +13559,7 @@ function renderSimplePlanner(){
       const sequence=Math.max(1,Number(button.dataset.cycleRemoveVial)||1),index=Math.max(1,Number(button.dataset.cycleVialIndex)||1);
       let config=cycleConfigForSequence(plan,sequence);if(!config)return;
       const usage=cycleConfigVialScheduleUsage(plan,sequence),computed=cycleConfigVialScheduleComputation(plan,config,sequence);
-      const forecastRequired=usage?.valid&&usage.mode==="cycle"?Math.max(0,Math.floor(num(usage.wholeVials)||0)):0;
-      const required=Math.max(computed.required,forecastRequired),current=computed.rows.length;
+      const required=computed.required,current=computed.rows.length;
       if(index<=required||current<=required)return;
       const record=computed.rows.find(item=>item.index===index)?.record||null;
       if(record&&Number(record.scheduleCycleNumber)===sequence&&Number(record.scheduleRowIndex)===index){
