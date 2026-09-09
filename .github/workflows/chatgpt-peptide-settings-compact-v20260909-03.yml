@@ -64,6 +64,7 @@ jobs:
           p.write_text(s,encoding='utf-8')
           PY
           python .deploy/apply_peptide_settings_compact_v20260909_03.py
+          git checkout -- .deploy/apply_peptide_settings_compact_v20260909_03.py
 
       - name: Validate corrected source of truth and syntax
         shell: bash
