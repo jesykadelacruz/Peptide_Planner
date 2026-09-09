@@ -14,24 +14,22 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Print targeted treatment contexts
+      - name: Print additional cycled vial contexts
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
           needles=[
-            'continuousVialPrepForRecord',
-            'continuousVialPrepForDate',
-            'function calcUnits',
-            'cycleVialDoseEvents',
-            'function cycleVialUsage',
-            'function cycleVialScheduleComputation',
-            'missing.push("vial strength")',
-            'card.querySelectorAll("[data-cycle-vial-field]")'
+            'function cycleConfigVialScheduleUsage',
+            'function cycleConfigVialScheduleComputation',
+            'function renderCycleConfigVialSchedule',
+            'function createManualVialRecord',
+            'data-continuous-vial-field',
+            'function updateSimplePhaseUnitRows',
+            'function protocolPositionForDate'
           ]
           for needle in needles:
               p=s.find(needle)
               print(f'\n===== {needle} @ {p} =====\n')
-              if p>=0:
-                  print(s[max(0,p-1500):min(len(s),p+7000)])
+              if p>=0: print(s[max(0,p-1200):min(len(s),p+8000)])
           PY
