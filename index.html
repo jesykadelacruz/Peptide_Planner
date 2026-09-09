@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0909.04</title>
+<title>Peptide Planner v2026.0909.11</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -7309,7 +7309,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0909.04";
+const APP_VERSION="v2026.0909.11";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -10303,9 +10303,11 @@ async function snapshotLocalState(reason="local_device_backup"){
 function applyCloudPlannerState(remoteState,remoteStamp){
   if(!remoteState||typeof remoteState!=="object"||!cloudUser?.id)return false;
   let reconciledFreshPreparation=false;
+  const visibleProtocolSearch=document.getElementById("protocolLibrarySearch")?.value;
   cloudApplying=true;
   try{
     state={...defaultState(),...remoteState};reconciledFreshPreparation=!!normaliseState();plannerStateUserId=cloudUser.id;
+    if(visibleProtocolSearch!=null)state.ui.protocolLibrarySearch=visibleProtocolSearch;
     const key=plannerUserStorageKey(cloudUser.id);if(key)localStorage.setItem(key,JSON.stringify(state));
     const appliedStamp=remoteStamp||new Date().toISOString();
     setCloudSyncMeta({lastSyncedAt:appliedStamp,localModifiedAt:appliedStamp,localDirty:false,lastRemoteUpdatedAt:appliedStamp},cloudUser.id);
@@ -12227,7 +12229,8 @@ function kbRecordBody(plan){
 function renderProtocolLibrary(){
   const root=document.getElementById("protocolLibraryCards");if(!root)return;
   const normalizeKbSearch=value=>String(value||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
-  const search=normalizeKbSearch(state.ui.protocolLibrarySearch||"");
+  const searchInput=document.getElementById("protocolLibrarySearch");
+  const search=normalizeKbSearch(searchInput?searchInput.value:(state.ui.protocolLibrarySearch||""));
   const filter=state.ui.protocolLibraryFilter||"all";
   const cat=state.ui.protocolCategoryFilter||"all";
   const canonicalPlans=sortedPlans().filter(plan=>!isSeparateCycleStack(plan)||plan.id===planBaseId(plan));
@@ -15240,7 +15243,7 @@ const protocolSearch=document.getElementById("protocolLibrarySearch");
 const protocolFilter=document.getElementById("protocolLibraryFilter");
 const protocolCategoryFilter=document.getElementById("protocolCategoryFilter");
 if(protocolSearch){
-  protocolSearch.value=state.ui.protocolLibrarySearch||"";
+  state.ui.protocolLibrarySearch=protocolSearch.value||"";
   const runProtocolSearch=()=>{state.ui.protocolLibrarySearch=protocolSearch.value;renderProtocolLibrary()};
   protocolSearch.addEventListener("input",runProtocolSearch);
   protocolSearch.addEventListener("search",runProtocolSearch);
