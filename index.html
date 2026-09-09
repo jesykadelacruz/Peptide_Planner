@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide_Planner_v20260909.12</title>
+<title>Peptide_Planner_v20261009.01</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -7309,7 +7309,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="Peptide_Planner_v20260909.12";
+const APP_VERSION="Peptide_Planner_v20261009.01";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12563,7 +12563,7 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     const previousFinishDate=index>1&&previousFinish?parseISO(previousFinish):null;
     const rowStartCursor=cursor;
     const fallbackOpenDate=previousFinishDate?localDateISO(addDays(previousFinishDate,1)):(previousFinish||"");
-    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):automaticVialOpenDateForCursor(dosePlan,rowStartCursor,fallbackOpenDate);
+    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):fallbackOpenDate;
     const legacyManualOpen=!!(record&&record.scheduleOpenAuto==null&&record.startDate);
     const legacyManualFinish=!!(record&&record.scheduleFinishAuto==null&&record.finishDate);
     const manualOpen=!!(record&&(record.scheduleOpenAuto===false||legacyManualOpen));
@@ -12579,11 +12579,12 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     }
     const autoWindow=simulateCycleVialWindow(rowEvents,rowStartCursor,openDate,capacityUnits,disposeDate,null);
     if(autoWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
-    const finishDate=manualFinish?String(record.finishDate||""):autoWindow.finishDate;
+    const automaticFinishDate=autoWindow.lastFullDoseDate||autoWindow.finishDate;
+    const finishDate=manualFinish?String(record.finishDate||""):automaticFinishDate;
     const effectiveWindow=manualFinish?simulateCycleVialWindow(rowEvents,rowStartCursor,openDate,capacityUnits,disposeDate,finishDate):autoWindow;
     if(effectiveWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
-    const fullDoseCount=cycleFullDoseCountForDisplay(rowEvents,rowStartCursor,openDate,capacityUnits);
-    const cycleDoseCount=vialDoseCountForDisplay(rowEvents,rowStartCursor,openDate,capacityUnits,disposeDate||null);
+    const fullDoseCount=cycleFullDoseCountForDisplay(rowEvents,0,localDateISO(dosePlan.period.start),capacityUnits);
+    const cycleDoseCount=effectiveWindow.fullDoseCount;
     const hadDoseAtStart=rowStartCursor<dosePlan.events.length;
     cursor=effectiveWindow.nextCursor;
     previousFinish=finishDate||calculatedOpenDate||previousFinish;
@@ -12592,7 +12593,7 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     const projected=forecastOpening?.date||null;
     rows.push({
       index,cycleNumber,record,forecastNumber:forecastOpening?.number||null,projectedDate:projected?localDateISO(projected):calculatedOpenDate,
-      calculatedOpenDate,calculatedFinishDate:autoWindow.finishDate,openDate,finishDate,disposeDate,
+      calculatedOpenDate,calculatedFinishDate:automaticFinishDate,openDate,finishDate,disposeDate,
       vialMg:prep.vialMg,waterMl:prep.waterMl,concentration:prep.concentration,
       unitsUsed:effectiveWindow.usedUnits,fullDoseCount,cycleDoseCount,remainingUnits:effectiveWindow.remainingUnits,lastFullDoseDate:effectiveWindow.lastFullDoseDate,
       status:cycleVialScheduleStatus(openDate,finishDate),statusKey:cycleVialScheduleStatusKey(cycleVialScheduleStatus(openDate,finishDate)),autoRequired:rowRequired
