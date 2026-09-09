@@ -5814,6 +5814,23 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   max-width:100%!important;
   overflow-wrap:anywhere;
 }
+/* Keep enhanced date wrappers exactly the same height as their visible date fields. */
+#planner .cycle-config-card .date-control,
+#planner .cycle-vial-schedule-field [data-cycle-vial-row] .date-control{
+  height:36px!important;
+  min-height:36px!important;
+  max-height:36px!important;
+  block-size:36px!important;
+  box-sizing:border-box!important;
+}
+#planner .continuous-vial-schedule-field [data-continuous-vial-row] .date-control,
+#planner .continuous-vial-schedule-field [data-continuous-vial-row] .date-display{
+  height:40px!important;
+  min-height:40px!important;
+  max-height:40px!important;
+  block-size:40px!important;
+  box-sizing:border-box!important;
+}
 @media(max-width:760px){
   #planner .peptide-settings-grid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
