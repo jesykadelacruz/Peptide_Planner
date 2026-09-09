@@ -1,0 +1,97 @@
+name: Temporary v20261009.02 release
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/chatgpt-v20261009-02.yml']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply audited cycled vial patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .deploy/apply_v20261009_02_cycle_vial_sequence.py
+          git checkout -- .deploy/apply_v20261009_02_cycle_vial_sequence.py
+      - name: Validate exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git status --short | awk '{print $2}' | sort | tr '\n' ' ')" = "index.html peptide-planner-sw.js "
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          h=Path('index.html').read_text(encoding='utf-8')
+          sw=Path('peptide-planner-sw.js').read_text(encoding='utf-8')
+          base=subprocess.check_output(['git','show','HEAD:index.html'],text=True)
+          base_sw=subprocess.check_output(['git','show','HEAD:peptide-planner-sw.js'],text=True)
+          version='Peptide_Planner_v20261009.02'
+          assert f'<title>{version}</title>' in h
+          assert f'const APP_VERSION="{version}";' in h
+          assert f"const PEPTIDE_PLANNER_SW_VERSION='{version}';" in sw
+          assert 'const ordered=events.map(event=>num(event?.units)).filter(eventUnits=>eventUnits>0);' in h
+          assert 'if(!manualFinish&&dispose&&event.date>dispose){reason="Disposal limit";break;}' in h
+          assert 'if(reason==="Disposal limit")return {nextCursor:cursor,finishDate:lastFullDoseDate||openDate' in h
+          assert 'const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):fallbackOpenDate;' in h
+          assert 'const automaticFinishDate=autoWindow.lastFullDoseDate||autoWindow.finishDate;' in h
+          assert 'const fullDoseCount=cycleFullDoseCountForDisplay(rowEvents,0,localDateISO(dosePlan.period.start),capacityUnits);' in h
+          assert 'const cycleDoseCount=effectiveWindow.fullDoseCount;' in h
+          assert 'calculatedFinishDate:automaticFinishDate' in h
+          styles=lambda text: re.findall(r'<style(?:\s[^>]*)?>(.*?)</style>',text,re.S)
+          assert styles(h)==styles(base), 'CSS/style changed unexpectedly'
+          def block(text,start,end):
+              a=text.index(start);b=text.index(end,a);return text[a:b]
+          # Continuous schedule and active-week Dose/Units logic must remain byte-identical.
+          assert block(h,'function continuousVialScheduleComputation(','function ensureContinuousVialScheduleRecord(')==block(base,'function continuousVialScheduleComputation(','function ensureContinuousVialScheduleRecord(')
+          for start,end in [
+              ('function cycleVialPrepRecords(','function cycleVialPrepForRecord('),
+              ('function cyclePhaseReferenceDate(','function cyclePhaseDoseForDate('),
+              ('function scheduleForDate(','function calendarScheduleForDate(')
+          ]:
+              assert block(h,start,end)==block(base,start,end), f'Unexpected change in {start}'
+          assert base_sw.replace('Peptide_Planner_v20261009.01','Peptide_Planner_v20261009.02',1)==sw
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',h,re.S)
+          for i,s in enumerate(scripts): Path(f'/tmp/pp-{i}.js').write_text(s,encoding='utf-8')
+          print('Validated Peptide_Planner_v20261009.02 exact scope')
+          PY
+          for f in /tmp/pp-*.js; do node --check "$f"; done
+          node --check peptide-planner-sw.js
+      - name: Commit production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name jesykadelacruz
+          git config user.email 84807985+jesykadelacruz@users.noreply.github.com
+          git add index.html peptide-planner-sw.js
+          git commit -m "Peptide_Planner_v20261009.02"
+          git push origin HEAD:main
+      - name: Build exact Cloudflare package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/pkg && mkdir -p /tmp/pkg
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js /tmp/pkg/
+          cd /tmp/pkg
+          zip -q "$GITHUB_WORKSPACE/Peptide_Planner_v20261009.02.zip" _headers index.html manifest.webmanifest peptide-planner-sw.js
+          cd "$GITHUB_WORKSPACE"
+          unzip -t Peptide_Planner_v20261009.02.zip
+          python - <<'PY'
+          import zipfile
+          expected=['_headers','index.html','manifest.webmanifest','peptide-planner-sw.js']
+          with zipfile.ZipFile('Peptide_Planner_v20261009.02.zip') as z:
+              assert z.namelist()==expected, z.namelist()
+              assert z.testzip() is None
+          print('Cloudflare ZIP validated')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20261009.02
+          path: Peptide_Planner_v20261009.02.zip
+          if-no-files-found: error
