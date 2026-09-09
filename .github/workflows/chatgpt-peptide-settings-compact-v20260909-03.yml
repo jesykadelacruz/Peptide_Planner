@@ -28,7 +28,36 @@ jobs:
           old="replace_once('const prep=continuousVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;','const prep=cycleVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;','cycle schedule row prep')"
           new="cycle_start=html.index('function cycleVialScheduleComputation');cycle_end=html.index('function ensureCycleVialScheduleRecord',cycle_start);cycle_segment=html[cycle_start:cycle_end];assert cycle_segment.count('const prep=continuousVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;')==1,'cycled row prep scope mismatch';cycle_segment=cycle_segment.replace('const prep=continuousVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;','const prep=cycleVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;',1);html=html[:cycle_start]+cycle_segment+html[cycle_end:]"
           assert old in s
-          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          s=s.replace(old,new,1)
+          labels=['dose edit sequence','units edit sequence','split toggle sequence','split parts sequence','split unit values sequence','split unit sync sequence']
+          lines=s.splitlines()
+          kept=[]
+          removed=[]
+          for line in lines:
+              match=next((label for label in labels if f"'{label}')" in line),None)
+              if match: removed.append(match)
+              else: kept.append(line)
+          assert sorted(removed)==sorted(labels),removed
+          s='\n'.join(kept)+'\n'
+          marker='# A Vial/Water edit recalculates dose-authority or units-authority values for that cycle before rerendering.'
+          scoped=r'''handler_start=html.index('card.querySelectorAll("[data-cycle-phase]")')
+          handler_end=html.index('card.querySelector("[data-simple-dispose-value]")',handler_start)
+          handler=html[handler_start:handler_end]
+          def handler_replace(old,new,label):
+              global handler
+              count=handler.count(old);assert count==1,f'{label}: expected one cycled-handler match, found {count}'
+              handler=handler.replace(old,new,1)
+          handler_replace('if(field==="doseMg")syncPhaseFromDose(plan,phase);','if(field==="doseMg")syncPhaseFromDose(plan,phase,null,sequence);','dose edit sequence')
+          handler_replace('phase.units=control.value;syncPhaseFromUnits(plan,phase);','phase.units=control.value;syncPhaseFromUnits(plan,phase,null,sequence);','units edit sequence')
+          handler_replace('phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase),parts);','phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,null,Number(control.dataset.cyclePhaseSplit)),parts);','split toggle sequence')
+          handler_replace('phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase),parts);syncLegacyPlanFromCycleConfigs','phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,null,Number(control.dataset.cyclePhaseSplitParts)),parts);syncLegacyPlanFromCycleConfigs','split parts sequence')
+          handler_replace('const phase=config.phases[index],parts=simplePhaseSplitParts(phase),values=phaseSplitUnitValues(plan,phase);','const phase=config.phases[index],parts=simplePhaseSplitParts(phase),sequence=Number(control.dataset.cyclePhaseSplitUnit),values=phaseSplitUnitValues(plan,phase,null,sequence);','split unit values sequence')
+          handler_replace('syncPhaseFromSplitUnits(plan,phase);syncLegacyPlanFromCycleConfigs','syncPhaseFromSplitUnits(plan,phase,null,sequence);syncLegacyPlanFromCycleConfigs','split unit sync sequence')
+          html=html[:handler_start]+handler+html[handler_end:]
+          '''
+          assert marker in s
+          s=s.replace(marker,scoped+'\n'+marker,1)
+          p.write_text(s,encoding='utf-8')
           PY
           python .deploy/apply_peptide_settings_compact_v20260909_03.py
 
