@@ -1,0 +1,94 @@
+name: Temporary Peptide Settings compact release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/chatgpt-peptide-settings-compact-v20260909-03.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply audited UI patch
+        run: python .deploy/apply_peptide_settings_compact_v20260909_03.py
+
+      - name: Validate exact requested scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git status --short | awk '{print $2}')" = "index.html"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text(encoding='utf-8')
+          start=html.index('<details class="peptide-settings"')
+          end=html.index('</details>', start)
+          settings=html[start:end]
+          assert '<label>Vial (mg)</label>' not in settings
+          assert '<label>Water (mL)</label>' not in settings
+          assert '<label>Concentration (mg/mL)</label>' not in settings
+          assert 'type="hidden" data-simple-field="vialMg"' in settings
+          assert 'type="hidden" data-simple-field="bacWaterMl"' in settings
+          assert 'type="hidden" data-simple-field="finalMl"' in settings
+          assert '<th>#</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in html
+          assert '/* v20260909.03 — compact Peptide Settings and cycled-treatment controls; UI dimensions only. */' in html
+          assert '<title>Peptide Planner v2026.0909.04</title>' in html
+          assert 'const APP_VERSION="v2026.0909.04";' in html
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,re.S)
+          for i,script in enumerate(scripts):
+              Path(f'/tmp/peptide-inline-{i}.js').write_text(script,encoding='utf-8')
+          print(f'Prepared {len(scripts)} inline scripts for syntax validation')
+          PY
+          for f in /tmp/peptide-inline-*.js; do node --check "$f"; done
+          node --check peptide-planner-sw.js
+
+      - name: Commit requested UI change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "jesykadelacruz"
+          git config user.email "84807985+jesykadelacruz@users.noreply.github.com"
+          git add index.html
+          git commit -m "Compact Peptide Settings and treatment controls"
+          git push origin HEAD:main
+
+      - name: Build exact Cloudflare package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/peptide-package
+          mkdir -p /tmp/peptide-package
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js /tmp/peptide-package/
+          python - <<'PY'
+          from pathlib import Path
+          expected={'_headers','index.html','manifest.webmanifest','peptide-planner-sw.js'}
+          actual={p.name for p in Path('/tmp/peptide-package').iterdir() if p.is_file()}
+          assert actual==expected,(actual,expected)
+          PY
+          (cd /tmp/peptide-package && zip -q "$GITHUB_WORKSPACE/Peptide_Planner_v20260909.03.zip" _headers index.html manifest.webmanifest peptide-planner-sw.js)
+          unzip -t Peptide_Planner_v20260909.03.zip
+          python - <<'PY'
+          import zipfile
+          expected=['_headers','index.html','manifest.webmanifest','peptide-planner-sw.js']
+          with zipfile.ZipFile('Peptide_Planner_v20260909.03.zip') as z:
+              assert sorted(z.namelist())==sorted(expected),z.namelist()
+          PY
+          sha256sum Peptide_Planner_v20260909.03.zip
+
+      - name: Upload Cloudflare ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20260909.03
+          path: Peptide_Planner_v20260909.03.zip
+          if-no-files-found: error
