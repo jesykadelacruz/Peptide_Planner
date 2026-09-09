@@ -5769,7 +5769,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 }
 
 
-/* v20260909.03 — compact Peptide Settings and cycled-treatment controls; UI dimensions only. */
+/* v20260909.04 — compact treatment controls; UI dimensions only. */
 #planner .peptide-settings-grid{
   grid-template-columns:repeat(auto-fit,minmax(112px,1fr))!important;
   gap:7px!important;
@@ -7610,9 +7610,9 @@ function cyclePhaseInterval(config,week){
 function cyclePhaseStartOffset(config,week){
   const phase=cyclePhaseForWeek(config,week);return Math.max(0,(Math.max(1,Math.floor(enteredPlanNumber(phase?.startWeek)||1))-1)*7);
 }
-function cycleAdministrations(plan,config,week,doseMg,units){
+function cycleAdministrations(plan,config,week,doseMg,units,date=null,sequence=null){
   const phase=cyclePhaseForWeek(config,week),original=plan.injectionTime;plan.injectionTime=config?.injectionTime||original||"";
-  const rows=administrationsForPhase(plan,phase,doseMg,units);plan.injectionTime=original;return rows;
+  const rows=administrationsForPhase(plan,phase,doseMg,units,date,sequence);plan.injectionTime=original;return rows;
 }
 function cycleScheduleLabel(config){
   if(!config)return "Schedule not set";
@@ -8181,38 +8181,24 @@ function phaseForWeek(plan,week){
   if(ongoing&&phases.length&&week>Math.max(...phases.map(x=>Number(x.endWeek)||0)))return phases[phases.length-1];
   return null;
 }
-function administrationsForPhase(plan,phase,doseMg,units){
+function administrationsForPhase(plan,phase,doseMg,units,date=null,sequence=null){
   const resolvedDose=num(phase?.doseMg)!=null?num(phase.doseMg):num(doseMg);
-  const resolvedUnits=phaseResolvedUnits(plan,phase)??(num(units)!=null?round(Number(units),2):null);
+  const resolvedUnits=phaseResolvedUnits(plan,phase,date,sequence)??(num(units)!=null?round(Number(units),2):null);
   if(!phase?.splitDose){
-    return [{
-      partKey:"",
-      partNumber:1,
-      partCount:1,
-      doseMg:resolvedDose,
-      units:resolvedUnits,
-      time:plan.injectionTime||""
-    }];
+    return [{partKey:"",partNumber:1,partCount:1,doseMg:resolvedDose,units:resolvedUnits,time:plan.injectionTime||""}];
   }
-  const parts=simplePhaseSplitParts(phase),times=Array.isArray(phase.splitTimes)?phase.splitTimes:[],splitUnits=phaseSplitUnitValues(plan,phase);
+  const parts=simplePhaseSplitParts(phase),times=Array.isArray(phase.splitTimes)?phase.splitTimes:[],splitUnits=phaseSplitUnitValues(plan,phase,date,sequence);
   return Array.from({length:parts},(_,index)=>{
-    const partUnits=num(splitUnits[index]),partDose=partUnits!=null?phaseDoseFromUnits(plan,partUnits):(resolvedDose!=null?round(Number(resolvedDose)/parts,6):null);
-    return {
-      partKey:`split-${index+1}`,
-      partNumber:index+1,
-      partCount:parts,
-      doseMg:partDose,
-      units:partUnits,
-      time:times[index]||""
-    };
+    const partUnits=num(splitUnits[index]),partDose=partUnits!=null?phaseDoseFromUnits(plan,partUnits,date,sequence):(resolvedDose!=null?round(Number(resolvedDose)/parts,6):null);
+    return {partKey:`split-${index+1}`,partNumber:index+1,partCount:parts,doseMg:partDose,units:partUnits,time:times[index]||""};
   });
 }
 function scheduleAdministrations(plan,week,doseMg,units){
   return administrationsForPhase(plan,phaseForWeek(plan,week),doseMg,units);
 }
-function calcUnits(plan,doseMg,date=null){
-  const prep=plan?.noCycle?continuousVialPrepForDate(plan,date||new Date()):null;
-  const vial=prep?.vialMg||num(plan.vialMg),ml=prep?.waterMl||num(plan.finalMl),upm=num(plan.unitsPerMl);
+function calcUnits(plan,doseMg,date=null,sequence=null){
+  const prep=planVialPrepForDate(plan,date||new Date(),sequence);
+  const vial=num(prep?.vialMg),ml=num(prep?.waterMl),upm=num(plan.unitsPerMl);
   if(!plan.confirmed||!doseMg||!vial||!ml||!upm)return {valid:false};
   const concentration=vial/ml,volume=doseMg/concentration,units=volume*upm;
   const warnings=[];
@@ -8220,9 +8206,9 @@ function calcUnits(plan,doseMg,date=null){
   if(volume>1)warnings.push(`Calculated volume is ${round(volume,3)} mL; confirm the product, route and concentration.`);
   return {valid:true,concentration,volume,units,warnings};
 }
-function phaseUnitCalculation(plan,doseMg,date=null){
-  const prep=plan?.noCycle?continuousVialPrepForDate(plan,date||new Date()):null;
-  const dose=num(doseMg),vial=prep?.vialMg||num(plan.vialMg),ml=prep?.waterMl||num(plan.finalMl),upm=num(plan.unitsPerMl);
+function phaseUnitCalculation(plan,doseMg,date=null,sequence=null){
+  const prep=planVialPrepForDate(plan,date||new Date(),sequence);
+  const dose=num(doseMg),vial=num(prep?.vialMg),ml=num(prep?.waterMl),upm=num(plan.unitsPerMl);
   if(dose==null||dose<0||vial==null||vial<=0||ml==null||ml<=0||upm==null||upm<=0)return {valid:false};
   const concentration=vial/ml,volume=dose/concentration,units=volume*upm;
   return {valid:true,concentration,volume,units};
@@ -8231,20 +8217,20 @@ function simplePhaseSplitParts(phase){
   if(!phase?.splitDose)return 1;
   return Math.max(2,Math.min(10,Math.floor(num(phase.splitParts)||2)));
 }
-function phaseUnitsFromDose(plan,doseMg){
-  const calc=phaseUnitCalculation(plan,doseMg);
+function phaseUnitsFromDose(plan,doseMg,date=null,sequence=null){
+  const calc=phaseUnitCalculation(plan,doseMg,date,sequence);
   return calc.valid?round(calc.units,2):null;
 }
-function phaseDoseFromUnits(plan,units,date=null){
-  const prep=plan?.noCycle?continuousVialPrepForDate(plan,date||new Date()):null;
-  const totalUnits=num(units),vial=prep?.vialMg||num(plan?.vialMg),ml=prep?.waterMl||num(plan?.finalMl),upm=num(plan?.unitsPerMl);
+function phaseDoseFromUnits(plan,units,date=null,sequence=null){
+  const prep=planVialPrepForDate(plan,date||new Date(),sequence);
+  const totalUnits=num(units),vial=num(prep?.vialMg),ml=num(prep?.waterMl),upm=num(plan?.unitsPerMl);
   if(totalUnits==null||totalUnits<0||vial==null||vial<=0||ml==null||ml<=0||upm==null||upm<=0)return null;
   return round((totalUnits*vial)/(ml*upm),6);
 }
-function inferPhaseDoseEntryMode(plan,phase){
+function inferPhaseDoseEntryMode(plan,phase,date=null,sequence=null){
   const saved=String(phase?.doseEntryMode||"").toLowerCase();
   if(saved==="dose"||saved==="units")return saved;
-  const entered=enteredPlanNumber(phase?.units),calculated=phaseUnitsFromDose(plan,phase?.doseMg);
+  const entered=enteredPlanNumber(phase?.units),calculated=phaseUnitsFromDose(plan,phase?.doseMg,date,sequence);
   if(entered!=null&&entered>=0){
     if(calculated!=null&&Math.abs(round(entered,2)-round(calculated,2))<0.005)return "dose";
     return "units";
@@ -8271,8 +8257,9 @@ function planVerificationCompleteness(plan){
   if(!route||/confirm from|not selected|route not set/.test(routeLower))missing.push("verified route");
   const injectable=/subcutaneous|subq|sc\/sq|intramuscular|intravenous|\binjection\b|\bim\b/.test(routeLower);
   if(injectable){
-    if(!(num(plan?.vialMg)>0))missing.push("vial strength");
-    if(!(num(plan?.finalMl)>0))missing.push("final prepared volume");
+    const verificationSequence=plan?.noCycle?null:(isSeparateCycleStack(plan)?planCycleNumber(plan):1),verificationPrep=planVialPrepForDate(plan,new Date(),verificationSequence);
+    if(!(num(verificationPrep?.vialMg)>0))missing.push("vial strength");
+    if(!(num(verificationPrep?.finalMl)>0))missing.push("final prepared volume");
     if(!(num(plan?.unitsPerMl)>0))missing.push("syringe calibration");
     if(!(num(plan?.syringeCapacity)>0))missing.push("syringe/device capacity");
   }
@@ -8310,10 +8297,10 @@ function planReadyForToday(plan){return !!plan?.confirmed&&planVerificationCompl
 function initialisePlanPhaseEntryModes(plan){
   planDosePhases(plan).forEach(phase=>{if(!["dose","units"].includes(String(phase.doseEntryMode||"")))phase.doseEntryMode=inferPhaseDoseEntryMode(plan,phase)});
 }
-function phaseResolvedUnits(plan,phase){
-  const mode=inferPhaseDoseEntryMode(plan,phase),entered=enteredPlanNumber(phase?.units);
+function phaseResolvedUnits(plan,phase,date=null,sequence=null){
+  const mode=inferPhaseDoseEntryMode(plan,phase,date,sequence),entered=enteredPlanNumber(phase?.units);
   if(mode==="units"&&entered!=null&&entered>=0)return round(entered,2);
-  const calculated=phaseUnitsFromDose(plan,phase?.doseMg);
+  const calculated=phaseUnitsFromDose(plan,phase?.doseMg,date,sequence);
   if(calculated!=null)return calculated;
   return entered!=null&&entered>=0?round(entered,2):null;
 }
@@ -8328,33 +8315,44 @@ function distributeSplitUnits(totalUnits,parts){
     return value;
   });
 }
-function phaseSplitUnitValues(plan,phase){
-  const parts=simplePhaseSplitParts(phase),total=phaseResolvedUnits(plan,phase),existing=Array.isArray(phase?.splitUnits)?phase.splitUnits:[];
+function phaseSplitUnitValues(plan,phase,date=null,sequence=null){
+  const parts=simplePhaseSplitParts(phase),total=phaseResolvedUnits(plan,phase,date,sequence),existing=Array.isArray(phase?.splitUnits)?phase.splitUnits:[];
   const values=existing.slice(0,parts).map(value=>num(value));
   const complete=values.length===parts&&values.every(value=>value!=null&&value>=0);
   if(complete&&total!=null&&Math.abs(round(values.reduce((sum,value)=>sum+value,0),2)-round(total,2))<0.005)return values.map(value=>round(value,2));
   return distributeSplitUnits(total,parts);
 }
-function syncPhaseFromDose(plan,phase){
+function syncPhaseFromDose(plan,phase,date=null,sequence=null){
   phase.doseEntryMode="dose";
-  const units=phaseUnitsFromDose(plan,phase?.doseMg);
+  const units=phaseUnitsFromDose(plan,phase?.doseMg,date,sequence);
   phase.units=units==null?"":units;
   if(phase?.splitDose)phase.splitUnits=distributeSplitUnits(units,simplePhaseSplitParts(phase));
 }
-function syncPhaseFromUnits(plan,phase){
+function syncPhaseFromUnits(plan,phase,date=null,sequence=null){
   phase.doseEntryMode="units";
   const units=enteredPlanNumber(phase?.units);
   if(units==null||units<0)return;
   phase.units=round(units,2);
-  const dose=phaseDoseFromUnits(plan,phase.units);if(dose!=null)phase.doseMg=dose;
+  const dose=phaseDoseFromUnits(plan,phase.units,date,sequence);if(dose!=null)phase.doseMg=dose;
   if(phase?.splitDose)phase.splitUnits=distributeSplitUnits(phase.units,simplePhaseSplitParts(phase));
 }
-function syncPhaseFromSplitUnits(plan,phase){
+function syncPhaseFromSplitUnits(plan,phase,date=null,sequence=null){
   phase.doseEntryMode="units";
   const parts=simplePhaseSplitParts(phase),existing=Array.isArray(phase?.splitUnits)?phase.splitUnits:[],values=Array.from({length:parts},(_,index)=>num(existing[index]));
   if(values.some(value=>value==null||value<0))return;
   const total=round(values.reduce((sum,value)=>sum+value,0),2);phase.units=total;
-  const dose=phaseDoseFromUnits(plan,total);if(dose!=null)phase.doseMg=dose;
+  const dose=phaseDoseFromUnits(plan,total,date,sequence);if(dose!=null)phase.doseMg=dose;
+}
+function syncCyclePhaseCalculationsForSequence(plan,sequence){
+  const resolved=Math.max(1,Math.floor(num(sequence)||1)),config=cycleConfigForSequence(plan,resolved);if(!config)return;
+  (Array.isArray(config.phases)?config.phases:[]).forEach(phase=>{
+    const mode=inferPhaseDoseEntryMode(plan,phase,null,resolved);
+    if(mode==="units"){
+      const parts=simplePhaseSplitParts(phase),split=Array.isArray(phase.splitUnits)?phase.splitUnits.slice(0,parts):[];
+      const complete=phase.splitDose&&split.length===parts&&split.every(value=>num(value)!=null&&num(value)>=0);
+      if(complete)syncPhaseFromSplitUnits(plan,phase,null,resolved);else syncPhaseFromUnits(plan,phase,null,resolved);
+    }else syncPhaseFromDose(plan,phase,null,resolved);
+  });
 }
 function syncPlanPhaseCalculations(plan){
   initialisePlanPhaseEntryModes(plan);
@@ -8372,9 +8370,8 @@ function simplePhaseUnitsText(plan,phase){
 }
 function updateSimplePhaseUnitRows(card,plan){
   if(!card)return;
-  const vial=num(card.querySelector('[data-simple-field="vialMg"]')?.value??plan.vialMg);
-  const ml=num(card.querySelector('[data-simple-field="finalMl"]')?.value??plan.finalMl);
-  const upm=num(card.querySelector('[data-simple-field="unitsPerMl"]')?.value??plan.unitsPerMl);
+  const prep=planVialPrepForDate(plan,new Date(),plan?.noCycle?null:(isSeparateCycleStack(plan)?planCycleNumber(plan):1));
+  const vial=num(prep?.vialMg),ml=num(prep?.finalMl),upm=num(plan.unitsPerMl);
   card.querySelectorAll('[data-simple-phase-units]').forEach(output=>{
     const index=Number(output.dataset.simplePhaseUnits);
     const doseInput=card.querySelector(`[data-simple-phase="${index}"][data-simple-phase-field="doseMg"]`);
@@ -10556,6 +10553,48 @@ function continuousVialPrepForRecord(plan,record,fallback=null){
   const waterMl=num(record?.finalMl||record?.bacWaterMl)>0?num(record.finalMl||record.bacWaterMl):(num(fallback?.waterMl)>0?num(fallback.waterMl):num(plan?.finalMl||plan?.bacWaterMl));
   return {vialMg:vialMg||0,waterMl:waterMl||0,finalMl:waterMl||0,concentration:vialMg>0&&waterMl>0?vialMg/waterMl:0};
 }
+function cycleVialPrepRecords(plan){
+  if(!plan||plan.noCycle)return [];
+  return (state.vialRecords||[])
+    .filter(record=>record?.planId===plan.id&&Number(record?.scheduleCycleNumber)>0)
+    .sort((a,b)=>Number(a.scheduleCycleNumber||0)-Number(b.scheduleCycleNumber||0)||Number(a.scheduleRowIndex||a.vialNumber||0)-Number(b.scheduleRowIndex||b.vialNumber||0));
+}
+function cycleVialPrepForRecord(plan,record,fallback=null){
+  const vialMg=num(record?.vialMg)>0?num(record.vialMg):(num(fallback?.vialMg)>0?num(fallback.vialMg):0);
+  const waterMl=num(record?.finalMl||record?.bacWaterMl)>0?num(record.finalMl||record.bacWaterMl):(num(fallback?.waterMl)>0?num(fallback.waterMl):0);
+  return {record:record||fallback?.record||null,vialMg:vialMg||0,waterMl:waterMl||0,finalMl:waterMl||0,concentration:vialMg>0&&waterMl>0?vialMg/waterMl:0};
+}
+function cycleVialPrepForSequence(plan,sequence=1){
+  if(!plan||plan.noCycle)return null;
+  const target=Math.max(1,Math.floor(num(sequence)||1)),records=cycleVialPrepRecords(plan);
+  const valid=record=>num(record?.vialMg)>0&&num(record?.finalMl||record?.bacWaterMl)>0;
+  const exact=records.filter(record=>Number(record.scheduleCycleNumber)===target&&valid(record));
+  if(exact.length)return cycleVialPrepForRecord(plan,exact[0]);
+  const prior=records.filter(record=>Number(record.scheduleCycleNumber)<target&&valid(record));
+  if(prior.length)return cycleVialPrepForRecord(plan,prior[prior.length-1]);
+  if(!records.length){
+    const vialMg=num(plan?.vialMg),waterMl=num(plan?.finalMl||plan?.bacWaterMl);
+    if(vialMg>0&&waterMl>0)return {record:null,vialMg,waterMl,finalMl:waterMl,concentration:vialMg/waterMl,legacy:true};
+  }
+  return null;
+}
+function cycleVialPrepForDate(plan,date=new Date(),sequence=null){
+  if(!plan||plan.noCycle)return null;
+  const target=typeof date==="string"?parseISO(date):date;
+  const position=target?protocolPositionForDate(plan,target):null;
+  const resolvedSequence=Math.max(1,Math.floor(num(sequence)||num(position?.sequence)||1));
+  const records=cycleVialPrepRecords(plan).filter(record=>Number(record.scheduleCycleNumber)===resolvedSequence&&num(record?.vialMg)>0&&num(record?.finalMl||record?.bacWaterMl)>0);
+  const dated=records
+    .map(record=>({record,date:parseISO(record.startDate||record.needDate||"")}))
+    .filter(item=>item.date&&(!target||item.date<=target))
+    .sort((a,b)=>a.date-b.date||Number(a.record?.scheduleRowIndex||a.record?.vialNumber||0)-Number(b.record?.scheduleRowIndex||b.record?.vialNumber||0));
+  if(dated.length)return cycleVialPrepForRecord(plan,dated[dated.length-1].record);
+  if(records.length)return cycleVialPrepForRecord(plan,records[0]);
+  return cycleVialPrepForSequence(plan,resolvedSequence);
+}
+function planVialPrepForDate(plan,date=new Date(),sequence=null){
+  return plan?.noCycle?continuousVialPrepForDate(plan,date):cycleVialPrepForDate(plan,date,sequence);
+}
 function administrationConsumedMg(plan,record){
   const actualUnits=num(record?.actualUnits),plannedUnits=num(record?.plannedUnits),plannedDose=num(record?.plannedDose);
   if(plan?.noCycle&&actualUnits!=null&&actualUnits>=0){
@@ -11164,7 +11203,7 @@ function scheduleForDate(plan,date,includeScheduled=false){
   const phaseDays=cyclePhaseWeekdays(config,week),phaseInterval=cyclePhaseInterval(config,week),phaseOffset=cyclePhaseStartOffset(config,week),offset=Math.max(0,position.activeOffset||0);
   const isDue=phaseDays!==null?phaseDays.includes(date.getDay()):phaseInterval?(offset>=phaseOffset&&(offset-phaseOffset)%phaseInterval===0):(config?.scheduleMode==="interval"?(enteredPlanNumber(config.intervalDays)&&offset%Number(config.intervalDays)===0):(config?.weekdays||[]).map(Number).includes(date.getDay()));
   if(!isDue)return out;
-  const phase=cyclePhaseForWeek(config,week),dose=cyclePhaseDose(config,week);out.administration=true;out.doseMg=dose;out.units=phaseResolvedUnits(plan,phase);if(out.units==null){const c=calcUnits(plan,dose);out.units=c.valid?round(c.units,2):(num(plan.fixedUnits)!=null?round(Number(plan.fixedUnits),2):null);}out.administrations=cycleAdministrations(plan,config,week,out.doseMg,out.units);return out;
+  const phase=cyclePhaseForWeek(config,week),dose=cyclePhaseDose(config,week);out.administration=true;out.doseMg=dose;out.units=phaseResolvedUnits(plan,phase,date,position.sequence);if(out.units==null){const c=calcUnits(plan,dose,date,position.sequence);out.units=c.valid?round(c.units,2):(num(plan.fixedUnits)!=null?round(Number(plan.fixedUnits),2):null);}out.administrations=cycleAdministrations(plan,config,week,out.doseMg,out.units,date,position.sequence);return out;
 }
 function calendarScheduleForDate(plan,date){
   const scheduled=scheduleForDate(plan,date,true);
@@ -12294,10 +12333,11 @@ function cycleFrequencyText(plan){
   return days.length?`${days.length} day${days.length===1?"":"s"}/week`:"Days not set";
 }
 function cycleVialUsage(plan,cycleNumber=1){
-  const finalMl=num(plan.finalMl),unitsPerMl=num(plan.unitsPerMl);
-  if(!finalMl||finalMl<=0||!unitsPerMl||unitsPerMl<=0)return {valid:false,reason:"Enter final prepared volume and syringe calibration"};
-  const unitsPerVial=finalMl*unitsPerMl;
+  const unitsPerMl=num(plan.unitsPerMl);
+  if(!unitsPerMl||unitsPerMl<=0)return {valid:false,reason:"Enter syringe calibration"};
   if(plan.noCycle){
+    const finalMl=num(plan.finalMl);if(!finalMl||finalMl<=0)return {valid:false,reason:"Enter final prepared volume and syringe calibration"};
+    const unitsPerVial=finalMl*unitsPerMl;
     let week=1;const start=parseISO(plan.startDate);
     if(start){const now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate());const elapsed=dayDiff(start,today);if(elapsed>=0)week=Math.floor(elapsed/7)+1;}
     let injectionsPerWeek=0;
@@ -12315,20 +12355,18 @@ function cycleVialUsage(plan,cycleNumber=1){
   const requestedCycle=isSeparateCycleStack(plan)?planCycleNumber(plan):Math.max(1,Math.floor(num(cycleNumber)||1));
   const period=protocolPeriodForSequence(plan,requestedCycle);
   if(!period.valid)return {valid:false,reason:requestedCycle>1?"Enter maintenance weeks":"Enter active weeks"};
+  const prep=cycleVialPrepForSequence(plan,requestedCycle),finalMl=num(prep?.finalMl),unitsPerVial=finalMl>0?finalMl*unitsPerMl:0;
+  if(!(finalMl>0))return {valid:true,mode:"cycle",cycleNumber:requestedCycle,cycleStart:new Date(period.start),injections:0,totalUnits:0,volumeUsed:0,vialsUsed:0,capacityWholeVials:0,wholeVials:0,discardDrivenExtraVials:0,openings:[],lastDoses:[],frequency:"Vial preparation not set",reason:"Enter Vial and Water in Vial Schedule"};
   const baseStart=parseISO(plan.startDate)||parseISO(todayISO());if(!baseStart)return {valid:false,reason:"Enter the treatment start date"};
   const usageSchedule={...plan};
-  if(usageSchedule.scheduleMode==="weekdays"&&!(usageSchedule.weekdays||[]).length){
-    const selectedProtocol=(usageSchedule.kbProtocolOptions||[]).find(option=>option?.id===usageSchedule.cyclePreset);
-    if(selectedProtocol?.scheduleMode==="weekdays"&&Array.isArray(selectedProtocol.weekdays)&&selectedProtocol.weekdays.length)usageSchedule.weekdays=clone(selectedProtocol.weekdays);
-  }
-  const simulation={...usageSchedule,enabled:true};
-  const cycleStart=new Date(period.start),activeDays=Math.max(1,dayDiff(period.start,period.activeEnd)+1);
+  if(usageSchedule.scheduleMode==="weekdays"&&!(usageSchedule.weekdays||[]).length){const selectedProtocol=(usageSchedule.kbProtocolOptions||[]).find(option=>option?.id===usageSchedule.cyclePreset);if(selectedProtocol?.scheduleMode==="weekdays"&&Array.isArray(selectedProtocol.weekdays)&&selectedProtocol.weekdays.length)usageSchedule.weekdays=clone(selectedProtocol.weekdays);}
+  const simulation={...usageSchedule,enabled:true},cycleStart=new Date(period.start),activeDays=Math.max(1,dayDiff(period.start,period.activeEnd)+1);
   let totalUnits=0,injections=0,missingDose=false,remaining=0,current=null,openedCount=0;const openings=[],lastDoses=[];
   const closeCurrent=reason=>{if(!current)return;if(current.lastDoseDate)lastDoses.push({vialNumber:current.number,date:new Date(current.lastDoseDate),doseMg:current.lastDoseMg,units:current.lastDoseUnits,cycle:requestedCycle,cycleWeek:current.lastCycleWeek,reason});current=null;remaining=0;};
   const openCurrent=(date,week,reason,isFirst)=>{openedCount+=1;const openedDate=isFirst?new Date(cycleStart.getFullYear(),cycleStart.getMonth(),cycleStart.getDate()):new Date(date.getFullYear(),date.getMonth(),date.getDate());const discardDate=disposeDateFromOpen(plan,openedDate);current={number:openedCount,openedDate,discardDate,lastDoseDate:null,lastDoseMg:null,lastDoseUnits:null,lastCycleWeek:week};remaining=unitsPerVial;openings.push({number:openedCount,date:openedDate,discardDate,cycle:requestedCycle,cycleWeek:week,reason});};
   let firstVial=true;
   for(let offset=0;offset<activeDays;offset++){
-    const date=addDays(cycleStart,offset),scheduled=scheduleForDate(simulation,date);if(!scheduled.administration)continue;const phaseCalc=phaseUnitCalculation(plan,scheduled.doseMg),units=phaseCalc.valid?phaseCalc.units:num(plan.fixedUnits);if(units==null||units<0){missingDose=true;continue}if(units===0)continue;totalUnits+=units;injections+=1;
+    const date=addDays(cycleStart,offset),scheduled=scheduleForDate(simulation,date);if(!scheduled.administration)continue;const phaseCalc=phaseUnitCalculation(plan,scheduled.doseMg,date,requestedCycle),units=phaseCalc.valid?phaseCalc.units:num(plan.fixedUnits);if(units==null||units<0){missingDose=true;continue}if(units===0)continue;totalUnits+=units;injections+=1;
     if(current&&current.discardDate&&date>=current.discardDate)closeCurrent("Final planned dose before the entered disposal limit");
     let need=units,safety=0;while(need>0.0000001&&safety<100){safety+=1;if(!current||remaining<=0.0000001){if(current)closeCurrent("Final planned dose before opening the next vial");openCurrent(date,scheduled.week||1,firstVial?"First planned vial for this period":"Previous vial was disposed or does not contain enough for the next planned dose",firstVial);firstVial=false;}const used=Math.min(remaining,need);remaining=round(remaining-used,6);need=round(need-used,6);current.lastDoseDate=new Date(date.getFullYear(),date.getMonth(),date.getDate());current.lastDoseMg=scheduled.doseMg;current.lastDoseUnits=round(units,2);current.lastCycleWeek=scheduled.week||1;if(remaining<=0.0000001&&need>0.0000001)closeCurrent("Vial exhausted during a planned dose");}
   }
@@ -12360,8 +12398,8 @@ function cycleVialScheduleStatusKey(status){
   return status==="Actively Using"?"active":String(status||"pending").toLowerCase();
 }
 function cycleVialDoseEvents(plan,cycleNumber=1){
-  const finalMl=num(plan?.finalMl),unitsPerMl=num(plan?.unitsPerMl);
-  if(!finalMl||finalMl<=0||!unitsPerMl||unitsPerMl<=0)return {valid:false,reason:"Enter final prepared volume and syringe calibration"};
+  const unitsPerMl=num(plan?.unitsPerMl);
+  if(!unitsPerMl||unitsPerMl<=0)return {valid:false,reason:"Enter syringe calibration"};
   const requestedCycle=isSeparateCycleStack(plan)?planCycleNumber(plan):Math.max(1,Math.floor(num(cycleNumber)||1));
   const period=protocolPeriodForSequence(plan,requestedCycle);
   if(!period?.valid)return {valid:false,reason:requestedCycle>1?"Enter maintenance weeks":"Enter active weeks"};
@@ -12370,19 +12408,18 @@ function cycleVialDoseEvents(plan,cycleNumber=1){
     const selectedProtocol=(usageSchedule.kbProtocolOptions||[]).find(option=>option?.id===usageSchedule.cyclePreset);
     if(selectedProtocol?.scheduleMode==="weekdays"&&Array.isArray(selectedProtocol.weekdays)&&selectedProtocol.weekdays.length)usageSchedule.weekdays=clone(selectedProtocol.weekdays);
   }
-  const simulation={...usageSchedule,enabled:true};
-  const cycleStart=new Date(period.start),activeEnd=new Date(period.activeEnd),activeDays=Math.max(1,dayDiff(cycleStart,activeEnd)+1);
-  const events=[];
+  const simulation={...usageSchedule,enabled:true},cycleStart=new Date(period.start),activeEnd=new Date(period.activeEnd),activeDays=Math.max(1,dayDiff(cycleStart,activeEnd)+1),events=[];
   for(let offset=0;offset<activeDays;offset++){
     const date=addDays(cycleStart,offset),scheduled=scheduleForDate(simulation,date);
     if(!scheduled.administration)continue;
-    const phaseCalc=phaseUnitCalculation(plan,scheduled.doseMg),units=phaseCalc.valid?phaseCalc.units:num(plan.fixedUnits);
-    if(units==null||units<0)return {valid:false,reason:"Complete the dose/units for every active week"};
-    if(units===0)continue;
-    events.push({date:new Date(date.getFullYear(),date.getMonth(),date.getDate()),dateISO:localDateISO(date),units:round(units,4),doseMg:scheduled.doseMg,week:scheduled.week||1});
+    const doseMg=num(scheduled.doseMg);
+    if(doseMg==null||doseMg<=0)return {valid:false,reason:"Complete the dose/units for every active week"};
+    const phaseCalc=phaseUnitCalculation(plan,doseMg,date,requestedCycle),units=phaseCalc.valid?phaseCalc.units:0;
+    events.push({date:new Date(date.getFullYear(),date.getMonth(),date.getDate()),dateISO:localDateISO(date),units:round(units,4),doseMg,week:scheduled.week||1});
   }
   if(!events.length)return {valid:false,reason:"Complete the cycle schedule and dose/units"};
-  return {valid:true,cycleNumber:requestedCycle,period,cycleStart,activeEnd,events,unitsPerVial:round(finalMl*unitsPerMl,6)};
+  const prep=cycleVialPrepForSequence(plan,requestedCycle),unitsPerVial=prep?.finalMl>0?round(prep.finalMl*unitsPerMl,6):0;
+  return {valid:true,cycleNumber:requestedCycle,period,cycleStart,activeEnd,events,unitsPerVial};
 }
 function cycleVialScheduleRecordPool(plan,cycleUsage,cycleNumber){
   const period=protocolPeriodForSequence(plan,cycleNumber);
@@ -12461,12 +12498,12 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
   if(!dosePlan.valid)return {valid:false,rows:[],required:0,reason:dosePlan.reason};
   const requested=Math.max(0,Math.floor(num(requestedTotal)||0));
   const cycleRecords=cycleVialScheduleRecordPool(plan,cycleUsage,cycleNumber),used=new Set();
-  const rows=[];let cursor=0,previousFinish=localDateISO(dosePlan.period.start),required=0,index=1,previousPrep=null;
+  const rows=[];let cursor=0,previousFinish=localDateISO(dosePlan.period.start),required=0,index=1,previousPrep=cycleVialPrepForSequence(plan,cycleNumber);
   const unitsPerMl=Math.max(0,num(plan?.unitsPerMl)||0);
   const maxRows=Math.max(200,requested+20);
   while(index<=maxRows){
     const {record,forecastOpening}=cycleVialScheduleRecordAt(plan,cycleUsage,cycleNumber,index,used,cycleRecords);
-    const prep=continuousVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;
+    const prep=cycleVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;
     const capacityUnits=prep.finalMl>0&&unitsPerMl>0?round(prep.finalMl*unitsPerMl,6):0;
     const rowEvents=dosePlan.events.map(event=>({...event,units:prep.vialMg>0&&prep.finalMl>0&&unitsPerMl>0?round((num(event.doseMg)||0)*prep.finalMl/prep.vialMg*unitsPerMl,6):0}));
     const previousFinishDate=index>1&&previousFinish?parseISO(previousFinish):null;
@@ -12544,9 +12581,9 @@ function ensureCycleVialScheduleRecord(plan,cycleUsage,index,requestedTotal=null
       scheduleFinishAuto:true,
       budDate:"",
       budAuto:true,
-      vialMg:plan.vialMg||"",
-      bacWaterMl:plan.bacWaterMl||"",
-      finalMl:plan.finalMl||"",
+      vialMg:row?.vialMg||"",
+      bacWaterMl:row?.waterMl||"",
+      finalMl:row?.waterMl||"",
       expiryDate:"",
       status:"Planned",
       statusAuto:true,
@@ -12569,9 +12606,9 @@ function ensureCycleVialScheduleRecord(plan,cycleUsage,index,requestedTotal=null
     record.scheduleCycleNumber=Math.max(1,Math.floor(num(row?.cycleNumber||cycleUsage?.cycleNumber)||1));
     record.scheduleRowIndex=Math.max(1,Math.floor(num(index)||1));
   }
-  record.vialMg=row?.vialMg||record.vialMg||plan.vialMg||"";
-  record.bacWaterMl=row?.waterMl||record.bacWaterMl||plan.bacWaterMl||"";
-  record.finalMl=record.bacWaterMl||record.finalMl||plan.finalMl||"";
+  record.vialMg=row?.vialMg||record.vialMg||"";
+  record.bacWaterMl=row?.waterMl||record.bacWaterMl||"";
+  record.finalMl=record.bacWaterMl||record.finalMl||"";
   updateVialRecordDerived(record,plan);
   return record;
 }
@@ -13111,7 +13148,7 @@ function renderContinuousDoseSchedule(plan){
 function renderCycleDoseRows(plan,config,sequence){
   const phases=(Array.isArray(config.phases)&&config.phases.length)?config.phases:[{startWeek:1,endWeek:Math.max(1,Number(config.activeWeeks)||1),doseMg:"",splitDose:false,splitParts:2,splitTimes:["",""]}];
   return phases.map((ph,i)=>{
-    const parts=simplePhaseSplitParts(ph),splitTimes=Array.isArray(ph.splitTimes)?ph.splitTimes:[],splitUnits=phaseSplitUnitValues(plan,ph),phaseDays=(Array.isArray(ph.weekdays)?ph.weekdays:[]).map(Number),phaseInterval=phaseDays.length?null:(enteredPlanNumber(ph.intervalDays)??(config.scheduleMode==="interval"?enteredPlanNumber(config.intervalDays):null)),totalUnits=phaseResolvedUnits(plan,ph);
+    const parts=simplePhaseSplitParts(ph),splitTimes=Array.isArray(ph.splitTimes)?ph.splitTimes:[],splitUnits=phaseSplitUnitValues(plan,ph,null,sequence),phaseDays=(Array.isArray(ph.weekdays)?ph.weekdays:[]).map(Number),phaseInterval=phaseDays.length?null:(enteredPlanNumber(ph.intervalDays)??(config.scheduleMode==="interval"?enteredPlanNumber(config.intervalDays):null)),totalUnits=phaseResolvedUnits(plan,ph,null,sequence);
     return `<tr><td><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="startWeek" value="${esc(ph.startWeek)}"></td><td><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="endWeek" value="${esc(ph.endWeek)}"></td><td class="phase-interval-col"><input type="number" min="1" step="1" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="intervalDays" value="${esc(phaseInterval??"")}" ${phaseDays.length?'disabled aria-label="Manual weekday selection active"':''}></td><td><input type="number" min="0" step="0.001" data-cycle-phase="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-field="doseMg" value="${esc(ph.doseMg??"")}"></td><td><input type="number" min="0" step="0.01" data-cycle-phase-units="${sequence}" data-cycle-phase-index="${i}" value="${esc(totalUnits??"")}" aria-label="Total units"></td><td><div class="phase-weekdays">${WEEKDAYS.map((d,day)=>`<label class="weekday-check"><span>${d}</span><input type="checkbox" data-cycle-phase-weekday="${sequence}" data-cycle-phase-index="${i}" data-cycle-phase-weekday-day="${day}" ${phaseDays.includes(day)?"checked":""}></label>`).join("")}</div></td><td><div class="split-dose-control"><label><input type="checkbox" data-cycle-phase-split="${sequence}" data-cycle-phase-index="${i}" ${ph.splitDose?"checked":""}>Split</label><span class="split-dose-parts">into <input type="number" min="2" max="10" step="1" data-cycle-phase-split-parts="${sequence}" data-cycle-phase-index="${i}" value="${esc(ph.splitParts||2)}" ${ph.splitDose?"":"disabled"}> parts</span>${ph.splitDose?`<div class="split-dose-times split-dose-schedule-grid"><div class="split-dose-schedule-head">Time</div><div class="split-dose-schedule-head">Split units</div>${Array.from({length:parts},(_,partIndex)=>`<input type="time" data-cycle-phase-split-time="${sequence}" data-cycle-phase-index="${i}" data-cycle-split-time-index="${partIndex}" aria-label="Split ${partIndex+1} time" value="${esc(splitTimes[partIndex]||(partIndex===0?config.injectionTime||"":"")||"")}"><input type="number" min="0" step="0.01" data-cycle-phase-split-unit="${sequence}" data-cycle-phase-index="${i}" data-cycle-split-unit-index="${partIndex}" aria-label="Split ${partIndex+1} units" value="${esc(splitUnits[partIndex]??"")}">`).join("")}</div>`:""}</div></td><td class="no-print"><button class="btn small danger" type="button" data-cycle-remove-phase="${sequence}" data-cycle-phase-index="${i}" ${phases.length<=1?'disabled':''}>Remove</button></td></tr>`;
   }).join("");
 }
@@ -13324,8 +13361,6 @@ function renderSimplePlanner(){
           <div class="peptide-settings-grid">
             <div><label>Status</label><select data-simple-field="stackStatus"><option value="active" ${plan.stackStatus==="active"?"selected":""}>Current</option><option value="soon" ${plan.stackStatus==="soon"?"selected":""}>Scheduled</option><option value="completed" ${plan.stackStatus==="completed"?"selected":""}>Completed</option></select></div>
             <div><label>Route</label><select class="route-select" data-simple-field="route">${myPlanRouteOptions(plan.route||"",plan.kbRoutes||[])}</select></div>
-            ${!plan.noCycle?`<input type="hidden" data-simple-field="vialMg" value="${esc(plan.vialMg||"")}"><input type="hidden" data-simple-field="bacWaterMl" value="${esc(plan.bacWaterMl||"")}"><input type="hidden" data-simple-field="finalMl" value="${esc(plan.bacWaterMl||plan.finalMl||"")}">`:""}
-
             <div class="peptide-settings-dispose"><label>Dispose by</label><div class="dispose-by-control"><input type="number" min="1" step="1" data-simple-dispose-value value="${esc(disposeByControlValue(plan))}" aria-label="Dispose by period"><select data-simple-dispose-unit aria-label="Dispose by unit"><option value="days" ${disposeByControlUnit(plan)==="days"?"selected":""}>Days</option><option value="weeks" ${disposeByControlUnit(plan)==="weeks"?"selected":""}>Weeks</option><option value="months" ${disposeByControlUnit(plan)==="months"?"selected":""}>Months</option></select></div></div>
             ${!plan.noCycle?`<div><label>On</label><input type="number" min="1" step="1" data-plan-active-weeks value="${esc(plan.activeWeeks||1)}"></div><div><label>Off</label><input type="number" min="0" step="1" data-plan-break-weeks value="${esc(plan.breakWeeks??0)}"></div>`:""}
             <div><label>Cycles/Year</label><select data-plan-cycles-per-year><option value="continuous" ${plan.noCycle?"selected":""}>Continuous</option>${Array.from({length:52},(_,index)=>index+1).map(value=>`<option value="${value}" ${!plan.noCycle&&planCyclesPerYear(plan)===value?"selected":""}>${value}</option>`).join("")}</select></div>
@@ -13447,6 +13482,7 @@ function renderSimplePlanner(){
         record.scheduleCycleNumber=Math.max(1,Number(row?.cycleNumber||usage.cycleNumber||cycleNumber)||1);record.scheduleRowIndex=index;record.vialNumber=index;record[field]=control.value||"";
         if(field==="bacWaterMl")record.finalMl=record.bacWaterMl||"";
         updateVialRecordDerived(record,plan);
+        syncCyclePhaseCalculationsForSequence(plan,record.scheduleCycleNumber);
       }
       plan.confirmed=false;save();renderAll();
     }));
@@ -13548,21 +13584,21 @@ function renderSimplePlanner(){
     card.querySelectorAll("[data-cycle-phase]").forEach(control=>control.addEventListener("change",()=>{
       const sequence=Number(control.dataset.cyclePhase),index=Number(control.dataset.cyclePhaseIndex),field=control.dataset.cyclePhaseField,config=cycleConfigForSequence(plan,sequence);if(!config)return;
       if(!config.phases[index])config.phases[index]={startWeek:1,endWeek:1,doseMg:""};const phase=config.phases[index];phase[field]=control.value;
-      if(field==="doseMg")syncPhaseFromDose(plan,phase);
+      if(field==="doseMg")syncPhaseFromDose(plan,phase,null,sequence);
       const start=Math.max(1,Math.floor(num(phase.startWeek)||1)),end=Math.max(start,Math.floor(num(phase.endWeek)||start));phase.startWeek=start;phase.endWeek=end;config.phases.sort((a,b)=>Number(a.startWeek||1)-Number(b.startWeek||1));syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-phase-units]").forEach(control=>control.addEventListener("change",()=>{
-      const sequence=Number(control.dataset.cyclePhaseUnits),index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config||!config.phases[index])return;const phase=config.phases[index];phase.units=control.value;syncPhaseFromUnits(plan,phase);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();
+      const sequence=Number(control.dataset.cyclePhaseUnits),index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config||!config.phases[index])return;const phase=config.phases[index];phase.units=control.value;syncPhaseFromUnits(plan,phase,null,sequence);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-phase-weekday]").forEach(control=>control.addEventListener("change",()=>{
       const sequence=Number(control.dataset.cyclePhaseWeekday),index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config)return;if(!config.phases[index])config.phases[index]={startWeek:1,endWeek:1,doseMg:""};const day=Number(control.dataset.cyclePhaseWeekdayDay),set=new Set((config.phases[index].weekdays||[]).map(Number));control.checked?set.add(day):set.delete(day);config.phases[index].weekdays=[...set].sort((a,b)=>a-b);if(config.phases[index].weekdays.length)config.phases[index].intervalDays="";syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-add-phase]").forEach(button=>button.addEventListener("click",()=>{const config=cycleConfigForSequence(plan,button.dataset.cycleAddPhase);if(!config)return;const last=config.phases?.[config.phases.length-1],start=Math.max(1,Math.floor(num(last?.endWeek)||0)+1);config.phases=config.phases||[];config.phases.push({startWeek:start,endWeek:start,doseMg:last?.doseMg??"",intervalDays:last?.intervalDays??"",weekdays:clone(last?.weekdays||[]),splitDose:false,splitParts:2,splitTimes:["",""],doseEntryMode:"dose"});syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
     card.querySelectorAll("[data-cycle-remove-phase]").forEach(button=>button.addEventListener("click",()=>{const config=cycleConfigForSequence(plan,button.dataset.cycleRemovePhase),index=Number(button.dataset.cyclePhaseIndex);if(!config||config.phases.length<=1)return;config.phases.splice(index,1);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
-    card.querySelectorAll("[data-cycle-phase-split]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplit),index=Number(control.dataset.cyclePhaseIndex);if(!config)return;const phase=config.phases[index];phase.splitDose=control.checked;if(control.checked){const parts=Math.max(2,Math.min(10,Math.floor(num(phase.splitParts)||2)));phase.splitParts=parts;const existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":""));phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase),parts);}syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
-    card.querySelectorAll("[data-cycle-phase-split-parts]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitParts),index=Number(control.dataset.cyclePhaseIndex);if(!config)return;const phase=config.phases[index],parts=Math.max(2,Math.min(10,Math.floor(num(control.value)||2)));phase.splitParts=parts;phase.splitDose=true;const existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":""));phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase),parts);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
+    card.querySelectorAll("[data-cycle-phase-split]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplit),index=Number(control.dataset.cyclePhaseIndex);if(!config)return;const phase=config.phases[index];phase.splitDose=control.checked;if(control.checked){const parts=Math.max(2,Math.min(10,Math.floor(num(phase.splitParts)||2)));phase.splitParts=parts;const existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":""));phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,null,Number(control.dataset.cyclePhaseSplit)),parts);}syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
+    card.querySelectorAll("[data-cycle-phase-split-parts]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitParts),index=Number(control.dataset.cyclePhaseIndex);if(!config)return;const phase=config.phases[index],parts=Math.max(2,Math.min(10,Math.floor(num(control.value)||2)));phase.splitParts=parts;phase.splitDose=true;const existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":""));phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,null,Number(control.dataset.cyclePhaseSplitParts)),parts);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
     card.querySelectorAll("[data-cycle-phase-split-time]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitTime),index=Number(control.dataset.cyclePhaseIndex),timeIndex=Number(control.dataset.cycleSplitTimeIndex);if(!config)return;const phase=config.phases[index],parts=Math.max(2,Math.min(10,Math.floor(num(phase.splitParts)||2))),times=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>times[i]||"");phase.splitTimes[timeIndex]=control.value;syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
-    card.querySelectorAll("[data-cycle-phase-split-unit]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitUnit),index=Number(control.dataset.cyclePhaseIndex),unitIndex=Number(control.dataset.cycleSplitUnitIndex);if(!config)return;const phase=config.phases[index],parts=simplePhaseSplitParts(phase),values=phaseSplitUnitValues(plan,phase);phase.splitUnits=Array.from({length:parts},(_,i)=>values[i]??"");phase.splitUnits[unitIndex]=control.value;syncPhaseFromSplitUnits(plan,phase);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
+    card.querySelectorAll("[data-cycle-phase-split-unit]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitUnit),index=Number(control.dataset.cyclePhaseIndex),unitIndex=Number(control.dataset.cycleSplitUnitIndex);if(!config)return;const phase=config.phases[index],parts=simplePhaseSplitParts(phase),sequence=Number(control.dataset.cyclePhaseSplitUnit),values=phaseSplitUnitValues(plan,phase,null,sequence);phase.splitUnits=Array.from({length:parts},(_,i)=>values[i]??"");phase.splitUnits[unitIndex]=control.value;syncPhaseFromSplitUnits(plan,phase,null,sequence);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
     card.querySelector("[data-simple-dispose-value]")?.addEventListener("change",event=>{
       const value=Math.max(1,Math.floor(num(event.target.value)||1));
       const unit=disposeByControlUnit(plan);
