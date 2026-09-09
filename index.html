@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0909.02</title>
+<title>Peptide Planner v2026.0909.03</title>
+<!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
 <!-- v2026.0909.01: Cross-device writes now use optimistic concurrency against the server-maintained planner_state.updated_at value. Automatic and manual local saves can update the cloud only when the device baseline still matches the server row; stale or baseline-less devices preserve a local snapshot and pull the current cloud state instead of overwriting another device. Treatment, UI, auth and role behavior are unchanged. -->
 <!-- v2026.0809.02: Cross-device cloud sync no longer compares device clocks to decide which planner state is newer. Local edits are tracked with an explicit dirty flag; clean sessions always pull the current cloud state, pending local edits push only when the cloud has not changed since the last sync, and cross-device conflicts preserve a snapshot before applying the newer cloud state. APP_VERSION is advanced so mobile and desktop refresh the same runtime. -->
@@ -7226,7 +7227,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0909.02";
+const APP_VERSION="v2026.0909.03";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -10566,11 +10567,15 @@ function currentScheduledVialRecord(plan,at=new Date(),cycleUsage=null){
 }
 function currentActualOpenedVialRecord(plan,at=new Date()){
   const today=localDateISO(at),closed=new Set(["Finished","Discarded","On hold"]);
+  const scheduleRows=plan?.noCycle?currentContinuousVialScheduleRows(plan,at):currentCycleVialScheduleRows(plan,at);
+  const scheduledByRecordId=new Map((scheduleRows||[]).filter(row=>row?.record?.id).map(row=>[row.record.id,row]));
   const opened=openedVialRecordsForPlan(plan,at).filter(item=>{
     const record=item.record||{};
     if(closed.has(String(record.status||"")))return false;
-    const finish=String(record.finishDate||"").trim();
-    if(finish&&today>=finish)return false;
+    const explicitFinish=String(record.finishDate||"").trim();
+    if(explicitFinish&&today>=explicitFinish)return false;
+    const scheduledFinish=String(scheduledByRecordId.get(record.id)?.finishDate||"").trim();
+    if(!explicitFinish&&scheduledFinish&&today>scheduledFinish)return false;
     return true;
   });
   return opened.length?opened[opened.length-1]:null;
@@ -10616,7 +10621,7 @@ function scheduledAdministrationRecorded(planId,date,partKey=""){
 }
 function currentVialDosesLeft(plan,at=new Date()){
   const explicitCurrent=currentOpenedVialRecord(plan,at);
-  if(!explicitCurrent)return {valid:false,reason:plan?.noCycle?"Add/open a vial in Vial Schedule":"Open vial"};
+  if(!explicitCurrent)return {valid:false,reason:"Open Vial"};
   const vialMg=num(explicitCurrent?.record?.vialMg)>0?num(explicitCurrent.record.vialMg):num(plan?.vialMg);
   if(!(vialMg>0))return {valid:false,reason:plan?.noCycle?"Enter Vial (mg) in Vial Schedule":"Enter vial strength"};
   const records=(state.administrations||[])
@@ -10642,6 +10647,7 @@ function currentVialDosesLeft(plan,at=new Date()){
   const result=(limitedBy)=>{
     let fullScheduleDays=0;
     for(const [date,count] of countedByDate){if(count>0&&count===(scheduledPartsByDate.get(date)||1))fullScheduleDays+=1}
+    if(limitedBy==="amount"&&doses===0&&foundPlanned)return {valid:false,reason:"Open Vial",pendingReplacement:true,currentRemainingMg,openedAt,discardAt,vialRecordId:explicitCurrent.record?.id||null,inventorySource:explicitCurrent.inventorySource||""};
     return {valid:true,doses,fullScheduleDays,splitSchedule,remainingMg:round(remaining,3),currentRemainingMg,nextDoseMg,expired:false,openedAt,discardAt,limitedBy,vialRecordId:explicitCurrent.record?.id||null,inventorySource:explicitCurrent.inventorySource||""};
   };
   for(let offset=0;offset<=3650;offset++){
@@ -12363,6 +12369,11 @@ function simulateCycleVialWindow(events,startCursor,openDate,unitsPerVial,dispos
   }
   return {nextCursor:cursor,finishDate:lastFullDoseDate||disposeDate||openDate,lastFullDoseDate,usedUnits,fullDoseCount,remainingUnits:remaining,reason:reason||"Calculated"};
 }
+function automaticVialOpenDateForCursor(dosePlan,rowStartCursor,fallbackDate=""){
+  const cursor=Math.max(0,Math.floor(Number(rowStartCursor)||0));
+  const event=Array.isArray(dosePlan?.events)?dosePlan.events[cursor]:null;
+  return String(event?.dateISO||fallbackDate||"");
+}
 function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
   if(!plan||plan.noCycle||!cycleUsage?.valid||cycleUsage.mode!=="cycle")return {valid:false,rows:[],required:0,reason:cycleUsage?.reason||"Complete the cycle dose and vial inputs to calculate the vial schedule."};
   const cycleNumber=Math.max(1,Math.floor(num(cycleUsage.cycleNumber)||1));
@@ -12375,7 +12386,9 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
   while(index<=maxRows){
     const {record,forecastOpening}=cycleVialScheduleRecordAt(plan,cycleUsage,cycleNumber,index,used,cycleRecords);
     const previousFinishDate=index>1&&previousFinish?parseISO(previousFinish):null;
-    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):(previousFinishDate?localDateISO(addDays(previousFinishDate,1)):(previousFinish||""));
+    const rowStartCursor=cursor;
+    const fallbackOpenDate=previousFinishDate?localDateISO(addDays(previousFinishDate,1)):(previousFinish||"");
+    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):automaticVialOpenDateForCursor(dosePlan,rowStartCursor,fallbackOpenDate);
     const legacyManualOpen=!!(record&&record.scheduleOpenAuto==null&&record.startDate);
     const legacyManualFinish=!!(record&&record.scheduleFinishAuto==null&&record.finishDate);
     const manualOpen=!!(record&&(record.scheduleOpenAuto===false||legacyManualOpen));
@@ -12383,7 +12396,6 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     const openDate=manualOpen?String(record.startDate||""):calculatedOpenDate;
     const disposeAt=openDate?disposeDateFromOpen(plan,parseISO(openDate)):null;
     const disposeDate=disposeAt?localDateISO(disposeAt):"";
-    const rowStartCursor=cursor;
     const autoWindow=simulateCycleVialWindow(dosePlan.events,rowStartCursor,openDate,dosePlan.unitsPerVial,disposeDate,null);
     if(autoWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
     const finishDate=manualFinish?String(record.finishDate||""):autoWindow.finishDate;
@@ -12953,12 +12965,14 @@ function continuousVialScheduleComputation(plan,requestedTotal=null){
     const record=continuousVialScheduleRecordAt(plan,index,used,records);
     const prep=continuousVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;
     const previousFinishDate=index>1&&previousFinish?parseISO(previousFinish):null;
-    const calculatedOpenDate=index===1?localDateISO(dosePlan.start):(previousFinishDate?localDateISO(addDays(previousFinishDate,1)):(previousFinish||""));
+    const rowStartCursor=cursor;
+    const fallbackOpenDate=previousFinishDate?localDateISO(addDays(previousFinishDate,1)):(previousFinish||"");
+    const calculatedOpenDate=index===1?localDateISO(dosePlan.start):automaticVialOpenDateForCursor(dosePlan,rowStartCursor,fallbackOpenDate);
     const legacyManualOpen=!!(record&&record.scheduleOpenAuto==null&&record.startDate),legacyManualFinish=!!(record&&record.scheduleFinishAuto==null&&record.finishDate);
     const manualOpen=!!(record&&(record.scheduleOpenAuto===false||legacyManualOpen)),manualFinish=!!(record&&(record.scheduleFinishAuto===false||legacyManualFinish));
     const openDate=manualOpen?String(record.startDate||""):calculatedOpenDate;
     const disposeAt=openDate?disposeDateFromOpen(plan,parseISO(openDate)):null,disposeDate=disposeAt?localDateISO(disposeAt):"";
-    const rowStartCursor=cursor,capacityMg=prep.vialMg;
+    const capacityMg=prep.vialMg;
     if(!(capacityMg>0)){
       rows.push({index,cycleNumber:0,record,calculatedOpenDate,calculatedFinishDate:"",openDate,finishDate:record?.finishDate||"",disposeDate,vialMg:prep.vialMg,waterMl:prep.waterMl,concentration:prep.concentration,fullDoseCount:0,status:cycleVialScheduleStatus(openDate,record?.finishDate||""),statusKey:cycleVialScheduleStatusKey(cycleVialScheduleStatus(openDate,record?.finishDate||"")),autoRequired:false});
       break;
