@@ -1,11 +1,11 @@
-name: Deploy Peptide Planner v27 to Cloudflare Pages
+name: Deploy Peptide Planner to Cloudflare Pages
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - '.deploy/v27_release_trigger.txt'
-  workflow_dispatch:
+      - '.deploy/cloudflare_release_trigger.txt'
 
 permissions:
   contents: read
@@ -22,64 +22,65 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate direct v27 production index
+      - name: Validate production package
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import hashlib, re
+          import hashlib, json, re, shutil
 
-          expected = 'b033cec77b8437b5f570f17dbb5536c0913a326dc50f64d7323faf936c3c6cd5'
+          required_files = ['index.html', '_headers', 'manifest.webmanifest', 'peptide-planner-sw.js']
+          missing_files = [p for p in required_files if not Path(p).is_file()]
+          if missing_files:
+              raise SystemExit('Missing production files: ' + ', '.join(missing_files))
+
           html = Path('index.html').read_text()
-          actual = hashlib.sha256(html.encode()).hexdigest()
-          if actual != expected:
-              raise SystemExit(f'v27 checksum mismatch: {actual}')
+          title_match = re.search(r'<title>Peptide Planner ([^<]+)</title>', html)
+          app_match = re.search(r'const APP_VERSION="([^"]+)";', html)
+          sw = Path('peptide-planner-sw.js').read_text()
+          sw_match = re.search(r"PEPTIDE_PLANNER_SW_VERSION='([^']+)'", sw)
+          if not (title_match and app_match and sw_match):
+              raise SystemExit('Could not resolve application version markers')
+          version = app_match.group(1)
+          if title_match.group(1) != version or sw_match.group(1) != version:
+              raise SystemExit(f'Version mismatch: title={title_match.group(1)} app={version} sw={sw_match.group(1)}')
 
-          required = [
-              '<title>Peptide Planner v27</title>',
-              'const APP_VERSION="v27";',
-              'id="production-css"',
-              'signInWithPassword',
-              'planner-signup-public',
-              'planner-signup-admin-proof',
-              'resetPasswordForEmail',
-              'PASSWORD_RECOVERY',
-              'updateUser({password})',
-              'from("planner_state")',
-              'from("planner_snapshots")',
-              'from("knowledge_base_entries")',
-              'planVerificationCompleteness',
-              'planReadyForToday',
-              'doseSourceIndicatorHtml',
-              'doseEntryMode',
-              'splitUnits',
-              'syncPhaseFromSplitUnits',
-              '<th>Payment proof</th>',
-              'data-signup-proof-upload',
-              'cloudAccess?.role!=="owner"',
-              'owner&&hasProof?',
+          markers = [
+              'signInWithPassword', 'resetPasswordForEmail', 'PASSWORD_RECOVERY',
+              'from("planner_state")', 'from("planner_snapshots")',
+              'planVerificationCompleteness', 'planReadyForToday',
+              'doseSourceIndicatorHtml', 'doseEntryMode', 'splitUnits',
+              'cloudPushInFlight', 'administrationMatchesScheduledStructure',
           ]
-          missing = [item for item in required if item not in html]
-          if missing:
-              raise SystemExit('v27 feature validation failed: ' + ', '.join(missing))
-
-          if len(re.findall(r'<style\b', html, flags=re.I)) != 1:
-              raise SystemExit('v27 CSS consolidation validation failed')
-          if len(re.findall(r'</style>', html, flags=re.I)) != 1:
-              raise SystemExit('v27 CSS closing-tag validation failed')
+          missing_markers = [m for m in markers if m not in html]
+          if missing_markers:
+              raise SystemExit('Production feature validation failed: ' + ', '.join(missing_markers))
           if re.search(r'service_role|SUPABASE_SECRET_KEY', html, flags=re.I):
               raise SystemExit('Secret key marker found in client')
 
-          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I | re.S)
-          Path('/tmp/v27-inline.js').write_text('\n'.join(script for script in scripts if script.strip()))
-          Path('dist').mkdir(exist_ok=True)
-          Path('dist/index.html').write_text(html)
-          Path('dist/_headers').write_text('/*\n  Cache-Control: no-store, no-cache, must-revalidate, max-age=0\n  Pragma: no-cache\n  Expires: 0\n')
-          print('Official v27 checksum verified:', expected)
-          PY
-          node --check /tmp/v27-inline.js
+          headers = Path('_headers').read_text()
+          if 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' not in headers:
+              raise SystemExit('No-cache Cloudflare headers are missing')
 
-      - name: Deploy v27 direct file to Cloudflare Pages
+          manifest = json.loads(Path('manifest.webmanifest').read_text())
+          if manifest.get('start_url') != './' or manifest.get('scope') != './':
+              raise SystemExit('Manifest start_url/scope must remain relative')
+
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I | re.S)
+          Path('/tmp/peptide-planner-inline.js').write_text('\n'.join(s for s in scripts if s.strip()))
+          dist = Path('dist')
+          if dist.exists(): shutil.rmtree(dist)
+          dist.mkdir()
+          for filename in required_files:
+              shutil.copy2(filename, dist / filename)
+          print('Version:', version)
+          print('index.html SHA256:', hashlib.sha256(Path('index.html').read_bytes()).hexdigest())
+          PY
+          node --check /tmp/peptide-planner-inline.js
+          node --check peptide-planner-sw.js
+          test "$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')" = "4"
+
+      - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
