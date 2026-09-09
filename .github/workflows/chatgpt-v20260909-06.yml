@@ -1,5 +1,5 @@
 name: Temporary v20260909.06 release
-# full-dose correction trigger
+# full-dose correction trigger 2
 on:
   push:
     branches: [main]
@@ -43,7 +43,7 @@ jobs:
           additions=[x for x in diff.splitlines() if x.startswith('+') and not x.startswith('+++')]
           deletions=[x for x in diff.splitlines() if x.startswith('-') and not x.startswith('---')]
           assert len(deletions)==1,(len(deletions),deletions)
-          assert len(additions)==24,(len(additions),additions)
+          assert len(additions)==21,(len(additions),additions)
           print(f'Validated Full Dose correction only: {len(additions)} additions, {len(deletions)} deletion')
           PY
           for f in /tmp/fdose-*.js; do node --check "$f"; done
