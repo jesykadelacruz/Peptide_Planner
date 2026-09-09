@@ -57,6 +57,10 @@ jobs:
           '''
           assert marker in s
           s=s.replace(marker,scoped+'\n'+marker,1)
+          target="replace_once(old,new,'cycled vial change recalculation')"
+          replacement="vial_handler_start=html.index('card.querySelectorAll(\"[data-cycle-vial-field]\")');vial_handler_end=html.index('card.querySelectorAll(\"[data-cycle-vial-open-date]\")',vial_handler_start);vial_handler=html[vial_handler_start:vial_handler_end];assert vial_handler.count(old)==1,f'cycled vial change recalculation: expected one cycled-handler match, found {vial_handler.count(old)}';vial_handler=vial_handler.replace(old,new,1);html=html[:vial_handler_start]+vial_handler+html[vial_handler_end:]"
+          assert target in s
+          s=s.replace(target,replacement,1)
           p.write_text(s,encoding='utf-8')
           PY
           python .deploy/apply_peptide_settings_compact_v20260909_03.py
