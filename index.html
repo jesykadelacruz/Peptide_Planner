@@ -12,7 +12,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide Planner v2026.0909.01</title>
+<title>Peptide Planner v2026.0909.02</title>
+<!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
 <!-- v2026.0909.01: Cross-device writes now use optimistic concurrency against the server-maintained planner_state.updated_at value. Automatic and manual local saves can update the cloud only when the device baseline still matches the server row; stale or baseline-less devices preserve a local snapshot and pull the current cloud state instead of overwriting another device. Treatment, UI, auth and role behavior are unchanged. -->
 <!-- v2026.0809.02: Cross-device cloud sync no longer compares device clocks to decide which planner state is newer. Local edits are tracked with an explicit dirty flag; clean sessions always pull the current cloud state, pending local edits push only when the cloud has not changed since the last sync, and cross-device conflicts preserve a snapshot before applying the newer cloud state. APP_VERSION is advanced so mobile and desktop refresh the same runtime. -->
 <!-- v2026.0809.01: Treatment Overview schedule now resolves the active cycle and current treatment week before reading Dose Schedule weekdays/intervals, so phase-specific schedules update automatically as the treatment advances. Shared planner logic applies identically to Owner, Admin and User views. -->
@@ -7225,7 +7226,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="v2026.0909.01";
+const APP_VERSION="v2026.0909.02";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
