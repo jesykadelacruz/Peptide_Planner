@@ -12478,6 +12478,26 @@ function vialDoseCountForDisplay(events,startCursor,openDate,unitsPerVial,throug
   }
   return count;
 }
+function cycleFullDoseCountForDisplay(events,startCursor,openDate,unitsPerVial){
+  const open=parseISO(openDate);
+  if(!open||!unitsPerVial||unitsPerVial<=0)return 0;
+  let cursor=Math.max(0,startCursor),remaining=unitsPerVial,count=0,continuationUnits=0;
+  while(cursor<events.length&&events[cursor].date<open)cursor+=1;
+  while(cursor<events.length){
+    const event=events[cursor],eventUnits=num(event?.units);
+    if(!(eventUnits>0))break;
+    if(eventUnits>remaining+0.000001)break;
+    remaining=round(remaining-eventUnits,6);count+=1;continuationUnits=eventUnits;cursor+=1;
+    if(remaining<=0.000001)break;
+  }
+  if(remaining>0.000001&&!(continuationUnits>0)){
+    for(let index=Math.min(events.length-1,Math.max(0,cursor-1));index>=0;index-=1){
+      const eventUnits=num(events[index]?.units);if(eventUnits>0){continuationUnits=eventUnits;break;}
+    }
+  }
+  if(remaining>0.000001&&continuationUnits>0)count+=Math.max(0,Math.floor((remaining+0.000001)/continuationUnits));
+  return count;
+}
 function simulateCycleVialWindow(events,startCursor,openDate,unitsPerVial,disposeDate,manualFinishDate=null){
   const open=parseISO(openDate),dispose=disposeDate?parseISO(disposeDate):null,manualFinish=manualFinishDate?parseISO(manualFinishDate):null;
   if(!open)return {nextCursor:startCursor,finishDate:"",lastFullDoseDate:"",usedUnits:0,fullDoseCount:0,remainingUnits:unitsPerVial,reason:"No open date"};
@@ -12543,7 +12563,7 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     const finishDate=manualFinish?String(record.finishDate||""):autoWindow.finishDate;
     const effectiveWindow=manualFinish?simulateCycleVialWindow(rowEvents,rowStartCursor,openDate,capacityUnits,disposeDate,finishDate):autoWindow;
     if(effectiveWindow.invalid)return {valid:false,rows,required,reason:"A scheduled full dose is larger than the prepared vial capacity."};
-    const fullDoseCount=vialDoseCountForDisplay(rowEvents,rowStartCursor,openDate,capacityUnits,null);
+    const fullDoseCount=cycleFullDoseCountForDisplay(rowEvents,rowStartCursor,openDate,capacityUnits);
     const cycleDoseCount=vialDoseCountForDisplay(rowEvents,rowStartCursor,openDate,capacityUnits,disposeDate||null);
     const hadDoseAtStart=rowStartCursor<dosePlan.events.length;
     cursor=effectiveWindow.nextCursor;
