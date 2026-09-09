@@ -1,0 +1,127 @@
+name: Apply Peptide Planner v2026.0909.02
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v2026-0909-02.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Verify exact current production source
+        run: |
+          test "$(git hash-object index.html)" = "b4bfd2ce20f6a840080f6910d143b9cd020f4982"
+          test "$(git hash-object peptide-planner-sw.js)" = "5214c0d0604c20d91ce14be88791ee9f801f6306"
+          cp index.html /tmp/source-index.html
+
+      - name: Apply cache/runtime synchronization release
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old_title='<title>Peptide Planner v2026.0909.01</title>'
+          old_app='const APP_VERSION="v2026.0909.01";'
+          if s.count(old_title)!=1: raise SystemExit('unexpected title source count')
+          if s.count(old_app)!=1: raise SystemExit('unexpected APP_VERSION source count')
+          s=s.replace(old_title,'<title>Peptide Planner v2026.0909.02</title>',1)
+          s=s.replace(old_app,'const APP_VERSION="v2026.0909.02";',1)
+          marker='<!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->\n'
+          anchor='<title>Peptide Planner v2026.0909.02</title>\n'
+          if marker not in s:
+              s=s.replace(anchor,anchor+marker,1)
+          p.write_text(s)
+          Path('peptide-planner-sw.js').write_text("""const PEPTIDE_PLANNER_SW_VERSION='v2026.0909.02';
+          self.addEventListener('install',event=>{self.skipWaiting();});
+          self.addEventListener('activate',event=>{
+            event.waitUntil((async()=>{
+              const keys=await caches.keys();
+              await Promise.all(keys.map(key=>caches.delete(key)));
+              await self.clients.claim();
+              const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+              await Promise.all(clients.map(client=>{
+                try{
+                  const url=new URL(client.url);
+                  url.searchParams.set('_ppv',PEPTIDE_PLANNER_SW_VERSION);
+                  return client.navigate(url.href);
+                }catch{return Promise.resolve();}
+              }));
+            })());
+          });
+          self.addEventListener('fetch',event=>{
+            if(event.request.method!=='GET')return;
+            event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>fetch(event.request)));
+          });
+          """)
+          PY
+
+      - name: Validate exact target and requested regressions
+        run: |
+          test "$(git hash-object index.html)" = "6e3cac1f09199f647e89bd1d0a5c5e5058711282"
+          test "$(git hash-object peptide-planner-sw.js)" = "59cb717248ed7b12379f03d9498ea7d94536ff58"
+          test "$(sha256sum index.html | awk '{print $1}')" = "ca656176139530e33d560904b370981e5dc87aa225fa75d9e2c3f15d63eaf73d"
+          test "$(sha256sum peptide-planner-sw.js | awk '{print $1}')" = "ee6f8e14582e77b258feb0ad84b14db1c0aa6d62cfa5dc1722673b5134ca877d"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          src=Path('/tmp/source-index.html').read_text()
+          text=Path('index.html').read_text()
+          required=[
+            '<title>Peptide Planner v2026.0909.02</title>',
+            'const APP_VERSION="v2026.0909.02";',
+            'if(tabId==="admin"&&!plannerCanAccessAdmin())tabId="dashboard";',
+            '@media (min-width:761px)',
+            'height:40px!important',
+            'SUPABASE_URL=',
+            'auth.signInWithPassword',
+            'auth.resetPasswordForEmail',
+            'signUp',
+            '.eq("updated_at",baseline)'
+          ]
+          missing=[x for x in required if x not in text]
+          if missing: raise SystemExit('missing required markers: '+repr(missing))
+          forbidden=[
+            'Scheduled vial strength',
+            'Scheduled vial final volume',
+            'dose-left uses Treatment Settings until the vial is actually opened',
+            'planner-user-role',
+            'planner-standard-user'
+          ]
+          found=[x for x in forbidden if x in text]
+          if found: raise SystemExit('obsolete user/inventory behavior present: '+repr(found))
+          # Release must not change any function body from current production.
+          def funcs(s):
+            out={}
+            for m in re.finditer(r'\nfunction\s+([A-Za-z0-9_$]+)\s*\(',s):
+              name=m.group(1); start=m.start()+1
+              nxt=re.search(r'\nfunction\s+[A-Za-z0-9_$]+\s*\(',s[m.end():])
+              end=m.end()+nxt.start() if nxt else len(s)
+              out[name]=s[start:end]
+            return out
+          a,b=funcs(src),funcs(text)
+          if a.keys()!=b.keys(): raise SystemExit('function set changed')
+          changed=[k for k in a if a[k]!=b[k]]
+          if changed: raise SystemExit('function body changed unexpectedly: '+repr(changed[:20]))
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S)
+          Path('/tmp/app.js').write_text(max(scripts,key=len))
+          PY
+          node --check /tmp/app.js
+
+      - name: Commit synchronized production app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Update Peptide Planner v2026.0909.02"
+          git push origin HEAD:main
