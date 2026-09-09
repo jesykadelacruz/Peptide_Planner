@@ -10,9 +10,6 @@ on:
 permissions:
   contents: write
 
-env:
-  PATCH_B64: "ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCBoYXNobGliCgpJTkRFWCA9IFBhdGgoJ2luZGV4Lmh0bWwnKQpFWFBFQ1RFRF9CRUZPUkUgPSAnMmY4ODYwM2ExMzBlNmMwZGVhNzk1M2VkODlkNzZlNDcxNmZjNWYyNWJiMmM2NzkyMDVhYzBiYmRmZjdhNWI3NycKRVhQRUNURURfQUZURVIgPSAnNjI2MTA5ZGQ5ZmIxYjI0ODAxNTgyMjlmOGM2ZTAxMzk3NmUyNDQyOWFhNjlhNGYyNzQzY2Q1YmYzMGI2OTE1MicKaHRtbCA9IElOREVYLnJlYWRfdGV4dCgpCmJlZm9yZV9oYXNoID0gaGFzaGxpYi5zaGEyNTYoaHRtbC5lbmNvZGUoKSkuaGV4ZGlnZXN0KCkKaWYgYmVmb3JlX2hhc2ggIT0gRVhQRUNURURfQkVGT1JFOgogICAgcmFpc2UgU3lzdGVtRXhpdChmJ1VuZXhwZWN0ZWQgdjAzIHNvdXJjZSBjaGVja3N1bToge2JlZm9yZV9oYXNofScpCgpkZWYgcmVwbGFjZV9vbmNlKG9sZCwgbmV3LCBsYWJlbCk6CiAgICBnbG9iYWwgaHRtbAogICAgY291bnQgPSBodG1sLmNvdW50KG9sZCkKICAgIGlmIGNvdW50ICE9IDE6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmJ3tsYWJlbH06IGV4cGVjdGVkIGV4YWN0bHkgMSBtYXRjaCwgZm91bmQge2NvdW50fScpCiAgICBodG1sID0gaHRtbC5yZXBsYWNlKG9sZCwgbmV3LCAxKQoKcmVwbGFjZV9vbmNlKAogICAgJzx0aXRsZT5QZXB0aWRlIFBsYW5uZXIgdjIwMjYuMDkwOS4wMzwvdGl0bGU+XG4nLAogICAgJzx0aXRsZT5QZXB0aWRlIFBsYW5uZXIgdjIwMjYuMDkwOS4wNDwvdGl0bGU+XG4nCiAgICAnPCEtLSB2MjAyNi4wOTA5LjA0OiBQcm9kdWN0aW9uIGhhcmRlbmluZyBvbmx5LiBDbG91ZCB3cml0ZXMgYXJlIHNlcmlhbGl6ZWQgc28gb3ZlcmxhcHBpbmcgYXV0b3NhdmVzIGNhbm5vdCByYWNlIG9yIGNsZWFyIGEgbmV3ZXIgbG9jYWwgZWRpdDsgc3VjY2Vzc2Z1bCB3cml0ZXMgcHJlc2VydmUgdGhlIGRpcnR5IHN0YXRlIHdoZW4gYW5vdGhlciBlZGl0IG9jY3VycmVkIGluIGZsaWdodC4gUGFzc3dvcmQtcmVzZXQgcmVkaXJlY3RzIHJlc29sdmUgZnJvbSB0aGUgcGxhbm5lciBVUkwgY3VycmVudGx5IGluIHVzZSBpbnN0ZWFkIG9mIGEgZml4ZWQgUGFnZXMgaG9zdG5hbWUuIFRyZWF0bWVudCwgZG9zZSwgdmlhbCwgc2NoZWR1bGUsIHJvbGUgYW5kIGxheW91dCBiZWhhdmlvciBhcmUgdW5jaGFuZ2VkLiAtLT5cbicsCiAgICAndGl0bGUvdmVyc2lvbiBtYXJrZXInCikKcmVwbGFjZV9vbmNlKAonJydjb25zdCBBUFBfVkVSU0lPTj0idjIwMjYuMDkwOS4wMyI7CmNvbnN0IENMT1VEX1NZTkNfTUVUQV9LRVk9InBlcHRpZGVQbGFubmVyQ2xvdWRTeW5jX3YxIjsKY29uc3QgQ0xPVURfS0JfQ0FDSEVfS0VZPSJwZXB0aWRlUGxhbm5lcktiT3ZlcnJpZGVzX3YxIjsKY29uc3QgU1VQQUJBU0VfVVJMPSJodHRwczovL3NyZnV3eGp3dWx2YmFsem95bWNjLnN1cGFiYXNlLmNvIjsKY29uc3QgU1VQQUJBU0VfUFVCTElTSEFCTEVfS0VZPSJzYl9wdWJsaXNoYWJsZV8xczludWhPVFJHaGdqdl9RXzRJT1NBX0xxRmQzT2RJIjsKY29uc3QgUEFTU1dPUkRfUkVTRVRfUkVESVJFQ1RfVVJMPSJodHRwczovL3BlcHRpZGUtcGxhbm5lci5wYWdlcy5kZXYvP3Bhc3N3b3JkPTEiOwpsZXQgY2xvdWRDbGllbnQ9bnVsbCxjbG91ZFVzZXI9bnVsbCxjbG91ZEFjY2Vzcz1udWxsLGNsb3VkU2F2ZVRpbWVyPW51bGwsY2xvdWRBcHBseWluZz1mYWxzZSxjbG91ZEluaXRpYWxpc2VkPWZhbHNlLGNsb3VkQXV0aE1vZGU9InNpZ25pbiIsY2xvdWRBY2Nlc3NDaGVja2luZz1mYWxzZTsKJycnLAonJydjb25zdCBBUFBfVkVSU0lPTj0idjIwMjYuMDkwOS4wNCI7CmNvbnN0IENMT1VEX1NZTkNfTUVUQV9LRVk9InBlcHRpZGVQbGFubmVyQ2xvdWRTeW5jX3YxIjsKY29uc3QgQ0xPVURfS0JfQ0FDSEVfS0VZPSJwZXB0aWRlUGxhbm5lcktiT3ZlcnJpZGVzX3YxIjsKY29uc3QgU1VQQUJBU0VfVVJMPSJodHRwczovL3NyZnV3eGp3dWx2YmFsem95bWNjLnN1cGFiYXNlLmNvIjsKY29uc3QgU1VQQUJBU0VfUFVCTElTSEFCTEVfS0VZPSJzYl9wdWJsaXNoYWJsZV8xczludWhPVFJHaGdqdl9RXzRJT1NBX0xxRmQzT2RJIjsKY29uc3QgUEFTU1dPUkRfUkVTRVRfUkVESVJFQ1RfVVJMPSgoKT0+ewogIHRyeXtjb25zdCB1cmw9bmV3IFVSTCh3aW5kb3cubG9jYXRpb24uaHJlZik7dXJsLnNlYXJjaD0iIjt1cmwuaGFzaD0iIjt1cmwuc2VhcmNoUGFyYW1zLnNldCgicGFzc3dvcmQiLCIxIik7cmV0dXJuIHVybC50b1N0cmluZygpfQogIGNhdGNoe3JldHVybiAiP3Bhc3N3b3JkPTEifQp9KSgpOwpsZXQgY2xvdWRDbGllbnQ9bnVsbCxjbG91ZFVzZXI9bnVsbCxjbG91ZEFjY2Vzcz1udWxsLGNsb3VkU2F2ZVRpbWVyPW51bGwsY2xvdWRQdXNoSW5GbGlnaHQ9bnVsbCxjbG91ZENoYW5nZVJldmlzaW9uPTAsY2xvdWRBcHBseWluZz1mYWxzZSxjbG91ZEluaXRpYWxpc2VkPWZhbHNlLGNsb3VkQXV0aE1vZGU9InNpZ25pbiIsY2xvdWRBY2Nlc3NDaGVja2luZz1mYWxzZTsKJycnLAogICAgJ3ZlcnNpb24vYXV0aCBjb25zdGFudHMnCikKcmVwbGFjZV9vbmNlKAonZnVuY3Rpb24gbWFya0xvY2FsQ2hhbmdlZCgpe2lmKCFjbG91ZEFwcGx5aW5nKXNldENsb3VkU3luY01ldGEoe2xvY2FsTW9kaWZpZWRBdDpuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCksbG9jYWxEaXJ0eTp0cnVlfSl9JywKJ2Z1bmN0aW9uIG1hcmtMb2NhbENoYW5nZWQoKXtpZighY2xvdWRBcHBseWluZyl7Y2xvdWRDaGFuZ2VSZXZpc2lvbis9MTtzZXRDbG91ZFN5bmNNZXRhKHtsb2NhbE1vZGlmaWVkQXQ6bmV3IERhdGUoKS50b0lTT1N0cmluZygpLGxvY2FsRGlydHk6dHJ1ZX0pfX0nLAogICAgJ2xvY2FsIHJldmlzaW9uIHRyYWNraW5nJwp9CnJlcGxhY2Vfb25jZSgKJycnYXN5bmMgZnVuY3Rpb24gcHVzaENsb3VkU3RhdGUocmVhc29uPSJhdXRvbWF0aWMiKXsKICBpZighY2xvdWRDbGllbnR8fCFjbG91ZFVzZXJ8fGNsb3VkQXBwbHlpbmd8fGNsb3VkQWNjZXNzPy5zdGF0dXMhPT0iYWN0aXZlIilyZXR1cm4gZmFsc2U7CiAgY2xlYXJUaW1lb3V0KGNsb3VkU2F2ZVRpbWVyKTtzZXRDbG91ZFN5bmNTdGF0dXMoIlN5bmNpbmfigKYiLCJzeW5jaW5nIik7CiAgY29uc3Qgc3RhbXA9bmV3IERhdGUoKS50b0lTT1N0cmluZygpOwogIGNvbnN0IHBheWxvYWQ9e3VzZXJfaWQ6Y2xvdWRVc2VyLmlkLHN0YXRlOnN0YXRlLGFwcF92ZXJzaW9uOkFQUF9WRVJTSU9OLGNsaWVudF91cGRhdGVkX2F0OnN0YW1wfTsKICB0cnl7CiAgICBsZXQgZGF0YT1udWxsLGVycm9yPW51bGw7CiAgICBpZihyZWFzb249PT0iZmlyc3RfdXNlcl91cGxvYWQiKXsKICAgICAgKHtkYXRhLGVycm9yfT1hd2FpdCBjbG91ZENsaWVudC5mcm9tKCJwbGFubmVyX3N0YXRlIikudXBzZXJ0KHBheWxvYWQse29uQ29uZmxpY3Q6InVzZXJfaWQifSkuc2VsZWN0KCJ1cGRhdGVkX2F0LGNsaWVudF91cGRhdGVkX2F0IikubWF5YmVTaW5nbGUoKSk7CiAgICB9ZWxzZXsKICAgICAgY29uc3QgbWV0YT1nZXRDbG91ZFN5bmNNZXRhKGNsb3VkVXNlci5pZCksYmFzZWxpbmU9bWV0YS5sYXN0UmVtb3RlVXBkYXRlZEF0fHwiIjsKICAgICAgaWYoIWJhc2VsaW5lKXsKICAgICAgICBhd2FpdCBwdWxsTGF0ZXN0Q2xvdWRBZnRlclJlamVjdGVkUHVzaCgic3luY19iYXNlbGluZV9iYWNrdXAiKTsKICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgIH0KICAgICAgKHtkYXRhLGVycm9yfT1hd2FpdCBjbG91ZENsaWVudC5mcm9tKCJwbGFubmVyX3N0YXRlIikudXBkYXRlKHBheWxvYWQpLmVxKCJ1c2VyX2lkIixjbG91ZFVzZXIuaWQpLmVxKCJ1cGRhdGVkX2F0IixiYXNlbGluZSkuc2VsZWN0KCJ1cGRhdGVkX2F0LGNsaWVudF91cGRhdGVkX2F0IikubWF5YmVTaW5nbGUoKTsKICAgICAgaWYoZXJyb3IpdGhyb3cgZXJyb3I7CiAgICAgIGlmKCFkYXRhKXsKICAgICAgICBhd2FpdCBwdWxsTGF0ZXN0Q2xvdWRBZnRlclJlamVjdGVkUHVzaCgiY3Jvc3NfZGV2aWNlX2NvbmZsaWN0X2JhY2t1cCIpOwogICAgICAgIHJldHVybiBmYWxzZTsKICAgICAgfQogICAgfQogICAgaWYoZXJyb3IpdGhyb3cgZXJyb3I7CiAgICBjb25zdCByZW1vdGVTdGFtcD1kYXRhPy51cGRhdGVkX2F0fHxkYXRhPy5jbGllbnRfdXBkYXRlZF9hdHx8c3RhbXA7CiAgICBzZXRDbG91ZFN5bmNNZXRhKHt1c2VySWQ6Y2xvdWRVc2VyLmlkLGxhc3RTeW5jZWRBdDpzdGFtcCxsb2NhbE1vZGlmaWVkQXQ6c3RhbXAsbG9jYWxEaXJ0eTpmYWxzZSxsYXN0UmVtb3RlVXBkYXRlZEF0OnJlbW90ZVN0YW1wfSk7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jZWQiLCJzeW5jZWQiKTtyZXR1cm4gdHJ1ZTsKICB9Y2F0Y2goZXJyb3Ipe2NvbnNvbGUuZXJyb3IoIkNsb3VkIHN5bmMgZmFpbGVkIixlcnJvcik7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jIGVycm9yIiwiZXJyb3IiKTtyZXR1cm4gZmFsc2V9Cn0KJycnLAonJydhc3luYyBmdW5jdGlvbiBwdXNoQ2xvdWRTdGF0ZShyZWFzb249ImF1dG9tYXRpYyIpewogIGlmKCFjbG91ZENsaWVudHx8IWNsb3VkVXNlcnx8Y2xvdWRBcHBseWluZ3x8Y2xvdWRBY2Nlc3M/LnN0YXR1cyE9PSJhY3RpdmUiKXJldHVybiBmYWxzZTsKICBpZihjbG91ZFB1c2hJbkZsaWdodCl7c2V0Q2xvdWRTeW5jU3RhdHVzKCJDaGFuZ2VzIHBlbmRpbmciLCJzeW5jaW5nIik7cmV0dXJuIGNsb3VkUHVzaEluRmxpZ2h0fQogIGNsZWFyVGltZW91dChjbG91ZFNhdmVUaW1lcik7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jaW5n4oCmIiwic3luY2luZyIpOwogIGNvbnN0IHVzZXJJZD1jbG91ZFVzZXIuaWQscmV2aXNpb25BdFN0YXJ0PWNsb3VkQ2hhbmdlUmV2aXNpb24sc3RhbXA9bmV3IERhdGUoKS50b0lTT1N0cmluZygpOwogIGNvbnN0IHBheWxvYWQ9e3VzZXJfaWQ6dXNlcklkLHN0YXRlOmNsb25lKHN0YXRlKSxhcHBfdmVyc2lvbjpBUFBfVkVSU0lPTixjbGllbnRfdXBkYXRlZF9hdDpzdGFtcH07CiAgY2xvdWRQdXNoSW5GbGlnaHQ9KGFzeW5jKCk9PnsKICAgIHRyeXsKICAgICAgbGV0IGRhdGE9bnVsbCxlcnJvcj1udWxsOwogICAgICBpZihyZWFzb249PT0iZmlyc3RfdXNlcl91cGxvYWQiKXsKICAgICAgICAoe2RhdGEsZXJyb3J9PWF3YWl0IGNsb3VkQ2xpZW50LmZyb20oInBsYW5uZXJfc3RhdGUiKS51cHNlcnQocGF5bG9hZCx7b25Db25mbGljdDoidXNlcl9pZCJ9KS5zZWxlY3QoInVwZGF0ZWRfYXQsY2xpZW50X3VwZGF0ZWRfYXQiKS5tYXliZVNpbmdsZSgpKTsKICAgICAgfWVsc2V7CiAgICAgICAgY29uc3QgbWV0YT1nZXRDbG91ZFN5bmNNZXRhKHVzZXJJZCksYmFzZWxpbmU9bWV0YS5sYXN0UmVtb3RlVXBkYXRlZEF0fHwiIjsKICAgICAgICBpZighYmFzZWxpbmUpewogICAgICAgICAgYXdhaXQgcHVsbExhdGVzdENsb3VkQWZ0ZXJSZWplY3RlZFB1c2goInN5bmNfYmFzZWxpbmVfYmFja3VwIik7CiAgICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgICAgfQogICAgICAgICh7ZGF0YSxlcnJvcn09YXdhaXQgY2xvdWRDbGllbnQuZnJvbSgicGxhbm5lcl9zdGF0ZSIpLnVwZGF0ZShwYXlsb2FkKS5lcSgidXNlcl9pZCIsdXNlcklkKS5lcSgidXBkYXRlZF9hdCIsYmFzZWxpbmUpLnNlbGVjdCgidXBkYXRlZF9hdCxjbGllbnRfdXBkYXRlZF9hdCIpLm1heWJlU2luZ2xlKCkpOwogICAgICAgIGlmKGVycm9yKXRocm93IGVycm9yOwogICAgICAgIGlmKCFkYXRhKXsKICAgICAgICAgIGF3YWl0IHB1bGxMYXRlc3RDbG91ZEFmdGVyUmVqZWN0ZWRQdXNoKCJjcm9zc19kZXZpY2VfY29uZmxpY3RfYmFja3VwIik7CiAgICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgICAgfQogICAgICB9CiAgICAgIGlmKGVycm9yKXRocm93IGVycm9yOwogICAgICBjb25zdCByZW1vdGVTdGFtcD1kYXRhPy51cGRhdGVkX2F0fHxkYXRhPy5jbGllbnRfdXBkYXRlZF9hdHx8c3RhbXA7CiAgICAgIGNvbnN0IGNoYW5nZWREdXJpbmdQdXNoPWNsb3VkQ2hhbmdlUmV2aXNpb24hPT1yZXZpc2lvbkF0U3RhcnQsY3VycmVudE1ldGE9Z2V0Q2xvdWRTeW5jTWV0YSh1c2VySWQpOwogICAgICBzZXRDbG91ZFN5bmNNZXRhKHt1c2VySWQsbGFzdFN5bmNlZEF0OnN0YW1wLGxvY2FsTW9kaWZpZWRBdDpjaGFuZ2VkRHVyaW5nUHVzaD8oY3VycmVudE1ldGEubG9jYWxNb2RpZmllZEF0fHxzdGFtcCk6c3RhbXAsbG9jYWxEaXJ0eTpjaGFuZ2VkRHVyaW5nUHVzaCxsYXN0UmVtb3RlVXBkYXRlZEF0OnJlbW90ZVN0YW1wfSx1c2VySWQpOwogICAgICBzZXRDbG91ZFN5bmNTdGF0dXMoY2hhbmdlZER1cmluZ1B1c2g/IkNoYW5nZXMgcGVuZGluZyI6IlN5bmNlZCIsY2hhbmdlZER1cmluZ1B1c2g/InN5bmNpbmciOiJzeW5jZWQiKTsKICAgICAgcmV0dXJuIHRydWU7CiAgICB9Y2F0Y2goZXJyb3Ipe2NvbnNvbGUuZXJyb3IoIkNsb3VkIHN5bmMgZmFpbGVkIixlcnJvcik7c2V0Q2xvdWRTeW5jU3RhdHVzKCJTeW5jIGVycm9yIiwiZXJyb3IiKTtyZXR1cm4gZmFsc2V9CiAgfSkoKTsKICB0cnl7cmV0dXJuIGF3YWl0IGNsb3VkUHVzaEluRmxpZ2h0fQogIGZpbmFsbHl7CiAgICBjbG91ZFB1c2hJbkZsaWdodD1udWxsOwogICAgY29uc3QgY3VycmVudFVzZXJJZD1jbG91ZFVzZXI/LmlkfHwiIjsKICAgIGlmKGN1cnJlbnRVc2VySWQmJmdldENsb3VkU3luY01ldGEoY3VycmVudFVzZXJJZCkubG9jYWxEaXJ0eT09PXRydWUpc2NoZWR1bGVDbG91ZFNhdmUoKTsKICB9Cn0KJycnLAogICAgJ3NlcmlhbGl6ZWQgY2xvdWQgcHVzaCcKKQpJTkRFWC53cml0ZV90ZXh0KGh0bWwpCmFmdGVyX2hhc2ggPSBoYXNobGliLnNoYTI1NihoaHRtbC5lbmNvZGUoKSkuaGV4ZGlnZXN0KCkKaWYgYWZ0ZXJfaGFzaCAhPSBFWFBFQ1RFRF9BRlRFUjoKICAgIHJhaXNlIFN5c3RlbUV4aXQoZidVbmV4cGVjdGVkIHYwNCBvdXRwdXQgY2hlY2tzdW06IHthZnRlcl9oYXNofScpCgpQYXRoKCdfaGVhZGVycycpLndyaXRlX3RleHQoJycnLyoKICBDYWNoZS1Db250cm9sOiBuby1zdG9yZSwgbm8tY2FjaGUsIG11c3QtcmV2YWxpZGF0ZSwgbWF4LWFnZT0wCiAgUHJhZ21hOiBuby1jYWNoZQogIEV4cGlyZXM6IDAKJycnKQpQYXRoKCdtYW5pZmVzdC53ZWJtYW5pZmVzdCcpLndyaXRlX3RleHQoJyd7CiAgIm5hbWUiOiAiUGVwdGlkZSBQbGFubmVyIiwKICAic2hvcnRfbmFtZSI6ICJQZXB0aWRlIFBsYW5uZXIiLAogICJzdGFydF91cmwiOiAiLi8iLAogICJzY29wZSI6ICIuLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2YzZmFmNiIsCiAgInRoZW1lX2NvbG9yIjogIiMyMTZiNWYiCn0KJycnKQpQYXRoKCdwZXB0aWRlLXBsYW5uZXItc3cuanMnKS53cml0ZV90ZXh0KCcnJ2NvbnN0IFBFUFRJREVfUExBTk5FUl9TV19WRVJTSU9OPSd2MjAyNi4wOTA5LjA0JzsKc2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJyxlcmVudD0+e3NlbGYuc2tpcFdhaXRpbmcoKTt9KTsKc2VsZi5hZGRFdmVudExpc3RlbmVyKCdhY3RpdmF0ZScsZXZlbnQ9PnsKICBldmVudC53YWl0VW50aWwoKGFzeW5jKCk9PnsKICAgIGNvbnN0IGtleXM9YXdhaXQgY2FjaGVzLmtleXMoKTsKICAgIGF3YWl0IFByb21pc2UuYWxsKGtleXMubWFwKGtleT0+Y2FjaGVzLmRlbGV0ZShrZXkpKSk7CiAgICBhd2FpdCBzZWxmLmNsaWVudHMuY2xhaW0oKTsKICAgIGNvbnN0IGNsaWVudHM9YXdhaXQgc2VsZi5jbGllbnRzLm1hdGNoQWxsKHt0eXBlOid3aW5kb3cnLGluY2x1ZGVVbmNvbnRyb2xsZWQ6dHJ1ZX0pOwogICAgYXdhaXQgUHJvbWlzZS5hbGwoY2xpZW50cy5tYXAoY2xpZW50PT57CiAgICAgIHRyeXsKICAgICAgICBjb25zdCB1cmw9bmV3IFVSTChjbGllbnQudXJsKTsKICAgICAgICB1cmwuc2VhcmNoUGFyYW1zLnNldCgnX3BwdicsUEVQVElERV9QTEFOTkVSX1NXX1ZFUlNJT04pOwogICAgICAgIHJldHVybiBjbGllbnQubmF2aWdhdGUodXJsLmhyZWYpOwogICAgICB9Y2F0Y2h7cmV0dXJuIFByb21pc2UucmVzb2x2ZSgpO30KICAgIH0pKTsKICB9KSgpKTsKfSk7CnNlbGYuYWRkRXZlbnRMaXN0ZW5lcignZmV0Y2gnLGV2ZW50PT57CiAgaWYoZXZlbnQucmVxdWVzdC5tZXRob2QhPT0nR0VUJylyZXR1cm47CiAgZXZlbnQucmVzcG9uZFdpdGgoZmV0Y2goZXZlbnQucmVxdWVzdCx7Y2FjaGU6J25vLXN0b3JlJ30pLmNhdGNoKCgpPT5mZXRjaChldmVudC5yZXF1ZXN0KSkpOwp9KTsKJycnKQoKd29ya2Zsb3cgPSByJycn bmFtZTogRGVwbG95IFBlcHRpZGUgUGxhbm5lciB0byBDbG91ZGZsYXJlIFBhZ2VzCgpvbjoKICB3b3JrZmxvd19kaXNwYXRjaDoKICBwdXNoOgogICAgYnJhbmNoZXM6IFttYWluXQogICAgcGF0aHM6CiAgICAgIC0gJy5kZXBsb3kvY2xvdWRmbGFyZV9yZWxlYXNlX3RyaWdnZXIudHh0JwoKcGVybWlzc2lvbnM6CiAgY29udGVudHM6IHJlYWQKICBkZXBsb3ltZW50czogd3JpdGUKCmNvbmN1cnJlbmN5OgogIGdyb3VwOiBwZXB0aWRlLXBsYW5uZXItcHJvZHVjdGlvbgogIGNhbmNlbC1pbi1wcm9ncmVzczogdHJ1ZQoKam9iczoKICBkZXBsb3k6CiAgICBydW5zLW9uOiB1YnVudHUtbGF0ZXN0CiAgICBzdGVwczoKICAgICAgLSBuYW1lOiBDaGVja291dCByZXBvc2l0b3J5CiAgICAgICAgdXNlczogYWN0aW9ucy9jaGVja291dEB2NAoKICAgICAgLSBuYW1lOiBWYWxpZGF0ZSBwcm9kdWN0aW9uIHBhY2thZ2UKICAgICAgICBydW46IHwKICAgICAgICAgIHNldCAtZXVvIHBpcGVmYWlsCiAgICAgICAgICBweXRob24zIC0gPDwnUFknCiAgICAgICAgICBmcm9tIHBhdGhsaWIgaW1wb3J0IFBhdGgKICAgICAgICAgIGltcG9ydCBoYXNobGliLCBqc29uLCByZSwgc2h1dGlsCgogICAgICAgICAgcmVxdWlyZWRfZmlsZXMgPSBbJ2luZGV4Lmh0bWwnLCAnX2hlYWRlcnMnLCAnbWFuaWZlc3Qud2VibWFuaWZlc3QnLCAncGVwdGlkZS1wbGFubmVyLXN3LmpzJ10KICAgICAgICAgIG1pc3NpbmdfZmlsZXMgPSBbcCBmb3IgcCBpbiByZXF1aXJlZF9maWxlcyBpZiBub3QgUGF0aChwKS5pc19maWxlKCldCiAgICAgICAgICBpZiBtaXNzaW5nX2ZpbGVzOgogICAgICAgICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoJ01pc3NpbmcgcHJvZHVjdGlvbiBmaWxlczogJyArICcsICcuam9pbiggbWlzc2luZ19maWxlcykpCgogICAgICAgICAgaHRtbCA9IFBhdGgoJ2luZGV4Lmh0bWwnKS5yZWFkX3RleHQoKQogICAgICAgICAgdGl0bGVfbWF0Y2ggPSByZS5zZWFyY2gocic8dGl0bGU+UGVwdGlkZSBQbGFubmVyIChbXjxdKyk8L3RpdGxlPicsIGh0bWwpCiAgICAgICAgICBhcHBfbWF0Y2ggPSByZS5zZWFyY2gocidjb25zdCBBUFBfVkVSU0lPTj0iKFteIl0rKSI7JywgaHRtbCkKICAgICAgICAgIHN3ID0gUGF0aCgncGVwdGlkZS1wbGFubmVyLXN3LmpzJykucmVhZF90ZXh0KCkKICAgICAgICAgIHN3X21hdGNoID0gcmUuc2VhcmNoKHIiUEVQVElERV9QTEFOTkVSX1NXX1ZFUlNJT049JyhbXiddKyknIiwgc3cpCiAgICAgICAgICBpZiBub3QgKHRpdGxlX21hdGNoIGFuZCBhcHBfbWF0Y2ggYW5kIHN3X21hdGNoKToKICAgICAgICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KCdDb3VsZCBub3QgcmVzb2x2ZSBhcHBsaWNhdGlvbiB2ZXJzaW9uIG1hcmtlcnMnKQogICAgICAgICAgdmVyc2lvbiA9IGFwcF9tYXRjaC5ncm91cCgxKQogICAgICAgICAgaWYgdGl0bGVfbWF0Y2guZ3JvdXAoMSkgIT0gdmVyc2lvbiBvciBzd19tYXRjaC5ncm91cCgxKSAhPSB2ZXJzaW9uOgogICAgICAgICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoZidWZXJzaW9uIG1pc21hdGNoOiB0aXRsZT17dGl0bGVfbWF0Y2guZ3JvdXAoMSl9IGFwcD17dmVyc2lvbn0gc3c9e3N3X21hdGNoLmdyb3VwKDEpfScpCgogICAgICAgICAgbWFya2VycyA9IFsKICAgICAgICAgICAgICAnc2lnbkluV2l0aFBhc3N3b3JkJywgJ3Jlc2V0UGFzc3dvcmRGb3JFbWFpbCcsICdQQVNTV09SRF9SRUNPVkVSWScsCiAgICAgICAgICAgICAgJ2Zyb20oInBsYW5uZXJfc3RhdGUiKScsICdmcm9tKCJwbGFubmVyX3NuYXBzaG90cyIpJywKICAgICAgICAgICAgICAncGxhblZlcmlmaWNhdGlvbkNvbXBsZXRlbmVzcycsICdwbGFuUmVhZHlGb3JUb2RheScsCiAgICAgICAgICAgICAgJ2Rvc2VTb3VyY2VJbmRpY2F0b3JIdG1sJywgJ2Rvc2VFbnRyeU1vZGUnLCAnc3BsaXRVbml0cycsCiAgICAgICAgICAgICAgJ2Nsb3VkUHVzaEluRmxpZ2h0JywgJ2FkbWluaXN0cmF0aW9uTWF0Y2hlc1NjaGVkdWxlZFN0cnVjdHVyZScsCiAgICAgICAgICBdCiAgICAgICAgICBtaXNzaW5nX21hcmtlcnMgPSBbbSBmb3IgbSBpbiBtYXJrZXJzIGlmIG0gbm90IGluIGh0bWxdCiAgICAgICAgICBpZiBtaXNzaW5nX21hcmtlcnM6CiAgICAgICAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgnUHJvZHVjdGlvbiBmZWF0dXJlIHZhbGlkYXRpb24gZmFpbGVkOiAnICsgJywgJy5qb2luKG1pc3NpbmdfbWFya2VycykpCiAgICAgICAgICBpZiByZS5zZWFyY2gocidzZXJ2aWNlX3JvbGV8U1VQQUJBU0VfU0VDUkVUX0tFWScsIGh0bWwsIGZsYWdzPXJlLkkpOgogICAgICAgICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoJ1NlY3JldCBrZXkgbWFya2VyIGZvdW5kIGluIGNsaWVudCcpCgogICAgICAgICAgaGVhZGVycyA9IFBhdGgoJ19oZWFkZXJzJykucmVhZF90ZXh0KCkKICAgICAgICAgIGlmICdDYWNoZS1Db250cm9sOiBuby1zdG9yZSwgbm8tY2FjaGUsIG11c3QtcmV2YWxpZGF0ZSwgbWF4LWFnZT0wJyBub3QgaW4gaGVhZGVyczoKICAgICAgICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KCdOby1jYWNoZSBDbG91ZGZsYXJlIGhlYWRlcnMgYXJlIG1pc3NpbmcnKQoKICAgICAgICAgIG1hbmlmZXN0ID0ganNvbi5sb2FkcyhQYXRoKCdtYW5pZmVzdC53ZWJtYW5pZmVzdCcpLnJlYWRfdGV4dCgpKQogICAgICAgICAgaWYgbWFuaWZlc3QuZ2V0KCdzdGFydF91cmwnKSAhPSAnLi8nIG9yIG1hbmlmZXN0LmdldCgnc2NvcGUnKSAhPSAnLi8nOgogICAgICAgICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoJ01hbmlmZXN0IHN0YXJ0X3VybC9zY29wZSBtdXN0IHJlbWFpbiByZWxhdGl2ZScpCgogICAgICAgICAgc2NyaXB0cyA9IHJlLmZpbmRhbGwocic8c2NyaXB0KD8hW14+XSpcYnNyYz0pW14+XSo+KC4qPyk8L3NjcmlwdD4nLCBodG1sLCBmbGFncz1yZS5JIHwgcmUuUykKICAgICAgICAgIFBhdGgoJy90bXAvcGVwdGlkZS1wbGFubmVyLWlubGluZS5qcycpLndyaXRlX3RleHQoJ1xuJy5qb2luKHMgZm9yIHMgaW4gc2NyaXB0cyBpZiBzLnN0cmlwKCkpKQogICAgICAgICAgZGlzdCA9IFBhdGgoJ2Rpc3QnKQogICAgICAgICAgaWYgZGlzdC5leGlzdHMoKTogc2h1dGlsLnJtdHJlZShkaXN0KQogICAgICAgICAgZGlzdC5ta2RpcigpCiAgICAgICAgICBmb3IgZmlsZW5hbWUgaW4gcmVxdWlyZWRfZmlsZXM6CiAgICAgICAgICAgICAgc2h1dGlsLmNvcHkyKGZpbGVuYW1lLCBkaXN0IC8gZmlsZW5hbWUpCiAgICAgICAgICBwcmludCgnVmVyc2lvbjonLCB2ZXJzaW9uKQogICAgICAgICAgcHJpbnQoJ2luZGV4Lmh0bWwgU0hBMjU2OicsIGhhc2hsaWIuc2hhMjU2KFBhdGgoJ2luZGV4Lmh0bWwnKS5yZWFkX2J5dGVzKCkpLmhleGRpZ2VzdCgpKQogICAgICAgICAgUFkKICAgICAgICAgIG5vZGUgLS1jaGVjayAvdG1wL3BlcHRpZGUtcGxhbm5lci1pbmxpbmUuanMKICAgICAgICAgIG5vZGUgLS1jaGVjayBwZXB0aWRlLXBsYW5uZXItc3cuanMKICAgICAgICAgIHRlc3QgIiQoZmluZCBkaXN0IC1tYXhkZXB0aCAxIC10eXBlIGYgfCB3YyAtbCB8IHRyIC1kICcgJykiID0gIjQiCgogICAgICAtIG5hbWU6IERlcGxveSB0byBDbG91ZGZsYXJlIFBhZ2VzCiAgICAgICAgdXNlczogY2xvdWRmbGFyZS93cmFuZ2xlci1hY3Rpb25AdjMKICAgICAgICB3aXRoOgogICAgICAgICAgYXBpVG9rZW46ICR7eyBzZWNyZXRzLkNMT1VERkxBUkVfQVBJX1RPS0VOID19CiAgICAgICAgICBhY2NvdW50SWQ6ICR7eyBzZWNyZXRzLkNMT1VERkxBUkVfQUNDT1VOVF9JRCB9fQogICAgICAgICAgY29tbWFuZDogcGFnZXMgZGVwbG95IGRpc3QgLS1wcm9qZWN0LW5hbWU9cGVwdGlkZS1wbGFubmVyIC0tYnJhbmNoPW1haW4KICAgICAgICAgIGdpdEh1YlRva2VuOiAke3sgc2VjcmV0cy5HSVRIVUJfVE9LRU4gfX0KJycnClBhdGgoJy5naXRodWIvd29ya2Zsb3dzJykubWtkaXIocGFyZW50cz1UcnVlLCBleGlzdF9vaz1UcnVlKQpQYXRoKCcuZ2l0aHViL3dvcmtmbG93cy9kZXBsb3ktY2xvdWRmbGFyZS1wYWdlcy55bWwnKS53cml0ZV90ZXh0KHdvcmtmbG93KQoKcHJpbnQoJ1ByZXBhcmVkIHYyMDI2LjA5MDkuMDQnLCBhZnRlcl9oYXNoKQo="
-
 jobs:
   apply:
     runs-on: ubuntu-latest
@@ -26,14 +23,239 @@ jobs:
       - name: Apply audited v04 patch and production files
         run: |
           set -euo pipefail
-          printf '%s' "$PATCH_B64" | base64 -d > /tmp/apply_v04_patch.py
-          python3 /tmp/apply_v04_patch.py
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import hashlib
+          
+          INDEX = Path('index.html')
+          EXPECTED_BEFORE = '2f88603a130e6c0dea7953ed89d76e4716fc5f25bb2c679205ac0bbdff7a5b77'
+          EXPECTED_AFTER = '626109dd9fb1b2480158229f8c6e013976e24429aa69a4f2743cd5bf30b69152'
+          html = INDEX.read_text()
+          before_hash = hashlib.sha256(html.encode()).hexdigest()
+          if before_hash != EXPECTED_BEFORE:
+              raise SystemExit(f'Unexpected v03 source checksum: {before_hash}')
+          
+          def replace_once(old, new, label):
+              global html
+              count = html.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
+              html = html.replace(old, new, 1)
+          
+          replace_once(
+              '<title>Peptide Planner v2026.0909.03</title>\n',
+              '<title>Peptide Planner v2026.0909.04</title>\n'
+              '<!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->\n',
+              'title/version marker'
+          )
+          replace_once(
+          '''const APP_VERSION="v2026.0909.03";
+          const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+          const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+          const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+          const SUPABASE_PUBLISHABLE_KEY="sb_publishable_1s9nuhOTRGhgjv_Q_4IOSA_LqFd3OdI";
+          const PASSWORD_RESET_REDIRECT_URL="https://peptide-planner.pages.dev/?password=1";
+          let cloudClient=null,cloudUser=null,cloudAccess=null,cloudSaveTimer=null,cloudApplying=false,cloudInitialised=false,cloudAuthMode="signin",cloudAccessChecking=false;
+          ''',
+          '''const APP_VERSION="v2026.0909.04";
+          const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
+          const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
+          const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
+          const SUPABASE_PUBLISHABLE_KEY="sb_publishable_1s9nuhOTRGhgjv_Q_4IOSA_LqFd3OdI";
+          const PASSWORD_RESET_REDIRECT_URL=(()=>{
+            try{const url=new URL(window.location.href);url.search="";url.hash="";url.searchParams.set("password","1");return url.toString()}
+            catch{return "?password=1"}
+          })();
+          let cloudClient=null,cloudUser=null,cloudAccess=null,cloudSaveTimer=null,cloudPushInFlight=null,cloudChangeRevision=0,cloudApplying=false,cloudInitialised=false,cloudAuthMode="signin",cloudAccessChecking=false;
+          ''',
+              'version/auth constants'
+          )
+          replace_once(
+          'function markLocalChanged(){if(!cloudApplying)setCloudSyncMeta({localModifiedAt:new Date().toISOString(),localDirty:true})}',
+          'function markLocalChanged(){if(!cloudApplying){cloudChangeRevision+=1;setCloudSyncMeta({localModifiedAt:new Date().toISOString(),localDirty:true})}}',
+              'local revision tracking'
+          )
+          replace_once(
+          '''async function pushCloudState(reason="automatic"){
+            if(!cloudClient||!cloudUser||cloudApplying||cloudAccess?.status!=="active")return false;
+            clearTimeout(cloudSaveTimer);setCloudSyncStatus("Syncing…","syncing");
+            const stamp=new Date().toISOString();
+            const payload={user_id:cloudUser.id,state:state,app_version:APP_VERSION,client_updated_at:stamp};
+            try{
+              let data=null,error=null;
+              if(reason==="first_user_upload"){
+                ({data,error}=await cloudClient.from("planner_state").upsert(payload,{onConflict:"user_id"}).select("updated_at,client_updated_at").maybeSingle());
+              }else{
+                const meta=getCloudSyncMeta(cloudUser.id),baseline=meta.lastRemoteUpdatedAt||"";
+                if(!baseline){
+                  await pullLatestCloudAfterRejectedPush("sync_baseline_backup");
+                  return false;
+                }
+                ({data,error}=await cloudClient.from("planner_state").update(payload).eq("user_id",cloudUser.id).eq("updated_at",baseline).select("updated_at,client_updated_at").maybeSingle());
+                if(error)throw error;
+                if(!data){
+                  await pullLatestCloudAfterRejectedPush("cross_device_conflict_backup");
+                  return false;
+                }
+              }
+              if(error)throw error;
+              const remoteStamp=data?.updated_at||data?.client_updated_at||stamp;
+              setCloudSyncMeta({userId:cloudUser.id,lastSyncedAt:stamp,localModifiedAt:stamp,localDirty:false,lastRemoteUpdatedAt:remoteStamp});setCloudSyncStatus("Synced","synced");return true;
+            }catch(error){console.error("Cloud sync failed",error);setCloudSyncStatus("Sync error","error");return false}
+          }
+          ''',
+          '''async function pushCloudState(reason="automatic"){
+            if(!cloudClient||!cloudUser||cloudApplying||cloudAccess?.status!=="active")return false;
+            if(cloudPushInFlight){setCloudSyncStatus("Changes pending","syncing");return cloudPushInFlight}
+            clearTimeout(cloudSaveTimer);setCloudSyncStatus("Syncing…","syncing");
+            const userId=cloudUser.id,revisionAtStart=cloudChangeRevision,stamp=new Date().toISOString();
+            const payload={user_id:userId,state:clone(state),app_version:APP_VERSION,client_updated_at:stamp};
+            cloudPushInFlight=(async()=>{
+              try{
+                let data=null,error=null;
+                if(reason==="first_user_upload"){
+                  ({data,error}=await cloudClient.from("planner_state").upsert(payload,{onConflict:"user_id"}).select("updated_at,client_updated_at").maybeSingle());
+                }else{
+                  const meta=getCloudSyncMeta(userId),baseline=meta.lastRemoteUpdatedAt||"";
+                  if(!baseline){
+                    await pullLatestCloudAfterRejectedPush("sync_baseline_backup");
+                    return false;
+                  }
+                  ({data,error}=await cloudClient.from("planner_state").update(payload).eq("user_id",userId).eq("updated_at",baseline).select("updated_at,client_updated_at").maybeSingle());
+                  if(error)throw error;
+                  if(!data){
+                    await pullLatestCloudAfterRejectedPush("cross_device_conflict_backup");
+                    return false;
+                  }
+                }
+                if(error)throw error;
+                const remoteStamp=data?.updated_at||data?.client_updated_at||stamp;
+                const changedDuringPush=cloudChangeRevision!==revisionAtStart,currentMeta=getCloudSyncMeta(userId);
+                setCloudSyncMeta({userId,lastSyncedAt:stamp,localModifiedAt:changedDuringPush?(currentMeta.localModifiedAt||stamp):stamp,localDirty:changedDuringPush,lastRemoteUpdatedAt:remoteStamp},userId);
+                setCloudSyncStatus(changedDuringPush?"Changes pending":"Synced",changedDuringPush?"syncing":"synced");
+                return true;
+              }catch(error){console.error("Cloud sync failed",error);setCloudSyncStatus("Sync error","error");return false}
+            })();
+            try{return await cloudPushInFlight}
+            finally{
+              cloudPushInFlight=null;
+              const currentUserId=cloudUser?.id||"";
+              if(currentUserId&&getCloudSyncMeta(currentUserId).localDirty===true)scheduleCloudSave();
+            }
+          }
+          ''',
+              'serialized cloud push'
+          )
+          INDEX.write_text(html)
+          after_hash = hashlib.sha256(html.encode()).hexdigest()
+          if after_hash != EXPECTED_AFTER:
+              raise SystemExit(f'Unexpected v04 output checksum: {after_hash}')
+          
+          Path('_headers').write_text('''/*\n  Cache-Control: no-store, no-cache, must-revalidate, max-age=0\n  Pragma: no-cache\n  Expires: 0\n''')
+          Path('manifest.webmanifest').write_text('''{\n  "name": "Peptide Planner",\n  "short_name": "Peptide Planner",\n  "start_url": "./",\n  "scope": "./",\n  "display": "standalone",\n  "background_color": "#f3faf6",\n  "theme_color": "#216b5f"\n}\n''')
+          Path('peptide-planner-sw.js').write_text('''const PEPTIDE_PLANNER_SW_VERSION='v2026.0909.04';\nself.addEventListener('install',event=>{self.skipWaiting();});\nself.addEventListener('activate',event=>{\n  event.waitUntil((async()=>{\n    const keys=await caches.keys();\n    await Promise.all(keys.map(key=>caches.delete(key)));\n    await self.clients.claim();\n    const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});\n    await Promise.all(clients.map(client=>{\n      try{\n        const url=new URL(client.url);\n        url.searchParams.set('_ppv',PEPTIDE_PLANNER_SW_VERSION);\n        return client.navigate(url.href);\n      }catch{return Promise.resolve();}\n    }));\n  })());\n});\nself.addEventListener('fetch',event=>{\n  if(event.request.method!=="GET")return;\n  event.respondWith(fetch(event.request,{cache:"no-store"}).catch(()=>fetch(event.request)));\n});\n''')
+          
+          workflow = r'''name: Deploy Peptide Planner to Cloudflare Pages
+          
+          on:
+            workflow_dispatch:
+            push:
+              branches: [main]
+              paths:
+                - '.deploy/cloudflare_release_trigger.txt'
+          
+          permissions:
+            contents: read
+            deployments: write
+          
+          concurrency:
+            group: peptide-planner-production
+            cancel-in-progress: true
+          
+          jobs:
+            deploy:
+              runs-on: ubuntu-latest
+              steps:
+                - name: Checkout repository
+                  uses: actions/checkout@v4
+          
+                - name: Validate production package
+                  run: |
+                    set -euo pipefail
+                    python3 - <<'PY'
+                    from pathlib import Path
+                    import hashlib, json, re, shutil
+          
+                    required_files = ['index.html', '_headers', 'manifest.webmanifest', 'peptide-planner-sw.js']
+                    missing_files = [p for p in required_files if not Path(p).is_file()]
+                    if missing_files:
+                        raise SystemExit('Missing production files: ' + ', '.join(missing_files))
+          
+                    html = Path('index.html').read_text()
+                    title_match = re.search(r'<title>Peptide Planner ([^<]+)</title>', html)
+                    app_match = re.search(r'const APP_VERSION="([^"]+)";', html)
+                    sw = Path('peptide-planner-sw.js').read_text()
+                    sw_match = re.search(r"PEPTIDE_PLANNER_SW_VERSION='([^']+)'", sw)
+                    if not (title_match and app_match and sw_match):
+                        raise SystemExit('Could not resolve application version markers')
+                    version = app_match.group(1)
+                    if title_match.group(1) != version or sw_match.group(1) != version:
+                        raise SystemExit(f'Version mismatch: title={title_match.group(1)} app={version} sw={sw_match.group(1)}')
+          
+                    markers = [
+                        'signInWithPassword', 'resetPasswordForEmail', 'PASSWORD_RECOVERY',
+                        'from("planner_state")', 'from("planner_snapshots")',
+                        'planVerificationCompleteness', 'planReadyForToday',
+                        'doseSourceIndicatorHtml', 'doseEntryMode', 'splitUnits',
+                        'cloudPushInFlight', 'administrationMatchesScheduledStructure',
+                    ]
+                    missing_markers = [m for m in markers if m not in html]
+                    if missing_markers:
+                        raise SystemExit('Production feature validation failed: ' + ', '.join(missing_markers))
+                    if re.search(r'service_role|SUPABASE_SECRET_KEY', html, flags=re.I):
+                        raise SystemExit('Secret key marker found in client')
+          
+                    headers = Path('_headers').read_text()
+                    if 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' not in headers:
+                        raise SystemExit('No-cache Cloudflare headers are missing')
+          
+                    manifest = json.loads(Path('manifest.webmanifest').read_text())
+                    if manifest.get('start_url') != './' or manifest.get('scope') != './':
+                        raise SystemExit('Manifest start_url/scope must remain relative')
+          
+                    scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, flags=re.I | re.S)
+                    Path('/tmp/peptide-planner-inline.js').write_text('\n'.join(s for s in scripts if s.strip()))
+                    dist = Path('dist')
+                    if dist.exists(): shutil.rmtree(dist)
+                    dist.mkdir()
+                    for filename in required_files:
+                        shutil.copy2(filename, dist / filename)
+                    print('Version:', version)
+                    print('index.html SHA256:', hashlib.sha256(Path('index.html').read_bytes()).hexdigest())
+                    PY
+                    node --check /tmp/peptide-planner-inline.js
+                    node --check peptide-planner-sw.js
+                    test "$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')" = "4"
+          
+                - name: Deploy to Cloudflare Pages
+                  uses: cloudflare/wrangler-action@v3
+                  with:
+                    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                    accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                    command: pages deploy dist --project-name=peptide-planner --branch=main
+                    gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          '''
+          Path('.github/workflows').mkdir(parents=True, exist_ok=True)
+          Path('.github/workflows/deploy-cloudflare-pages.yml').write_text(workflow)
+          
+          print('Prepared v2026.0909.04', after_hash)
+          PYCODE
           git diff --check
 
       - name: Validate JavaScript and package markers
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          python3 - <<'PYCODE'
           from pathlib import Path
           import re
           html=Path('index.html').read_text()
@@ -42,7 +264,7 @@ jobs:
           required=['<title>Peptide Planner v2026.0909.04</title>','const APP_VERSION="v2026.0909.04";','cloudPushInFlight','PASSWORD_RESET_REDIRECT_URL=(()=>{']
           missing=[m for m in required if m not in html]
           if missing: raise SystemExit('Missing v04 markers: '+', '.join(missing))
-          PY
+          PYCODE
           node --check /tmp/planner-inline.js
           node --check peptide-planner-sw.js
 
