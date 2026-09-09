@@ -1,0 +1,81 @@
+name: Temporary cycled vial Cycle Dose release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/chatgpt-cycled-vial-cycle-dose.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  patch-test-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply audited cycled Vial Schedule patch
+        run: python3 .deploy/apply_cycled_vial_cycle_dose.py
+
+      - name: Validate exact requested scope
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text()
+          cycle=re.search(r'function renderCycleConfigVialSchedule\(plan,config,sequence\)\{.*?\n\}(?=\nfunction renderPeptideVialSchedule)',html,re.S)
+          continuous=re.search(r'function renderContinuousVialSchedule\(plan\)\{.*?\n\}(?=\nfunction renderContinuousDoseSchedule)',html,re.S)
+          if not cycle or not continuous: raise SystemExit('Vial Schedule renderers missing')
+          block=cycle.group(0)
+          expected='<th>#</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>'
+          if expected not in block: raise SystemExit('Cycled desktop column order incorrect')
+          if block.count('<span>Cycle Dose</span>')!=1: raise SystemExit('Cycled mobile Cycle Dose missing')
+          if '<th>Cycle Dose</th>' in continuous.group(0) or '<span>Cycle Dose</span>' in continuous.group(0): raise SystemExit('Continuous Vial Schedule changed')
+          scripts=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',html,flags=re.I|re.S)
+          Path('/tmp/peptide-planner-inline.js').write_text('\n'.join(s for s in scripts if s.strip()))
+          PY
+          node --check /tmp/peptide-planner-inline.js
+          node --check peptide-planner-sw.js
+          git diff --check
+          test "$(git diff --name-only | tr -d '\r')" = "index.html"
+          test -f _headers
+          test -f manifest.webmanifest
+          test -f peptide-planner-sw.js
+
+      - name: Commit requested Vial Schedule change
+        run: |
+          set -euo pipefail
+          git config user.name "jesykadelacruz"
+          git config user.email "84807985+jesykadelacruz@users.noreply.github.com"
+          git add index.html
+          test "$(git diff --cached --name-only | tr -d '\r')" = "index.html"
+          git commit -m "Add Cycle Dose to cycled vial schedule"
+          git push origin main
+
+      - name: Build exact Cloudflare package
+        run: |
+          set -euo pipefail
+          ZIP="Peptide_Planner_Cloudflare_v2026.0909.04_Cycled_Vial_Cycle_Dose_v2.zip"
+          rm -f "$ZIP"
+          zip -j "$ZIP" _headers index.html manifest.webmanifest peptide-planner-sw.js
+          test "$(unzip -Z1 "$ZIP" | wc -l | tr -d ' ')" = "4"
+          unzip -Z1 "$ZIP" | sort > /tmp/zip-files.txt
+          printf '%s\n' _headers index.html manifest.webmanifest peptide-planner-sw.js | sort > /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/zip-files.txt
+          unzip -t "$ZIP"
+
+      - name: Upload Cloudflare ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-cycled-vial-cycle-dose-v2
+          path: Peptide_Planner_Cloudflare_v2026.0909.04_Cycled_Vial_Cycle_Dose_v2.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
