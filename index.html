@@ -10619,7 +10619,7 @@ function cycleVialPrepForDate(plan,date=new Date(),sequence=null){
   const resolvedSequence=Math.max(1,Math.floor(num(sequence)||num(position?.sequence)||1));
   const records=cycleVialPrepRecords(plan).filter(record=>Number(record.scheduleCycleNumber)===resolvedSequence&&num(record?.vialMg)>0&&num(record?.finalMl||record?.bacWaterMl)>0);
   const dated=records
-    .map(record=>({record,date:parseISO(record.startDate||record.needDate||"")}))
+    .map(record=>({record,date:parseISO(record.startDate||record.scheduleResolvedOpenDate||record.needDate||"")}))
     .filter(item=>item.date&&(!target||item.date<=target))
     .sort((a,b)=>a.date-b.date||Number(a.record?.scheduleRowIndex||a.record?.vialNumber||0)-Number(b.record?.scheduleRowIndex||b.record?.vialNumber||0));
   if(dated.length)return cycleVialPrepForRecord(plan,dated[dated.length-1].record);
@@ -12566,6 +12566,7 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     const manualOpen=!!(record&&(record.scheduleOpenAuto===false||legacyManualOpen));
     const manualFinish=!!(record&&(record.scheduleFinishAuto===false||legacyManualFinish));
     const openDate=manualOpen?String(record.startDate||""):calculatedOpenDate;
+    if(record)record.scheduleResolvedOpenDate=openDate||"";
     const disposeAt=openDate?disposeDateFromOpen(plan,parseISO(openDate)):null;
     const disposeDate=disposeAt?localDateISO(disposeAt):"";
     if(!(prep.vialMg>0&&prep.finalMl>0&&capacityUnits>0)){
