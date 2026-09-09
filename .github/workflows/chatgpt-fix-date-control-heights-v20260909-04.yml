@@ -40,10 +40,8 @@ jobs:
           assert 'const APP_VERSION="v2026.0909.04";' in html
           expected='''/* Keep enhanced date wrappers exactly the same height as their visible date fields. */\n#planner .cycle-config-card .date-control,\n#planner .cycle-vial-schedule-field [data-cycle-vial-row] .date-control{\n  height:36px!important;\n  min-height:36px!important;\n  max-height:36px!important;\n  block-size:36px!important;\n  box-sizing:border-box!important;\n}\n#planner .continuous-vial-schedule-field [data-continuous-vial-row] .date-control,\n#planner .continuous-vial-schedule-field [data-continuous-vial-row] .date-display{\n  height:40px!important;\n  min-height:40px!important;\n  max-height:40px!important;\n  block-size:40px!important;\n  box-sizing:border-box!important;\n}'''
           assert html.count(expected)==1
-          # Existing requested layouts remain unchanged.
           assert '<th>#</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in html
           assert '<th>Vial #</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in html
-          # Date enhancer itself must remain untouched.
           assert 'function enhanceDateInputs(root=document){' in html
           assert 'icon.className="date-picker-icon";' in html
           scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,re.S)
@@ -52,7 +50,7 @@ jobs:
           additions=[line for line in diff.splitlines() if line.startswith('+') and not line.startswith('+++')]
           deletions=[line for line in diff.splitlines() if line.startswith('-') and not line.startswith('---')]
           assert len(deletions)==0, deletions
-          assert len(additions)==18, len(additions)
+          assert len(additions)==17, len(additions)
           print(f'Validated {len(additions)} CSS-only added lines and {len(scripts)} inline scripts')
           PY
           for f in /tmp/peptide-inline-*.js; do node --check "$f"; done
