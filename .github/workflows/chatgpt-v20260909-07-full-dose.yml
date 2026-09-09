@@ -1,0 +1,72 @@
+name: Temporary v20260909.07 Full Dose release
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/chatgpt-v20260909-07-full-dose.yml']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply patch
+        run: |
+          python .deploy/apply_v20260909_07_full_dose.py
+          git checkout -- .deploy/apply_v20260909_07_full_dose.py
+      - name: Validate exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git status --short | awk '{print $2}')" = "index.html"
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          h=Path('index.html').read_text(encoding='utf-8')
+          assert '<title>Peptide Planner v2026.0909.04</title>' in h
+          assert 'const APP_VERSION="v2026.0909.04";' in h
+          assert 'function cycleFullDoseCountForDisplay(events,startCursor,openDate,unitsPerVial)' in h
+          assert 'const cycleDoseCount=vialDoseCountForDisplay(rowEvents,rowStartCursor,openDate,capacityUnits,disposeDate||null);' in h
+          assert '<th>#</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in h
+          assert 'height:40px!important;' in h
+          diff=subprocess.check_output(['git','diff','--','index.html'],text=True)
+          assert 'cycleFullDoseCountForDisplay' in diff
+          forbidden=['cycleDoseCount=vialDoseCountForDisplay','height:40px!important','<th>#</th>','data-cycle-vial-field']
+          changed='\n'.join(line for line in diff.splitlines() if line.startswith(('+','-')) and not line.startswith(('+++','---')))
+          for token in forbidden:
+              assert token not in changed, f'Unexpected change outside Full Dose helper: {token}'
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',h,re.S)
+          for i,s in enumerate(scripts): Path(f'/tmp/p{i}.js').write_text(s,encoding='utf-8')
+          print('Validated Full Dose helper-only production change')
+          PY
+          for f in /tmp/p*.js; do node --check "$f"; done
+          node --check peptide-planner-sw.js
+      - name: Commit
+        run: |
+          git config user.name jesykadelacruz
+          git config user.email 84807985+jesykadelacruz@users.noreply.github.com
+          git add index.html
+          git commit -m "Make cycled Full Dose follow repeating dose schedule"
+          git push origin HEAD:main
+      - name: Package
+        run: |
+          rm -rf /tmp/pkg && mkdir -p /tmp/pkg
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js /tmp/pkg/
+          cd /tmp/pkg
+          zip -q "$GITHUB_WORKSPACE/Peptide_Planner_v20260909.07.zip" _headers index.html manifest.webmanifest peptide-planner-sw.js
+          cd "$GITHUB_WORKSPACE"
+          unzip -t Peptide_Planner_v20260909.07.zip
+          python - <<'PY'
+          import zipfile
+          expected=['_headers','index.html','manifest.webmanifest','peptide-planner-sw.js']
+          with zipfile.ZipFile('Peptide_Planner_v20260909.07.zip') as z: assert sorted(z.namelist())==sorted(expected),z.namelist()
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20260909.07
+          path: Peptide_Planner_v20260909.07.zip
+          if-no-files-found: error
