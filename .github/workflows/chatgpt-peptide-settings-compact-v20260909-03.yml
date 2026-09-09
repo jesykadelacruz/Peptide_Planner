@@ -30,9 +30,7 @@ jobs:
           assert old in s
           s=s.replace(old,new,1)
           labels=['dose edit sequence','units edit sequence','split toggle sequence','split parts sequence','split unit values sequence','split unit sync sequence']
-          lines=s.splitlines()
-          kept=[]
-          removed=[]
+          lines=s.splitlines();kept=[];removed=[]
           for line in lines:
               match=next((label for label in labels if f"'{label}')" in line),None)
               if match: removed.append(match)
@@ -49,7 +47,9 @@ jobs:
               handler=handler.replace(old,new,1)
           handler_replace('if(field==="doseMg")syncPhaseFromDose(plan,phase);','if(field==="doseMg")syncPhaseFromDose(plan,phase,null,sequence);','dose edit sequence')
           handler_replace('phase.units=control.value;syncPhaseFromUnits(plan,phase);','phase.units=control.value;syncPhaseFromUnits(plan,phase,null,sequence);','units edit sequence')
-          handler_replace('phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase),parts);','phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,null,Number(control.dataset.cyclePhaseSplit)),parts);','split toggle sequence')
+          split_old='phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase),parts);'
+          assert handler.count(split_old)==2,f'split recalculation scope: expected 2 matches, found {handler.count(split_old)}'
+          handler=handler.replace(split_old,'phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,null,Number(control.dataset.cyclePhaseSplit)),parts);',1)
           handler_replace('phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase),parts);syncLegacyPlanFromCycleConfigs','phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,null,Number(control.dataset.cyclePhaseSplitParts)),parts);syncLegacyPlanFromCycleConfigs','split parts sequence')
           handler_replace('const phase=config.phases[index],parts=simplePhaseSplitParts(phase),values=phaseSplitUnitValues(plan,phase);','const phase=config.phases[index],parts=simplePhaseSplitParts(phase),sequence=Number(control.dataset.cyclePhaseSplitUnit),values=phaseSplitUnitValues(plan,phase,null,sequence);','split unit values sequence')
           handler_replace('syncPhaseFromSplitUnits(plan,phase);syncLegacyPlanFromCycleConfigs','syncPhaseFromSplitUnits(plan,phase,null,sequence);syncLegacyPlanFromCycleConfigs','split unit sync sequence')
@@ -71,23 +71,16 @@ jobs:
           from pathlib import Path
           import re
           html=Path('index.html').read_text(encoding='utf-8')
-          start=html.index('<details class="peptide-settings"')
-          end=html.index('</details>',start)
-          settings=html[start:end]
-          for forbidden in ['<label>Vial (mg)</label>','<label>Water (mL)</label>','<label>Concentration (mg/mL)</label>','data-simple-field="vialMg"','data-simple-field="bacWaterMl"','data-simple-field="finalMl"']:
-              assert forbidden not in settings, forbidden
+          start=html.index('<details class="peptide-settings"');end=html.index('</details>',start);settings=html[start:end]
+          for forbidden in ['<label>Vial (mg)</label>','<label>Water (mL)</label>','<label>Concentration (mg/mL)</label>','data-simple-field="vialMg"','data-simple-field="bacWaterMl"','data-simple-field="finalMl"']: assert forbidden not in settings,forbidden
           assert '<th>#</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in html
-          assert 'function cycleVialPrepForSequence(' in html
-          assert 'function cycleVialPrepForDate(' in html
-          assert 'function syncCyclePhaseCalculationsForSequence(' in html
-          cycle_start=html.index('function cycleVialScheduleComputation')
-          cycle_end=html.index('function ensureCycleVialScheduleRecord',cycle_start)
+          assert 'function cycleVialPrepForSequence(' in html and 'function cycleVialPrepForDate(' in html and 'function syncCyclePhaseCalculationsForSequence(' in html
+          cycle_start=html.index('function cycleVialScheduleComputation');cycle_end=html.index('function ensureCycleVialScheduleRecord',cycle_start)
           assert 'const prep=cycleVialPrepForRecord(plan,record,previousPrep);previousPrep=prep;' in html[cycle_start:cycle_end]
           assert 'syncCyclePhaseCalculationsForSequence(plan,record.scheduleCycleNumber);' in html
           assert 'out.units=phaseResolvedUnits(plan,phase,date,position.sequence)' in html
           assert '/* v20260909.04 — compact treatment controls; UI dimensions only. */' in html
-          assert '<title>Peptide Planner v2026.0909.04</title>' in html
-          assert 'const APP_VERSION="v2026.0909.04";' in html
+          assert '<title>Peptide Planner v2026.0909.04</title>' in html and 'const APP_VERSION="v2026.0909.04";' in html
           scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',html,re.S)
           for i,script in enumerate(scripts):Path(f'/tmp/peptide-inline-{i}.js').write_text(script,encoding='utf-8')
           print(f'Prepared {len(scripts)} inline scripts')
@@ -109,14 +102,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/peptide-package
-          mkdir -p /tmp/peptide-package
+          rm -rf /tmp/peptide-package;mkdir -p /tmp/peptide-package
           cp _headers index.html manifest.webmanifest peptide-planner-sw.js /tmp/peptide-package/
           python - <<'PY'
           from pathlib import Path
-          expected={'_headers','index.html','manifest.webmanifest','peptide-planner-sw.js'}
-          actual={p.name for p in Path('/tmp/peptide-package').iterdir() if p.is_file()}
-          assert actual==expected,(actual,expected)
+          expected={'_headers','index.html','manifest.webmanifest','peptide-planner-sw.js'};actual={p.name for p in Path('/tmp/peptide-package').iterdir() if p.is_file()};assert actual==expected,(actual,expected)
           PY
           (cd /tmp/peptide-package && zip -q "$GITHUB_WORKSPACE/Peptide_Planner_v20260909.04.zip" _headers index.html manifest.webmanifest peptide-planner-sw.js)
           unzip -t Peptide_Planner_v20260909.04.zip
