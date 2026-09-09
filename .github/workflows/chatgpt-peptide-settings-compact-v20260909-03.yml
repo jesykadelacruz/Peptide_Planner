@@ -14,32 +14,24 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Print targeted treatment functions
+      - name: Print targeted treatment contexts
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8')
-          def block(start, end):
-              a=s.index(start)
-              b=s.index(end,a)
-              print('\n===== '+start+' =====\n')
-              print(s[a:b])
-          block('function continuousVialPrepForRecord', 'function continuousVialPrepForDate')
-          block('function continuousVialPrepForDate', 'function continuousVialPrepForAdministration')
-          block('function calcUnits', 'function simplePhaseSplitParts')
-          block('function cycleVialDoseEvents', 'function cycleVialUsage')
-          block('function cycleVialUsage', 'function cycleVialScheduleStatus')
-          block('function cycleVialScheduleComputation', 'function ensureCycleVialScheduleRecord')
-          needle='missing.push("vial strength")'
-          p=s.index(needle)
-          a=s.rfind('\nfunction ',0,p)+1
-          b=s.find('\nfunction ',p)
-          print('\n===== verification function =====\n')
-          print(s[a:b])
-          needle='card.querySelectorAll("[data-cycle-vial-field]")'
-          p=s.index(needle)
-          a=s.rfind('\n',0,p)+1
-          b=s.find('    card.querySelectorAll("[data-cycle-vial-open-date]")',p)
-          print('\n===== cycled vial change handler =====\n')
-          print(s[a:b])
+          needles=[
+            'continuousVialPrepForRecord',
+            'continuousVialPrepForDate',
+            'function calcUnits',
+            'cycleVialDoseEvents',
+            'function cycleVialUsage',
+            'function cycleVialScheduleComputation',
+            'missing.push("vial strength")',
+            'card.querySelectorAll("[data-cycle-vial-field]")'
+          ]
+          for needle in needles:
+              p=s.find(needle)
+              print(f'\n===== {needle} @ {p} =====\n')
+              if p>=0:
+                  print(s[max(0,p-1500):min(len(s),p+7000)])
           PY
