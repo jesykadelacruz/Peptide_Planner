@@ -1,0 +1,180 @@
+name: Temporary mobile field height release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/temp-mobile-field-height.yml
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  release:
+    if: github.event.head_commit.message == 'Prepare Peptide_Planner_v20261009.12 mobile field height release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact main state
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Guard release baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "61ace55b378a6d8cc6f43038fa7f8d0165cc51dd"
+          test "$(git log -1 --pretty=%s HEAD^)" = "Peptide_Planner_v20261009.11"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/temp-mobile-field-height.yml"
+          grep -Fq '<title>Peptide_Planner_v20261009.11</title>' index.html
+          grep -Fq 'const APP_VERSION="Peptide_Planner_v20261009.11";' index.html
+          grep -Fq "const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261009.11';" peptide-planner-sw.js
+
+      - name: Apply only the requested mobile height change
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import subprocess
+
+          patch_b64 = "ZGlmZiAtLWdpdCBhL2luZGV4Lmh0bWwgYi9pbmRleC5odG1sCmluZGV4IGZhZWRmZDYuLjdhODg5ZjIgMTAwNjQ0Ci0tLSBhL2luZGV4Lmh0bWwKKysrIGIvaW5kZXguaHRtbApAQCAtMTIsNyArMTIsNyBAQAogPG1ldGEgaHR0cC1lcXVpdj0iUHJhZ21hIiBjb250ZW50PSJuby1jYWNoZSI+CiA8bWV0YSBodHRwLWVxdWl2PSJFeHBpcmVzIiBjb250ZW50PSIwIj4KIDxsaW5rIHJlbD0ibWFuaWZlc3QiIGhyZWY9Ii4vbWFuaWZlc3Qud2VibWFuaWZlc3QiPgotPHRpdGxlPlBlcHRpZGVfUGxhbm5lcl92MjAyNjEwMDkuMTE8L3RpdGxlPgorPHRpdGxlPlBlcHRpZGVfUGxhbm5lcl92MjAyNjEwMDkuMTI8L3RpdGxlPgogPCEtLSB2MjAyNi4wOTA5LjA0OiBQcm9kdWN0aW9uIGhhcmRlbmluZyBvbmx5LiBDbG91ZCB3cml0ZXMgYXJlIHNlcmlhbGl6ZWQgc28gb3ZlcmxhcHBpbmcgYXV0b3NhdmVzIGNhbm5vdCByYWNlIG9yIGNsZWFyIGEgbmV3ZXIgbG9jYWwgZWRpdDsgc3VjY2Vzc2Z1bCB3cml0ZXMgcHJlc2VydmUgdGhlIGRpcnR5IHN0YXRlIHdoZW4gYW5vdGhlciBlZGl0IG9jY3VycmVkIGluIGZsaWdodC4gUGFzc3dvcmQtcmVzZXQgcmVkaXJlY3RzIHJlc29sdmUgZnJvbSB0aGUgcGxhbm5lciBVUkwgY3VycmVudGx5IGluIHVzZSBpbnN0ZWFkIG9mIGEgZml4ZWQgUGFnZXMgaG9zdG5hbWUuIFRyZWF0bWVudCwgZG9zZSwgdmlhbCwgc2NoZWR1bGUsIHJvbGUgYW5kIGxheW91dCBiZWhhdmlvciBhcmUgdW5jaGFuZ2VkLiAtLT4KIDwhLS0gdjIwMjYuMDkwOS4wMzogQ29udGludW91cyBhbmQgY3ljbGVkIHRyZWF0bWVudHMgbm93IHNoYXJlIHRoZSBzYW1lIHBlbmRpbmcgcmVwbGFjZW1lbnQtdmlhbCB0cmFuc2l0aW9uLiBBIHJlcGxhY2VtZW50IHZpYWwgc3RheXMgcGVuZGluZyB1bnRpbCBpdHMgZmlyc3Qgc2NoZWR1bGVkIGFkbWluaXN0cmF0aW9uIGRhdGU7IGFmdGVyIHRoZSBwcmlvciB2aWFsIGNhbiBubyBsb25nZXIgc3VwcGx5IGFub3RoZXIgZnVsbCBzY2hlZHVsZWQgZG9zZSwgRG9zZSBsZWZ0IGluIHZpYWwgc2hvd3MgT3BlbiBWaWFsIGluc3RlYWQgb2YgMCwgYW5kIHRoZSByZXBsYWNlbWVudCB2aWFsIGJlY29tZXMgY3VycmVudCBvbiBpdHMgZmlyc3QtdXNlIGRhdGUuIEFsbCB1bnJlbGF0ZWQgdHJlYXRtZW50LCBzeW5jLCBhdXRoLCByb2xlIGFuZCBVSSBiZWhhdmlvciBpcyB1bmNoYW5nZWQuIC0tPgogPCEtLSB2MjAyNi4wOTA5LjAyOiBDYWNoZS9ydW50aW1lIHN5bmNocm9uaXphdGlvbiByZWxlYXNlLiBQcm9kdWN0aW9uIHRyZWF0bWVudCBVSSwgdmlhbCBsb2dpYywgZG9zZSBjYWxjdWxhdGlvbnMsIGNyb3NzLWRldmljZSBzeW5jIGFuZCByb2xlIGJlaGF2aW9yIGFyZSB1bmNoYW5nZWQgZnJvbSB2MjAyNi4wOTA5LjAxOyB0aGUgc2VydmljZSB3b3JrZXIgdmVyc2lvbiBpcyBhZHZhbmNlZCB0byB0aGUgc2FtZSByZWxlYXNlIHNvIGRldmljZXMgY2Fubm90IHJlbWFpbiBvbiBhbiBvbGRlciBjYWNoZWQgcGxhbm5lci4gLS0+CkBAIC01OTE1LDYgKzU5MTUsMjEgQEAgYm9keS5tb2JpbGUtYXBwICN2aWFsUHVyY2hhc2VSZW1pbmRlckxpc3QgLnZpYWwtcHVyY2hhc2UtY2hlY2t7CiAgICAgZm9udC13ZWlnaHQ6NDAwIWltcG9ydGFudDsKICAgfQogfQorCisvKiB2MjAyNjEwMDkuMTIg4oCUIHJlcXVlc3RlZCBtb2JpbGUtb25seSBUcmVhdG1lbnRzIGZpZWxkIGhlaWdodCBub3JtYWxpemF0aW9uLiAqLworQG1lZGlhKG1heC13aWR0aDo3NjBweCl7CisgIGJvZHkubW9iaWxlLWFwcCAjcGxhbm5lciBpbnB1dDpub3QoW3R5cGU9ImhpZGRlbiJdKTpub3QoW3R5cGU9ImNoZWNrYm94Il0pOm5vdChbdHlwZT0icmFkaW8iXSk6bm90KFt0eXBlPSJyYW5nZSJdKTpub3QoW3R5cGU9ImNvbG9yIl0pLAorICBib2R5Lm1vYmlsZS1hcHAgI3BsYW5uZXIgc2VsZWN0LAorICBib2R5Lm1vYmlsZS1hcHAgI3BsYW5uZXIgdGV4dGFyZWEsCisgIGJvZHkubW9iaWxlLWFwcCAjcGxhbm5lciAuZGF0ZS1jb250cm9sLAorICBib2R5Lm1vYmlsZS1hcHAgI3BsYW5uZXIgLmRhdGUtZGlzcGxheSwKKyAgYm9keS5tb2JpbGUtYXBwICNwbGFubmVyIC5jeWNsZS12aWFsLWRvc2UtYm94eworICAgIGhlaWdodDo0MHB4IWltcG9ydGFudDsKKyAgICBtaW4taGVpZ2h0OjQwcHghaW1wb3J0YW50OworICAgIG1heC1oZWlnaHQ6NDBweCFpbXBvcnRhbnQ7CisgICAgYmxvY2stc2l6ZTo0MHB4IWltcG9ydGFudDsKKyAgfQorfQogPC9zdHlsZT4KIDwvaGVhZD4KIDxib2R5IGNsYXNzPSJtb2JpbGUtYXBwIGFjY2Vzcy1sb2NrZWQiPgpAQCAtNzM3Niw3ICs3MzkxLDcgQEAgYm9keS5tb2JpbGUtYXBwICN2aWFsUHVyY2hhc2VSZW1pbmRlckxpc3QgLnZpYWwtcHVyY2hhc2UtY2hlY2t7CiAidXNlIHN0cmljdCI7CiBjb25zdCBTVE9SQUdFX0tFWT0icGVwdGlkZVRyZWF0bWVudFBsYW5uZXJfdjQiOwogY29uc3QgTEVHQUNZX0tFWT0icGVyc29uYWxUcmVhdG1lbnRUcmFja2VyX3YxIjsKLWNvbnN0IEFQUF9WRVJTSU9OPSJQZXB0aWRlX1BsYW5uZXJfdjIwMjYxMDA5LjExIjsKK2NvbnN0IEFQUF9WRVJTSU9OPSJQZXB0aWRlX1BsYW5uZXJfdjIwMjYxMDA5LjEyIjsKIGNvbnN0IENMT1VEX1NZTkNfTUVUQV9LRVk9InBlcHRpZGVQbGFubmVyQ2xvdWRTeW5jX3YxIjsKIGNvbnN0IENMT1VEX0tCX0NBQ0hFX0tFWT0icGVwdGlkZVBsYW5uZXJLYk92ZXJyaWRlc192MSI7CiBjb25zdCBTVVBBQkFTRV9VUkw9Imh0dHBzOi8vc3JmdXd4and1bHZiYWx6b3ltY2Muc3VwYWJhc2UuY28iOwpAQCAtMTU2NzksNCArMTU2OTQsNCBAQCBpbml0Q2xvdWRTZXJ2aWNlcygpOwogPCEtLSB2MjAyNi4wMzA5LjIwOiBNb2JpbGUgVmlhbCBTY2hlZHVsZSBhZGRzIEZ1bGwgRG9zZSBhbmQgQ3ljbGUgRG9zZSBiZWxvdyBPcGVuL0ZpbmlzaC4gRGVza3RvcCBWaWFsIFNjaGVkdWxlIHVzZXMgY29tcGFjdCBlcXVhbC1zaXplIGRvc2UvZGF0ZSBmaWVsZHMsIGNlbnRlcmVkIGhlYWRlcnMsIGZ1bGwgcm93IHNlcGFyYXRvcnMgdGhyb3VnaCBTdGF0dXMsIGFuZCB3aWRlciBwYWdlIGRpc3RyaWJ1dGlvbiB3aXRoIFN0YXR1cyBhbGlnbmVkIHJpZ2h0LiAtLT4KIDwhLS0gdjIwMjYuMDMwOS4yMTogVHJlYXRtZW50cyBhZGRzIHNtYWxsIGluZm9ybWF0aW9uIHBvcHVwcyB0byB0cmVhdG1lbnQgZmllbGQgbGFiZWxzIGFuZCBzY2hlZHVsZSBoZWFkZXJzLiBNb2JpbGUgVmlhbCBTY2hlZHVsZSBrZWVwcyBGdWxsIERvc2UvQ3ljbGUgRG9zZSBiZWxvdyBPcGVuL0ZpbmlzaC4gRGVza3RvcCBWaWFsIFNjaGVkdWxlIGlzIHRpZ2h0ZW5lZCwgY2VudGVyZWQsIGZ1bGx5IHNlcGFyYXRlZCB0aHJvdWdoIFN0YXR1cywgYW5kIHVzZXMgdGhlIHBhZ2Ugd2lkdGggd2l0aG91dCBjaGFuZ2luZyB1bnJlbGF0ZWQgZmllbGRzIG9yIGZvbnRzLiBGdWxsIERvc2UvQ3ljbGUgRG9zZSByZW1haW4gYmFzZWQgb24gYWN0dWFsIHNjaGVkdWxlZCBhZG1pbmlzdHJhdGlvbiBkb3Nlcy4gLS0+CiA8L2JvZHk+Ci08L2h0bWw+ClwgTm8gbmV3bGluZSBhdCBlbmQgb2YgZmlsZQorPC9odG1sPgpkaWZmIC0tZ2l0IGEvcGVwdGlkZS1wbGFubmVyLXN3LmpzIGIvcGVwdGlkZS1wbGFubmVyLXN3LmpzCmluZGV4IDNkNTdmMjYuLmU3ZmVmMWIgMTAwNjQ0Ci0tLSBhL3BlcHRpZGUtcGxhbm5lci1zdy5qcworKysgYi9wZXB0aWRlLXBsYW5uZXItc3cuanMKQEAgLTEsNCArMSw0IEBACi1jb25zdCBQRVBUSURFX1BMQU5ORVJfU1dfVkVSU0lPTj0nUGVwdGlkZV9QbGFubmVyX3YyMDI2MTAwOS4xMSc7Citjb25zdCBQRVBUSURFX1BMQU5ORVJfU1dfVkVSU0lPTj0nUGVwdGlkZV9QbGFubmVyX3YyMDI2MTAwOS4xMic7CiBzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2luc3RhbGwnLGV2ZW50PT57c2VsZi5za2lwV2FpdGluZygpO30pOwogc2VsZi5hZGRFdmVudExpc3RlbmVyKCdhY3RpdmF0ZScsZXZlbnQ9PnsKICAgZXZlbnQud2FpdFVudGlsKChhc3luYygpPT57Cg=="
+          subprocess.run(
+              ["git", "apply", "--whitespace=nowarn", "-"],
+              input=base64.b64decode(patch_b64),
+              check=True,
+          )
+          PY
+
+      - name: Validate exact scope and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+
+          version = "Peptide_Planner_v20261009.12"
+          html = Path("index.html").read_text()
+          sw = Path("peptide-planner-sw.js").read_text()
+          assert f"<title>{version}</title>" in html
+          assert f'const APP_VERSION="{version}";' in html
+          assert f"const PEPTIDE_PLANNER_SW_VERSION='{version}';" in sw
+
+          marker = "/* v20261009.12 — requested mobile-only Treatments field height normalization. */"
+          start = html.index(marker)
+          end = html.index("</style>", start)
+          block = html[start:end]
+          assert "@media(max-width:760px)" in block
+          selectors = [
+              'body.mobile-app #planner input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"])',
+              "body.mobile-app #planner select",
+              "body.mobile-app #planner textarea",
+              "body.mobile-app #planner .date-control",
+              "body.mobile-app #planner .date-display",
+              "body.mobile-app #planner .cycle-vial-dose-box",
+          ]
+          assert all(selector in block for selector in selectors)
+          declaration_match = re.search(r"\{([^{}]+)\}\s*\}\s*$", block, re.S)
+          assert declaration_match
+          declarations = [item.strip() for item in declaration_match.group(1).split(";") if item.strip()]
+          properties = [item.split(":", 1)[0] for item in declarations]
+          assert set(properties) == {"height", "min-height", "max-height", "block-size"}
+          assert len(properties) == 4
+          assert all(item.endswith("40px!important") for item in declarations)
+          assert html[end:].startswith("</style>\n</head>")
+          assert ".mobile-app input,.mobile-app select,.mobile-app textarea{min-height:44px;border-radius:9px;padding:8px 10px;font-size:16px;line-height:1.3}" in html
+          assert "white-space:nowrap!important;\n  text-overflow:ellipsis!important;" in html
+
+          base = subprocess.check_output(["git", "show", "HEAD^:index.html"], text=True)
+          expected = base.replace(
+              "<title>Peptide_Planner_v20261009.11</title>",
+              "<title>Peptide_Planner_v20261009.12</title>",
+              1,
+          ).replace(
+              'const APP_VERSION="Peptide_Planner_v20261009.11";',
+              'const APP_VERSION="Peptide_Planner_v20261009.12";',
+              1,
+          )
+          insertion = "\n" + block.rstrip() + "\n"
+          expected = expected.replace("</style>\n</head>", insertion + "</style>\n</head>", 1)
+          assert html.rstrip("\n") == expected.rstrip("\n")
+
+          base_sw = subprocess.check_output(["git", "show", "HEAD^:peptide-planner-sw.js"], text=True)
+          expected_sw = base_sw.replace(
+              "Peptide_Planner_v20261009.11",
+              "Peptide_Planner_v20261009.12",
+              1,
+          )
+          assert sw == expected_sw
+          print("Exact mobile-only, height-only scope verified.")
+          PY
+          node --check peptide-planner-sw.js
+          node - <<'NODE'
+          const fs=require("fs");
+          const html=fs.readFileSync("index.html","utf8");
+          const scripts=[...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(match=>match[1]).filter(Boolean);
+          if(!scripts.length)throw new Error("No inline application script found");
+          scripts.forEach(source=>new Function(source));
+          console.log("Inline application syntax verified.");
+          NODE
+          git diff --check
+          test "$(git diff --name-only HEAD | sort | tr '\n' ' ')" = "index.html peptide-planner-sw.js "
+          git diff --quiet HEAD^ -- _headers manifest.webmanifest
+
+      - name: Build and verify release package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir release
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js release/
+          zip -q -j Peptide_Planner_v20261009.12.zip release/_headers release/index.html release/manifest.webmanifest release/peptide-planner-sw.js
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          expected = ["_headers", "index.html", "manifest.webmanifest", "peptide-planner-sw.js"]
+          with ZipFile("Peptide_Planner_v20261009.12.zip") as archive:
+              assert sorted(archive.namelist()) == sorted(expected)
+              assert archive.testzip() is None
+              for name in expected:
+                  assert archive.read(name) == Path(name).read_bytes()
+          print("Release ZIP integrity verified.")
+          PY
+
+      - name: Commit exact release to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html peptide-planner-sw.js
+          git rm .github/workflows/temp-mobile-field-height.yml
+          test "$(git diff --cached --name-only HEAD^ | sort | tr '\n' ' ')" = "index.html peptide-planner-sw.js "
+          git diff --cached --check
+          git commit -m 'Peptide_Planner_v20261009.12'
+          git push origin HEAD:main
+
+      - name: Deploy exact release to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy release --project-name=peptide-planner --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload verified release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20261009.12
+          path: |
+            Peptide_Planner_v20261009.12.zip
+            release/_headers
+            release/index.html
+            release/manifest.webmanifest
+            release/peptide-planner-sw.js
+          if-no-files-found: error
+          retention-days: 7
