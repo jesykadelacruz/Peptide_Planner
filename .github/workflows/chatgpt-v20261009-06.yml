@@ -1,0 +1,98 @@
+name: Peptide Planner v20261009.06 release
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/chatgpt-v20261009-06.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply exact v20261009.06 update
+        run: python .deploy/apply_v20261009_06_vial_sync.py
+      - name: Validate requested scope and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          BASE='aaa1bc40a1e7f0771adf1297d121302681dd7d8c'
+          old=subprocess.check_output(['git','show',f'{BASE}:index.html'],text=True)
+          new=Path('index.html').read_text()
+          assert '<title>Peptide_Planner_v20261009.06</title>' in new
+          assert 'const APP_VERSION="Peptide_Planner_v20261009.06";' in new
+          assert Path('peptide-planner-sw.js').read_text().startswith("const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261009.06';")
+          styles=lambda s: re.findall(r'<style[^>]*>(.*?)</style>',s,re.S)
+          assert styles(old)==styles(new), 'CSS changed unexpectedly'
+          def fn(src,name):
+              start=src.find('function '+name); assert start>=0,name
+              brace=src.find('{',start); assert brace>=0,name
+              depth=1; k=brace+1
+              while k<len(src) and depth:
+                  if src[k]=='{': depth+=1
+                  elif src[k]=='}': depth-=1
+                  k+=1
+              assert depth==0,name
+              return src[start:k]
+          for name in ['cycleFullDoseCountForDisplay','cycleVialScheduleComputation','cycleVialPrepForDate','simulateCycleVialWindow','renderContinuousDoseSchedule','continuousVialScheduleComputation','syncCycleDoseScheduleLinkedEdit','syncCyclePhaseCalculationsForSequence']:
+              assert fn(old,name)==fn(new,name), f'{name} changed unexpectedly'
+          helper=fn(new,'syncCycleVialScheduleAfterDoseEdit')
+          assert 'cycleConfigVialScheduleComputation(plan,config,resolved)' in helper
+          assert '.cycle-vial-full-dose' in helper and '.cycle-vial-cycle-dose' in helper
+          assert '[data-cycle-vial-open-date]' in helper and '[data-cycle-vial-finish-date]' in helper
+          assert new.count('syncCycleVialScheduleAfterDoseEdit(plan,sequence')>=8
+          assert 'syncCycleVialScheduleAfterDoseEdit(plan,sequence,card);plan.confirmed=false;save();' in new
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',new,re.S)
+          for i,js in enumerate(scripts):
+              p=Path(f'/tmp/pp-script-{i}.js'); p.write_text(js); subprocess.run(['node','--check',str(p)],check=True)
+          subprocess.run(['node','--check','peptide-planner-sw.js'],check=True)
+          PY
+          git diff --check
+      - name: Remove temporary release files and verify production diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .deploy/apply_v20261009_06_vial_sync.py .github/workflows/chatgpt-v20261009-06.yml
+          changed="$(git diff --name-only aaa1bc40a1e7f0771adf1297d121302681dd7d8c -- | sort)"
+          expected=$'index.html\npeptide-planner-sw.js'
+          test "$changed" = "$expected"
+          git diff --check
+      - name: Commit production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'jesykadelacruz'
+          git config user.email '84807985+jesykadelacruz@users.noreply.github.com'
+          git add index.html peptide-planner-sw.js
+          git commit -m 'Peptide_Planner_v20261009.06'
+          git push origin HEAD:main
+      - name: Build Cloudflare production ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js release/
+          cd release
+          zip -9 ../Peptide_Planner_v20261009.06.zip _headers index.html manifest.webmanifest peptide-planner-sw.js
+          cd ..
+          unzip -t Peptide_Planner_v20261009.06.zip
+          python - <<'PY'
+          import zipfile
+          z=zipfile.ZipFile('Peptide_Planner_v20261009.06.zip')
+          expected=sorted(['_headers','index.html','manifest.webmanifest','peptide-planner-sw.js'])
+          assert sorted(z.namelist())==expected,z.namelist()
+          print('Cloudflare ZIP root validated')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20261009.06
+          path: Peptide_Planner_v20261009.06.zip
+          if-no-files-found: error
