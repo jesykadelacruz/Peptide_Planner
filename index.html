@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide_Planner_v20261009.09</title>
+<title>Peptide_Planner_v20261009.10</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -5887,6 +5887,9 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
   body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{
     margin-top:auto!important;
   }
+  body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{
+    transform:translateY(5px)!important;
+  }
   body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-prep-concentration .cycle-vial-dose-box,
   body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-full-dose-field .cycle-vial-dose-box,
   body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-cycle-dose-field .cycle-vial-dose-box{
@@ -7369,7 +7372,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="Peptide_Planner_v20261009.09";
+const APP_VERSION="Peptide_Planner_v20261009.10";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
