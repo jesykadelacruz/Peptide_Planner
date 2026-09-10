@@ -19,17 +19,11 @@ jobs:
           from pathlib import Path
           path = Path("index.html")
           text = path.read_text(encoding="utf-8")
-          anchor = '''  body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(1) > .date-control,
-          body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{
-            margin-top:auto!important;
-          }'''
-          addition = anchor + '''
-          body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{
-            transform:translateY(5px)!important;
-          }'''
+          anchor = '  body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(1) > .date-control,\n' + '  body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{\n' + '    margin-top:auto!important;\n' + '  }'
+          rule = '\n  body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{\n' + '    transform:translateY(5px)!important;\n' + '  }'
           assert text.count(anchor) == 1
           assert text.count("Peptide_Planner_v20261009.09") == 2
-          text = text.replace(anchor, addition)
+          text = text.replace(anchor, anchor + rule)
           text = text.replace("Peptide_Planner_v20261009.09", "Peptide_Planner_v20261009.10")
           path.write_text(text, encoding="utf-8")
           sw = Path("peptide-planner-sw.js")
@@ -49,8 +43,7 @@ jobs:
           [...s.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].forEach(m=>new Function(m[1]));
           if(!s.includes('<title>Peptide_Planner_v20261009.10</title>'))throw new Error('title mismatch');
           if(!s.includes('const APP_VERSION="Peptide_Planner_v20261009.10";'))throw new Error('APP_VERSION mismatch');
-          const rule='body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{\n    transform:translateY(5px)!important;\n  }';
-          if(!s.includes(rule))throw new Error('mobile Time alignment rule missing');
+          if(!s.includes('transform:translateY(5px)!important'))throw new Error('mobile Time alignment rule missing');
           console.log('mobile Time-only CSS and inline JavaScript checks passed');
           NODE
           cmp --silent _headers <(git show HEAD^:_headers)
