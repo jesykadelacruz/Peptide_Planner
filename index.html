@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide_Planner_v20261009.10</title>
+<title>Peptide_Planner_v20261009.11</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -5888,7 +5888,11 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
     margin-top:auto!important;
   }
   body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2) > input[data-cycle-config-field="injectionTime"]{
-    transform:translateY(5px)!important;
+    height:40px!important;
+    min-height:40px!important;
+    max-height:40px!important;
+    block-size:40px!important;
+    transform:none!important;
   }
   body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-prep-concentration .cycle-vial-dose-box,
   body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-full-dose-field .cycle-vial-dose-box,
@@ -7372,7 +7376,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="Peptide_Planner_v20261009.10";
+const APP_VERSION="Peptide_Planner_v20261009.11";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -11009,6 +11013,33 @@ function currentVialDosesLeft(plan,at=new Date()){
   return result("schedule");
 }
 
+function currentCycleDosesLeft(plan,at=new Date()){
+  if(!plan||plan.noCycle)return {valid:false,reason:"Cycle treatment required"};
+  const position=protocolPositionForDate(plan,at);
+  const sequence=Math.max(1,Math.floor(num(position?.sequence)||(isSeparateCycleStack(plan)?planCycleNumber(plan):1)));
+  const period=protocolPeriodForSequence(plan,sequence);
+  if(!period?.valid)return {valid:false,reason:"Complete cycle settings"};
+  const schedulePlan={...plan,enabled:true};
+  let total=0,completed=0;
+  for(let date=new Date(period.start);date<=period.activeEnd;date=addDays(date,1)){
+    const schedule=scheduleForDate(schedulePlan,date);
+    if(!schedule?.administration)continue;
+    const administrations=(schedule.administrations&&schedule.administrations.length)
+      ? schedule.administrations
+      : [{partKey:"",doseMg:schedule.doseMg,units:schedule.units}];
+    for(const administration of administrations){
+      const doseMg=num(administration?.doseMg),units=num(administration?.units);
+      if(!(doseMg>0)&&!(units>0))return {valid:false,reason:"Complete cycle dose settings"};
+      const dateISO=localDateISO(date),partKey=administration?.partKey||"";
+      total+=1;
+      if(injectionDone(plan.id,dateISO,partKey)||scheduledAdministrationRecorded(plan.id,dateISO,partKey))completed+=1;
+    }
+  }
+  if(!total)return {valid:false,reason:"No scheduled dose"};
+  completed=Math.min(total,completed);
+  return {valid:true,doses:Math.max(0,total-completed),total,completed,cycleNumber:sequence};
+}
+
 function injectionKey(planId,date,partKey=""){
   const base=`${planId}|${trackingDateISO(date)}`;
   return partKey?`${base}|${partKey}`:base;
@@ -13560,8 +13591,8 @@ function renderSimplePlanner(){
     const meta=planMeta(plan),currentPosition=plan.noCycle?null:protocolPositionForDate(plan,new Date());
     const currentDose=currentPosition?.valid&&!currentPosition.washout&&!currentPosition.ended?(plan.noCycle?phaseDose(plan,Math.max(1,currentPosition.week||1)):cyclePhaseDose(cycleConfigForSequence(plan,currentPosition.sequence||1),Math.max(1,currentPosition.week||1))):phaseDose(plan,1);
     const dose=currentDose,calc=calcUnits(plan,dose),status=planStatus(plan);
-    const dosesLeft=currentVialDosesLeft(plan,new Date());
-    const dosesLeftText=dosesLeft.valid?(plan.noCycle?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"} · ${round(dosesLeft.currentRemainingMg??dosesLeft.remainingMg??0,3)} mg left`:(dosesLeft.splitSchedule&&dosesLeft.fullScheduleDays!==dosesLeft.doses?`${dosesLeft.doses} administration${dosesLeft.doses===1?"":"s"} · ${dosesLeft.fullScheduleDays} full day${dosesLeft.fullScheduleDays===1?"":"s"}`:`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`)):esc(dosesLeft.reason||"—");
+    const dosesLeft=plan.noCycle?currentVialDosesLeft(plan,new Date()):currentCycleDosesLeft(plan,new Date());
+    const dosesLeftText=dosesLeft.valid?(plan.noCycle?`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"} · ${round(dosesLeft.currentRemainingMg??dosesLeft.remainingMg??0,3)} mg left`:`${dosesLeft.doses} dose${dosesLeft.doses===1?"":"s"}`):esc(dosesLeft.reason||"—");
     const scheduleText=overviewScheduleText(plan);
     const verification=planVerificationCompleteness(plan);
     const enabledReady=plan.enabled&&planReadyForToday(plan);
@@ -13592,7 +13623,7 @@ function renderSimplePlanner(){
             </div>
             <div class="simple-plan-summary-row ${plan.noCycle?"simple-plan-summary-row-continuous":"simple-plan-summary-row-metrics"}">
               <div class="simple-mini"><span>${plan.noCycle?"Dose":"Dose (units)"}</span><strong>${calc.valid?`${round(calc.units,2)} units`:"Needs inputs"}</strong></div>
-              <div class="simple-mini" title="Uses the vial-specific strength and BAC-water preparation from Vial Schedule. Historical units are converted using the vial active on that administration date. Only future complete administrations are counted; missed past schedule slots are not counted as doses left."><span>Dose left in vial</span><strong>${dosesLeftText}</strong></div>
+              <div class="simple-mini" title="${plan.noCycle?"Uses the vial-specific strength and BAC-water preparation from Vial Schedule. Historical units are converted using the vial active on that administration date. Only future complete administrations are counted; missed past schedule slots are not counted as doses left.":"Counts all scheduled administrations in the applicable cycle, with each split counted separately, then deducts administrations marked Done."}"><span>${plan.noCycle?"Dose left in vial":"Doses left in cycle"}</span><strong>${dosesLeftText}</strong></div>
               ${plan.noCycle?`<div class="simple-mini"><span>Current cycle</span><strong>${continuousCurrentCycleText(plan,new Date())}</strong></div>`:`<div class="simple-mini"><span>Vials per cycle</span><strong>${vialPerCycle.valid?`${vialPerCycle.current} of ${vialPerCycle.total}`:(cycleUsage.valid?`0 of ${Math.max(1,cycleUsage.wholeVials)}`:"Needs cycle inputs")}</strong></div>
               <div class="simple-mini"><span>Cycle count</span><strong>${annualCycleCount?`${annualCycleCount.current} of ${annualCycleCount.total}`:`0 of ${planCyclesPerYear(plan)}`}</strong></div>
               <div class="simple-mini"><span>Current cycle</span><strong>${currentPosition?.beforeStart?"Not started":currentPosition?.annualLimit?"Yearly cycle limit reached":currentPosition?.washout?"Break":(currentPosition?.sequence===1?`Starting Phase . Week ${currentPosition?.week||"—"}`:`Cycle ${currentPosition?.sequence||"—"} . Week ${currentPosition?.week||"—"}`)}</strong></div>`}
