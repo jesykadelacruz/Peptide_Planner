@@ -1,0 +1,21 @@
+name: Temporary mobile layout source
+on:
+  push:
+    paths:
+      - '.github/workflows/temp-mobile-layout.yml'
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: peptide-planner-source
+          path: |
+            index.html
+            _headers
+            manifest.webmanifest
+            peptide-planner-sw.js
+          if-no-files-found: error
