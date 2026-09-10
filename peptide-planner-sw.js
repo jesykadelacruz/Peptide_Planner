@@ -1,4 +1,4 @@
-const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261009.11';
+const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261009.12';
 self.addEventListener('install',event=>{self.skipWaiting();});
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
