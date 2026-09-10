@@ -1,0 +1,154 @@
+name: Peptide Planner v20261009.07 release
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/chatgpt-v20261009-07.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 1f81dfd89fa874317b3a556b208befb65cdd06ff HEAD
+          test "$(git show 1f81dfd89fa874317b3a556b208befb65cdd06ff:index.html | grep -c 'Peptide_Planner_v20261009.06')" -ge 2
+
+      - name: Apply exact v20261009.07 update
+        run: python .deploy/apply_v20261009_07.py
+
+      - name: Validate scope and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          BASE='1f81dfd89fa874317b3a556b208befb65cdd06ff'
+          old=subprocess.check_output(['git','show',f'{BASE}:index.html'],text=True)
+          new=Path('index.html').read_text()
+          assert '<title>Peptide_Planner_v20261009.07</title>' in new
+          assert 'const APP_VERSION="Peptide_Planner_v20261009.07";' in new
+          assert Path('peptide-planner-sw.js').read_text().startswith("const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261009.07';")
+          def fn(src,name):
+              start=src.find('function '+name); assert start>=0,name
+              brace=src.find('{',start); depth=1; i=brace+1
+              while i<len(src) and depth:
+                  if src[i]=='{': depth+=1
+                  elif src[i]=='}': depth-=1
+                  i+=1
+              assert depth==0,name
+              return src[start:i]
+          for name in ['cycleVialPrepForDate','cycleVialPrepForRecord','syncCycleDoseScheduleLinkedEdit','syncCyclePhaseCalculationsForSequence','renderContinuousDoseSchedule','renderContinuousVialSchedule','continuousVialScheduleComputation','simulateCycleVialWindow']:
+              assert fn(old,name)==fn(new,name), f'{name} changed unexpectedly'
+          old_comp=fn(old,'cycleVialScheduleComputation')
+          new_comp=fn(new,'cycleVialScheduleComputation')
+          assert new_comp==old_comp.replace('cycleFullDoseCountForDisplay(rowEvents,0,localDateISO(dosePlan.period.start),capacityUnits)','cycleFullDoseCountForDisplay(rowEvents,rowStartCursor,openDate,capacityUnits)')
+          old_usage=fn(old,'cycleVialUsage')
+          new_usage=fn(new,'cycleVialUsage')
+          assert new_usage==old_usage.replace('if(current&&current.discardDate&&date>=current.discardDate)closeCurrent("Final planned dose before the entered disposal limit");','if(current&&current.discardDate&&date>current.discardDate)closeCurrent("Final planned dose on or before the entered disposal limit");')
+          full=fn(new,'cycleFullDoseCountForDisplay')
+          assert 'while(cursor<events.length&&events[cursor].date<open)cursor+=1;' in full
+          assert 'for(let index=cursor;index<events.length;index+=1)' in full
+          assert 'for(let index=0;index<Math.min(cursor,events.length);index+=1)' in full
+          copy=fn(new,'copyPreviousCycleToCycle')
+          for marker in ['target.injectionTime=previous.injectionTime','target.scheduleMode=previous.scheduleMode','target.intervalDays=previous.intervalDays','target.weekdays=clone(previous.weekdays||[])','target.phases=clone(previous.phases||[])','record.vialMg=source.vialMg','record.bacWaterMl=source.waterMl']:
+              assert marker in copy,marker
+          assert 'target.startDate=keepStart;target.startAuto=keepAuto;' in copy
+          assert 'record.startDate=' not in copy and 'record.finishDate=' not in copy
+          assert '<th>#</th><th>Vial</th><th>Water</th><th>mg/mL</th><th>Full Dose</th><th>Cycle Dose</th><th>Open</th><th>Finish</th><th>Status</th>' in new
+          assert 'cycle-vial-cycled-mobile-cards' in new and 'cycle-vial-prep-concentration' in new and 'cycle-vial-open-field' in new and 'cycle-vial-finish-field' in new
+          assert 'Add Dose Phase</button>${sequence>1?`<button class="btn small" type="button" data-copy-starting-cycle="${sequence}">Copy Starting Phase</button><button class="btn small" type="button" data-copy-previous-cycle="${sequence}">Copy Previous Cycle</button>`:""}' in new
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',new,re.S)
+          assert scripts
+          for i,js in enumerate(scripts):
+              p=Path(f'/tmp/pp-v07-script-{i}.js'); p.write_text(js); subprocess.run(['node','--check',str(p)],check=True)
+          subprocess.run(['node','--check','peptide-planner-sw.js'],check=True)
+          PY
+          git diff --check
+
+      - name: Test Vial Schedule number semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          src=Path('index.html').read_text()
+          def fn(name):
+              start=src.find('function '+name); assert start>=0,name
+              brace=src.find('{',start); depth=1; i=brace+1
+              while i<len(src) and depth:
+                  if src[i]=='{': depth+=1
+                  elif src[i]=='}': depth-=1
+                  i+=1
+              return src[start:i]
+          code=r'''
+          function num(v){if(v===null||v===undefined||v==='')return null;const n=Number(v);return Number.isFinite(n)?n:null;}
+          function round(v,d=2){const p=10**d;return Math.round((Number(v)+Number.EPSILON)*p)/p;}
+          function parseISO(v){if(!v)return null;const [y,m,d]=String(v).split('-').map(Number);return new Date(y,m-1,d);}
+          '''+fn('cycleFullDoseCountForDisplay')+r'''
+          const events=[{date:parseISO('2026-01-01'),units:10},{date:parseISO('2026-01-02'),units:20},{date:parseISO('2026-01-03'),units:30}];
+          if(cycleFullDoseCountForDisplay(events,0,'2026-01-01',70)!==4)throw new Error('starting-vial Full Dose failed');
+          if(cycleFullDoseCountForDisplay(events,2,'2026-01-03',70)!==3)throw new Error('later-vial Full Dose did not start from its active dose pattern');
+          '''+fn('simulateCycleVialWindow')+r'''
+          const daily=[{date:parseISO('2026-02-01'),dateISO:'2026-02-01',units:10},{date:parseISO('2026-02-02'),dateISO:'2026-02-02',units:10},{date:parseISO('2026-02-03'),dateISO:'2026-02-03',units:10}];
+          const r=simulateCycleVialWindow(daily,0,'2026-02-01',100,'2026-02-02');
+          if(r.fullDoseCount!==2||r.lastFullDoseDate!=='2026-02-02')throw new Error('Dispose By date must be inclusive for Cycle Dose');
+          console.log('Vial Schedule number semantics passed');
+          '''
+          Path('/tmp/test-v07.js').write_text(code)
+          subprocess.run(['node','/tmp/test-v07.js'],check=True)
+          PY
+
+      - name: Remove temporary release files and verify production diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .deploy/apply_v20261009_07.py .github/workflows/chatgpt-v20261009-07.yml
+          changed="$(git diff --name-only 1f81dfd89fa874317b3a556b208befb65cdd06ff -- | sort)"
+          expected=$'index.html\npeptide-planner-sw.js'
+          test "$changed" = "$expected"
+          git diff --check
+
+      - name: Commit production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'jesykadelacruz'
+          git config user.email '84807985+jesykadelacruz@users.noreply.github.com'
+          git add index.html peptide-planner-sw.js
+          git commit -m 'Peptide_Planner_v20261009.07'
+          git push origin HEAD:main
+
+      - name: Build Cloudflare production ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js release/
+          cd release
+          zip -9 ../Peptide_Planner_v20261009.07.zip _headers index.html manifest.webmanifest peptide-planner-sw.js
+          cd ..
+          unzip -t Peptide_Planner_v20261009.07.zip
+          python - <<'PY'
+          import zipfile
+          z=zipfile.ZipFile('Peptide_Planner_v20261009.07.zip')
+          assert sorted(z.namelist())==sorted(['_headers','index.html','manifest.webmanifest','peptide-planner-sw.js']),z.namelist()
+          print('Cloudflare ZIP root validated')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Peptide_Planner_v20261009.07
+          path: Peptide_Planner_v20261009.07.zip
+          if-no-files-found: error
