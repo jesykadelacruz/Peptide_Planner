@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide_Planner_v20261009.04</title>
+<title>Peptide_Planner_v20261009.05</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -7309,7 +7309,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="Peptide_Planner_v20261009.04";
+const APP_VERSION="Peptide_Planner_v20261009.05";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -8377,40 +8377,68 @@ function syncPhaseFromSplitUnits(plan,phase,date=null,sequence=null){
   const total=round(values.reduce((sum,value)=>sum+value,0),2);phase.units=total;
   const dose=phaseDoseFromUnits(plan,total,date,sequence);if(dose!=null)phase.doseMg=dose;
 }
-function syncCycleDoseScheduleLinkedEdit(plan,config,phase,sequence,row,source,control){
-  if(!plan||!config||!phase||!control)return;
-  const referenceDate=cyclePhaseReferenceDate(plan,config,phase,sequence);
+function syncCycleDoseScheduleLinkedEdit(plan,sequence,phaseIndex,row,source,control){
+  if(!plan||!control)return;
+  const resolved=Math.max(1,Math.floor(num(sequence)||1)),index=Math.max(0,Math.floor(Number(phaseIndex)||0));
+  const initialConfig=cycleConfigForSequence(plan,resolved),initialPhase=initialConfig?.phases?.[index];
+  if(!initialConfig||!initialPhase)return;
+  const phase=clone(initialPhase),referenceDate=cyclePhaseReferenceDate(plan,initialConfig,phase,resolved),updates={};
   if(source==="dose"){
-    phase.doseMg=control.value;
-    syncPhaseFromDose(plan,phase,referenceDate,sequence);
+    updates.doseMg=control.value;updates.doseEntryMode="dose";
+    const units=phaseUnitsFromDose(plan,control.value,referenceDate,resolved);updates.units=units==null?"":units;
+    if(phase.splitDose)updates.splitUnits=distributeSplitUnits(units,simplePhaseSplitParts(phase));
   }else if(source==="units"){
-    phase.units=control.value;
-    syncPhaseFromUnits(plan,phase,referenceDate,sequence);
+    updates.doseEntryMode="units";updates.units=control.value;
+    const units=enteredPlanNumber(control.value);
+    if(units!=null&&units>=0){
+      updates.units=round(units,2);
+      const dose=phaseDoseFromUnits(plan,updates.units,referenceDate,resolved);if(dose!=null)updates.doseMg=dose;
+      if(phase.splitDose)updates.splitUnits=distributeSplitUnits(updates.units,simplePhaseSplitParts(phase));
+    }
   }else if(source==="split"){
-    const parts=simplePhaseSplitParts(phase),splitControls=row?[...row.querySelectorAll(`[data-cycle-phase-split-unit="${sequence}"]`)]:[];
-    phase.splitUnits=Array.from({length:parts},(_,index)=>splitControls[index]?splitControls[index].value:(Array.isArray(phase.splitUnits)?phase.splitUnits[index]??"":""));
-    syncPhaseFromSplitUnits(plan,phase,referenceDate,sequence);
-  }
-  syncLegacyPlanFromCycleConfigs(plan);
+    const parts=simplePhaseSplitParts(phase),splitControls=row?[...row.querySelectorAll(`[data-cycle-phase-split-unit="${resolved}"]`)]:[],existing=Array.isArray(phase.splitUnits)?phase.splitUnits:[];
+    const raw=Array.from({length:parts},(_,partIndex)=>splitControls[partIndex]?splitControls[partIndex].value:(existing[partIndex]??""));
+    updates.doseEntryMode="units";updates.splitUnits=raw;
+    const values=raw.map(value=>num(value));
+    if(values.every(value=>value!=null&&value>=0)){
+      const total=round(values.reduce((sum,value)=>sum+value,0),2);updates.units=total;updates.splitUnits=values.map(value=>round(value,2));
+      const dose=phaseDoseFromUnits(plan,total,referenceDate,resolved);if(dose!=null)updates.doseMg=dose;
+    }
+  }else return;
+  const liveConfig=cycleConfigForSequence(plan,resolved),livePhase=liveConfig?.phases?.[index];if(!livePhase)return;
+  Object.assign(livePhase,updates);syncLegacyPlanFromCycleConfigs(plan);
   if(!row)return;
-  const doseControl=row.querySelector(`[data-cycle-phase="${sequence}"][data-cycle-phase-field="doseMg"]`),unitsControl=row.querySelector(`[data-cycle-phase-units="${sequence}"]`);
-  if(source!=="dose"&&doseControl&&phase.doseMg!=null)doseControl.value=phase.doseMg;
-  if(source!=="units"&&unitsControl&&phase.units!=null)unitsControl.value=phase.units;
-  if(source!=="split"&&phase.splitDose){
-    const values=Array.isArray(phase.splitUnits)?phase.splitUnits:[];
-    [...row.querySelectorAll(`[data-cycle-phase-split-unit="${sequence}"]`)].forEach((input,index)=>{input.value=values[index]??"";});
+  const doseControl=row.querySelector(`[data-cycle-phase="${resolved}"][data-cycle-phase-field="doseMg"]`),unitsControl=row.querySelector(`[data-cycle-phase-units="${resolved}"]`);
+  if(source!=="dose"&&doseControl&&livePhase.doseMg!=null)doseControl.value=livePhase.doseMg;
+  if(source!=="units"&&unitsControl&&livePhase.units!=null)unitsControl.value=livePhase.units;
+  if(source!=="split"&&livePhase.splitDose){
+    const values=Array.isArray(livePhase.splitUnits)?livePhase.splitUnits:[];
+    [...row.querySelectorAll(`[data-cycle-phase-split-unit="${resolved}"]`)].forEach((input,partIndex)=>{input.value=values[partIndex]??"";});
   }
 }
 function syncCyclePhaseCalculationsForSequence(plan,sequence){
-  const resolved=Math.max(1,Math.floor(num(sequence)||1)),config=cycleConfigForSequence(plan,resolved);if(!config)return;
-  (Array.isArray(config.phases)?config.phases:[]).forEach(phase=>{
-    const referenceDate=cyclePhaseReferenceDate(plan,config,phase,resolved),mode=inferPhaseDoseEntryMode(plan,phase,referenceDate,resolved);
+  const resolved=Math.max(1,Math.floor(num(sequence)||1)),firstConfig=cycleConfigForSequence(plan,resolved);if(!firstConfig)return;
+  const count=Array.isArray(firstConfig.phases)?firstConfig.phases.length:0;
+  for(let index=0;index<count;index+=1){
+    const config=cycleConfigForSequence(plan,resolved),stored=config?.phases?.[index];if(!config||!stored)continue;
+    const phase=clone(stored),referenceDate=cyclePhaseReferenceDate(plan,config,phase,resolved),mode=inferPhaseDoseEntryMode(plan,phase,referenceDate,resolved),updates={doseEntryMode:mode};
     if(mode==="units"){
-      const parts=simplePhaseSplitParts(phase),split=Array.isArray(phase.splitUnits)?phase.splitUnits.slice(0,parts):[];
-      const complete=phase.splitDose&&split.length===parts&&split.every(value=>num(value)!=null&&num(value)>=0);
-      if(complete)syncPhaseFromSplitUnits(plan,phase,referenceDate,resolved);else syncPhaseFromUnits(plan,phase,referenceDate,resolved);
-    }else syncPhaseFromDose(plan,phase,referenceDate,resolved);
-  });
+      const parts=simplePhaseSplitParts(phase),split=Array.isArray(phase.splitUnits)?phase.splitUnits.slice(0,parts):[],complete=phase.splitDose&&split.length===parts&&split.every(value=>num(value)!=null&&num(value)>=0);
+      if(complete){
+        const values=split.map(value=>round(num(value),2)),total=round(values.reduce((sum,value)=>sum+value,0),2);updates.splitUnits=values;updates.units=total;
+        const dose=phaseDoseFromUnits(plan,total,referenceDate,resolved);if(dose!=null)updates.doseMg=dose;
+      }else{
+        const units=enteredPlanNumber(phase.units);updates.units=phase.units;
+        if(units!=null&&units>=0){updates.units=round(units,2);const dose=phaseDoseFromUnits(plan,updates.units,referenceDate,resolved);if(dose!=null)updates.doseMg=dose;if(phase.splitDose)updates.splitUnits=distributeSplitUnits(updates.units,parts);}
+      }
+    }else{
+      updates.doseMg=phase.doseMg;
+      const units=phaseUnitsFromDose(plan,phase.doseMg,referenceDate,resolved);updates.units=units==null?"":units;
+      if(phase.splitDose)updates.splitUnits=distributeSplitUnits(units,simplePhaseSplitParts(phase));
+    }
+    const liveConfig=cycleConfigForSequence(plan,resolved),livePhase=liveConfig?.phases?.[index];if(livePhase)Object.assign(livePhase,updates);
+  }
+  syncLegacyPlanFromCycleConfigs(plan);
 }
 function syncPlanPhaseCalculations(plan){
   initialisePlanPhaseEntryModes(plan);
@@ -13699,14 +13727,14 @@ function renderSimplePlanner(){
       if(!config.phases[index])config.phases[index]={startWeek:1,endWeek:1,doseMg:""};const phase=config.phases[index];phase[field]=control.value;
       const start=Math.max(1,Math.floor(num(phase.startWeek)||1)),end=Math.max(start,Math.floor(num(phase.endWeek)||start));phase.startWeek=start;phase.endWeek=end;
       const referenceDate=cyclePhaseReferenceDate(plan,config,phase,sequence);
-      if(field==="doseMg"&&sequence>0)syncCycleDoseScheduleLinkedEdit(plan,config,phase,sequence,control.closest("tr"),"dose",control);
+      if(field==="doseMg"&&sequence>0)syncCycleDoseScheduleLinkedEdit(plan,sequence,index,control.closest("tr"),"dose",control);
       else if(field==="doseMg")syncPhaseFromDose(plan,phase,referenceDate,sequence);
       else if(field==="startWeek"||field==="endWeek"){const mode=inferPhaseDoseEntryMode(plan,phase,referenceDate,sequence);if(mode==="units")syncPhaseFromUnits(plan,phase,referenceDate,sequence);else syncPhaseFromDose(plan,phase,referenceDate,sequence);}
       config.phases.sort((a,b)=>Number(a.startWeek||1)-Number(b.startWeek||1));syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-phase-units]").forEach(control=>control.addEventListener("change",()=>{
       const sequence=Number(control.dataset.cyclePhaseUnits),index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config||!config.phases[index])return;const phase=config.phases[index],referenceDate=cyclePhaseReferenceDate(plan,config,phase,sequence);
-      if(sequence>0)syncCycleDoseScheduleLinkedEdit(plan,config,phase,sequence,control.closest("tr"),"units",control);else{phase.units=control.value;syncPhaseFromUnits(plan,phase,referenceDate,sequence);syncLegacyPlanFromCycleConfigs(plan);}
+      if(sequence>0)syncCycleDoseScheduleLinkedEdit(plan,sequence,index,control.closest("tr"),"units",control);else{phase.units=control.value;syncPhaseFromUnits(plan,phase,referenceDate,sequence);syncLegacyPlanFromCycleConfigs(plan);}
       plan.confirmed=false;save();renderAll();
     }));
     card.querySelectorAll("[data-cycle-phase-weekday]").forEach(control=>control.addEventListener("change",()=>{
@@ -13714,12 +13742,12 @@ function renderSimplePlanner(){
     }));
     card.querySelectorAll("[data-cycle-add-phase]").forEach(button=>button.addEventListener("click",()=>{const config=cycleConfigForSequence(plan,button.dataset.cycleAddPhase);if(!config)return;const last=config.phases?.[config.phases.length-1],start=Math.max(1,Math.floor(num(last?.endWeek)||0)+1);config.phases=config.phases||[];config.phases.push({startWeek:start,endWeek:start,doseMg:last?.doseMg??"",intervalDays:last?.intervalDays??"",weekdays:clone(last?.weekdays||[]),splitDose:false,splitParts:2,splitTimes:["",""],doseEntryMode:"dose"});syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
     card.querySelectorAll("[data-cycle-remove-phase]").forEach(button=>button.addEventListener("click",()=>{const config=cycleConfigForSequence(plan,button.dataset.cycleRemovePhase),index=Number(button.dataset.cyclePhaseIndex);if(!config||config.phases.length<=1)return;config.phases.splice(index,1);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
-    card.querySelectorAll("[data-cycle-phase-split]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplit),index=Number(control.dataset.cyclePhaseIndex);if(!config)return;const phase=config.phases[index];phase.splitDose=control.checked;if(control.checked){const parts=Math.max(2,Math.min(10,Math.floor(num(phase.splitParts)||2)));phase.splitParts=parts;const existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":""));const sequence=Number(control.dataset.cyclePhaseSplit),referenceDate=cyclePhaseReferenceDate(plan,config,phase,sequence);phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,referenceDate,sequence),parts);}syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
-    card.querySelectorAll("[data-cycle-phase-split-parts]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitParts),index=Number(control.dataset.cyclePhaseIndex);if(!config)return;const phase=config.phases[index],parts=Math.max(2,Math.min(10,Math.floor(num(control.value)||2)));phase.splitParts=parts;phase.splitDose=true;const existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":""));const sequence=Number(control.dataset.cyclePhaseSplitParts),referenceDate=cyclePhaseReferenceDate(plan,config,phase,sequence);phase.splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,phase,referenceDate,sequence),parts);syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
+    card.querySelectorAll("[data-cycle-phase-split]").forEach(control=>control.addEventListener("change",()=>{const sequence=Number(control.dataset.cyclePhaseSplit),index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config||!config.phases[index])return;const phase=config.phases[index];if(!control.checked){phase.splitDose=false;syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll();return;}const parts=Math.max(2,Math.min(10,Math.floor(num(phase.splitParts)||2))),existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[],times=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":"")),snapshot={...clone(phase),splitDose:true,splitParts:parts,splitTimes:times},referenceDate=cyclePhaseReferenceDate(plan,config,snapshot,sequence),splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,snapshot,referenceDate,sequence),parts),liveConfig=cycleConfigForSequence(plan,sequence),livePhase=liveConfig?.phases?.[index];if(!livePhase)return;livePhase.splitDose=true;livePhase.splitParts=parts;livePhase.splitTimes=times;livePhase.splitUnits=splitUnits;syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
+    card.querySelectorAll("[data-cycle-phase-split-parts]").forEach(control=>control.addEventListener("change",()=>{const sequence=Number(control.dataset.cyclePhaseSplitParts),index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config||!config.phases[index])return;const phase=config.phases[index],parts=Math.max(2,Math.min(10,Math.floor(num(control.value)||2))),existing=Array.isArray(phase.splitTimes)?phase.splitTimes:[],times=Array.from({length:parts},(_,i)=>existing[i]||(i===0?config.injectionTime||"":"")),snapshot={...clone(phase),splitDose:true,splitParts:parts,splitTimes:times},referenceDate=cyclePhaseReferenceDate(plan,config,snapshot,sequence),splitUnits=distributeSplitUnits(phaseResolvedUnits(plan,snapshot,referenceDate,sequence),parts),liveConfig=cycleConfigForSequence(plan,sequence),livePhase=liveConfig?.phases?.[index];if(!livePhase)return;livePhase.splitParts=parts;livePhase.splitDose=true;livePhase.splitTimes=times;livePhase.splitUnits=splitUnits;syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
     card.querySelectorAll("[data-cycle-phase-split-time]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitTime),index=Number(control.dataset.cyclePhaseIndex),timeIndex=Number(control.dataset.cycleSplitTimeIndex);if(!config)return;const phase=config.phases[index],parts=Math.max(2,Math.min(10,Math.floor(num(phase.splitParts)||2))),times=Array.isArray(phase.splitTimes)?phase.splitTimes:[];phase.splitTimes=Array.from({length:parts},(_,i)=>times[i]||"");phase.splitTimes[timeIndex]=control.value;syncLegacyPlanFromCycleConfigs(plan);plan.confirmed=false;save();renderAll()}));
-    card.querySelectorAll("[data-cycle-phase-split-unit]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitUnit),index=Number(control.dataset.cyclePhaseIndex),unitIndex=Number(control.dataset.cycleSplitUnitIndex);if(!config)return;const phase=config.phases[index],parts=simplePhaseSplitParts(phase),sequence=Number(control.dataset.cyclePhaseSplitUnit),referenceDate=cyclePhaseReferenceDate(plan,config,phase,sequence);if(sequence>0)syncCycleDoseScheduleLinkedEdit(plan,config,phase,sequence,control.closest("tr"),"split",control);else{const values=phaseSplitUnitValues(plan,phase,referenceDate,sequence);phase.splitUnits=Array.from({length:parts},(_,i)=>values[i]??"");phase.splitUnits[unitIndex]=control.value;syncPhaseFromSplitUnits(plan,phase,referenceDate,sequence);syncLegacyPlanFromCycleConfigs(plan);}plan.confirmed=false;save();renderAll()}));
+    card.querySelectorAll("[data-cycle-phase-split-unit]").forEach(control=>control.addEventListener("change",()=>{const config=cycleConfigForSequence(plan,control.dataset.cyclePhaseSplitUnit),index=Number(control.dataset.cyclePhaseIndex),unitIndex=Number(control.dataset.cycleSplitUnitIndex);if(!config)return;const phase=config.phases[index],parts=simplePhaseSplitParts(phase),sequence=Number(control.dataset.cyclePhaseSplitUnit),referenceDate=cyclePhaseReferenceDate(plan,config,phase,sequence);if(sequence>0)syncCycleDoseScheduleLinkedEdit(plan,sequence,index,control.closest("tr"),"split",control);else{const values=phaseSplitUnitValues(plan,phase,referenceDate,sequence);phase.splitUnits=Array.from({length:parts},(_,i)=>values[i]??"");phase.splitUnits[unitIndex]=control.value;syncPhaseFromSplitUnits(plan,phase,referenceDate,sequence);syncLegacyPlanFromCycleConfigs(plan);}plan.confirmed=false;save();renderAll()}));
     card.querySelectorAll('[data-cycle-phase][data-cycle-phase-field="doseMg"], [data-cycle-phase-units], [data-cycle-phase-split-unit]').forEach(control=>control.addEventListener("input",()=>{
-      const sequence=Number(control.dataset.cyclePhase??control.dataset.cyclePhaseUnits??control.dataset.cyclePhaseSplitUnit);if(!(sequence>0))return;const index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config||!config.phases[index])return;const source=control.dataset.cyclePhaseField==="doseMg"?"dose":control.dataset.cyclePhaseUnits!=null?"units":"split";syncCycleDoseScheduleLinkedEdit(plan,config,config.phases[index],sequence,control.closest("tr"),source,control);plan.confirmed=false;
+      const sequence=Number(control.dataset.cyclePhase??control.dataset.cyclePhaseUnits??control.dataset.cyclePhaseSplitUnit);if(!(sequence>0))return;const index=Number(control.dataset.cyclePhaseIndex),config=cycleConfigForSequence(plan,sequence);if(!config||!config.phases[index])return;const source=control.dataset.cyclePhaseField==="doseMg"?"dose":control.dataset.cyclePhaseUnits!=null?"units":"split";syncCycleDoseScheduleLinkedEdit(plan,sequence,index,control.closest("tr"),source,control);plan.confirmed=false;save();
     }));
     card.querySelector("[data-simple-dispose-value]")?.addEventListener("change",event=>{
       const value=Math.max(1,Math.floor(num(event.target.value)||1));
