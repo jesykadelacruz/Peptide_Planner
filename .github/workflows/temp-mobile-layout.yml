@@ -1,21 +1,105 @@
-name: Temporary mobile layout source
+name: Release Peptide Planner v20261009.08
 on:
   push:
     paths:
       - '.github/workflows/temp-mobile-layout.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
-  snapshot:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+      - name: Apply exact mobile-only patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("index.html")
+          text = path.read_text(encoding="utf-8")
+          old_title = "<title>Peptide_Planner_v20261009.07</title>"
+          old_app = 'const APP_VERSION="Peptide_Planner_v20261009.07";'
+          anchor = "\n</style>\n</head>"
+          css = """
+          
+          /* v20261009.08 — requested mobile alignment and cycled vial value heights only. */
+          @media(max-width:760px){
+            body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(1),
+            body.mobile-app #planner .cycle-config-card[data-cycle-config="1"] .cycle-config-grid > div:nth-child(2){
+              display:grid!important;
+              grid-template-rows:auto 40px!important;
+              align-self:end!important;
+            }
+            body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-prep-concentration .cycle-vial-dose-box,
+            body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-full-dose-field .cycle-vial-dose-box,
+            body.mobile-app #planner .cycle-vial-cycled-mobile-cards .cycle-vial-cycle-dose-field .cycle-vial-dose-box{
+              height:40px!important;
+              min-height:40px!important;
+              max-height:40px!important;
+              block-size:40px!important;
+            }
+          }"""
+          assert text.count(old_title) == 1
+          assert text.count(old_app) == 1
+          assert text.count(anchor) == 1
+          text = text.replace(old_title, "<title>Peptide_Planner_v20261009.08</title>")
+          text = text.replace(old_app, 'const APP_VERSION="Peptide_Planner_v20261009.08";')
+          text = text.replace(anchor, css + anchor)
+          path.write_text(text, encoding="utf-8")
+          sw = Path("peptide-planner-sw.js")
+          sw_text = sw.read_text(encoding="utf-8")
+          old_sw = "Peptide_Planner_v20261009.07"
+          assert sw_text.count(old_sw) == 1
+          sw.write_text(sw_text.replace(old_sw, "Peptide_Planner_v20261009.08"), encoding="utf-8")
+          PY
+      - name: Validate scope and syntax
+        shell: bash
+        run: |
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "index.html peptide-planner-sw.js "
+          git diff --check
+          node --check peptide-planner-sw.js
+          node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('index.html','utf8');
+          const scripts=[...s.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+          scripts.forEach(code=>new Function(code));
+          if(!s.includes('<title>Peptide_Planner_v20261009.08</title>'))throw new Error('title mismatch');
+          if(!s.includes('const APP_VERSION="Peptide_Planner_v20261009.08";'))throw new Error('APP_VERSION mismatch');
+          if(!s.includes('.cycle-config-card[data-cycle-config="1"]'))throw new Error('Starting Phase mobile alignment missing');
+          if(!s.includes('.cycle-vial-prep-concentration .cycle-vial-dose-box'))throw new Error('mg/mL height rule missing');
+          if(!s.includes('.cycle-vial-full-dose-field .cycle-vial-dose-box'))throw new Error('Full Dose height rule missing');
+          if(!s.includes('.cycle-vial-cycle-dose-field .cycle-vial-dose-box'))throw new Error('Cycle Dose height rule missing');
+          console.log('inline JavaScript and targeted mobile CSS checks passed');
+          NODE
+          test "$(grep -o 'Peptide_Planner_v20261009.08' peptide-planner-sw.js | wc -l)" -eq 1
+          cmp --silent _headers <(git show HEAD^:_headers)
+          cmp --silent manifest.webmanifest <(git show HEAD^:manifest.webmanifest)
+      - name: Commit exact production release
+        shell: bash
+        run: |
+          git rm .github/workflows/temp-mobile-layout.yml
+          git config user.name "jesykadelacruz"
+          git config user.email "84807985+jesykadelacruz@users.noreply.github.com"
+          git add index.html peptide-planner-sw.js
+          git commit -m "Peptide_Planner_v20261009.08"
+          git push origin HEAD:main
+      - name: Build and validate Cloudflare package
+        shell: bash
+        run: |
+          mkdir -p release
+          cp _headers index.html manifest.webmanifest peptide-planner-sw.js release/
+          (cd release && zip -q ../Peptide_Planner_v20261009.08.zip _headers index.html manifest.webmanifest peptide-planner-sw.js)
+          unzip -t Peptide_Planner_v20261009.08.zip
+          test "$(unzip -Z1 Peptide_Planner_v20261009.08.zip | sort | tr '\n' ' ')" = "_headers index.html manifest.webmanifest peptide-planner-sw.js "
       - uses: actions/upload-artifact@v4
         with:
-          name: peptide-planner-source
+          name: Peptide_Planner_v20261009.08
           path: |
-            index.html
-            _headers
-            manifest.webmanifest
-            peptide-planner-sw.js
+            Peptide_Planner_v20261009.08.zip
+            release/_headers
+            release/index.html
+            release/manifest.webmanifest
+            release/peptide-planner-sw.js
           if-no-files-found: error
