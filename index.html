@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide_Planner_v20261009.12</title>
+<title>Peptide_Planner_v20261009.13</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -7391,7 +7391,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="Peptide_Planner_v20261009.12";
+const APP_VERSION="Peptide_Planner_v20261009.13";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12630,9 +12630,16 @@ function cycleVialUsage(plan,cycleNumber=1){
   const openCurrent=(date,week,reason,isFirst)=>{openedCount+=1;const openedDate=isFirst?new Date(cycleStart.getFullYear(),cycleStart.getMonth(),cycleStart.getDate()):new Date(date.getFullYear(),date.getMonth(),date.getDate());const discardDate=disposeDateFromOpen(plan,openedDate);current={number:openedCount,openedDate,discardDate,lastDoseDate:null,lastDoseMg:null,lastDoseUnits:null,lastCycleWeek:week};remaining=unitsPerVial;openings.push({number:openedCount,date:openedDate,discardDate,cycle:requestedCycle,cycleWeek:week,reason});};
   let firstVial=true;
   for(let offset=0;offset<activeDays;offset++){
-    const date=addDays(cycleStart,offset),scheduled=scheduleForDate(simulation,date);if(!scheduled.administration)continue;const phaseCalc=phaseUnitCalculation(plan,scheduled.doseMg,date,requestedCycle),units=phaseCalc.valid?phaseCalc.units:num(plan.fixedUnits);if(units==null||units<0){missingDose=true;continue}if(units===0)continue;totalUnits+=units;injections+=1;
-    if(current&&current.discardDate&&date>current.discardDate)closeCurrent("Final planned dose on or before the entered disposal limit");
-    let need=units,safety=0;while(need>0.0000001&&safety<100){safety+=1;if(!current||remaining<=0.0000001){if(current)closeCurrent("Final planned dose before opening the next vial");openCurrent(date,scheduled.week||1,firstVial?"First planned vial for this period":"Previous vial was disposed or does not contain enough for the next planned dose",firstVial);firstVial=false;}const used=Math.min(remaining,need);remaining=round(remaining-used,6);need=round(need-used,6);current.lastDoseDate=new Date(date.getFullYear(),date.getMonth(),date.getDate());current.lastDoseMg=scheduled.doseMg;current.lastDoseUnits=round(units,2);current.lastCycleWeek=scheduled.week||1;if(remaining<=0.0000001&&need>0.0000001)closeCurrent("Vial exhausted during a planned dose");}
+    const date=addDays(cycleStart,offset),scheduled=scheduleForDate(simulation,date);if(!scheduled.administration)continue;
+    const administrations=(scheduled.administrations&&scheduled.administrations.length)?scheduled.administrations:[{partKey:"",partNumber:1,partCount:1,doseMg:scheduled.doseMg,units:scheduled.units,time:plan.injectionTime||""}];
+    for(const administration of administrations){
+      const doseMg=num(administration?.doseMg),enteredUnits=num(administration?.units),phaseCalc=doseMg>0?phaseUnitCalculation(plan,doseMg,date,requestedCycle):{valid:false},units=enteredUnits!=null?enteredUnits:(phaseCalc.valid?phaseCalc.units:num(plan.fixedUnits));
+      if(units==null||units<0){missingDose=true;continue}if(units===0)continue;totalUnits+=units;injections+=1;
+      if(units>unitsPerVial+0.0000001)return {valid:false,reason:"A scheduled full dose is larger than the prepared vial capacity."}
+      if(current&&current.discardDate&&date>=current.discardDate)closeCurrent("Final planned dose before the entered disposal limit");
+      if(!current||remaining+0.0000001<units){if(current)closeCurrent("Final planned dose before opening the next vial");openCurrent(date,scheduled.week||1,firstVial?"First planned vial for this period":"Previous vial was disposed or does not contain enough for the next planned dose",firstVial);firstVial=false;}
+      remaining=round(remaining-units,6);current.lastDoseDate=new Date(date.getFullYear(),date.getMonth(),date.getDate());current.lastDoseMg=doseMg;current.lastDoseUnits=round(units,2);current.lastCycleWeek=scheduled.week||1;if(remaining<=0.0000001)closeCurrent("Vial exhausted after a complete planned dose");
+    }
   }
   if(current)closeCurrent("Last planned dose in this period");if(missingDose||!injections)return {valid:false,reason:"Complete the dose/units for every active week"};
   const volumeUsed=totalUnits/unitsPerMl,vialsUsed=volumeUsed/finalMl,capacityWholeVials=vialsUsed>0?Math.ceil(vialsUsed-1e-9):0;
@@ -12675,12 +12682,16 @@ function cycleVialDoseEvents(plan,cycleNumber=1){
   for(let offset=0;offset<activeDays;offset++){
     const date=addDays(cycleStart,offset),scheduled=scheduleForDate(simulation,date);
     if(!scheduled.administration)continue;
-    const doseMg=num(scheduled.doseMg);
-    if(doseMg==null||doseMg<=0)return {valid:false,reason:"Complete the dose/units for every active week"};
     const week=scheduled.week||1,config=cycleConfigForSequence(plan,requestedCycle),phase=cyclePhaseForWeek(config,week),entryMode=inferPhaseDoseEntryMode(plan,phase,date,requestedCycle);
-    const enteredUnits=entryMode==="units"?enteredPlanNumber(phase?.units):null;
-    const phaseCalc=phaseUnitCalculation(plan,doseMg,date,requestedCycle),units=enteredUnits!=null?enteredUnits:(phaseCalc.valid?phaseCalc.units:0);
-    events.push({date:new Date(date.getFullYear(),date.getMonth(),date.getDate()),dateISO:localDateISO(date),units:round(units,4),doseMg,week,entryMode,enteredUnits});
+    const administrations=(scheduled.administrations&&scheduled.administrations.length)?scheduled.administrations:[{partKey:"",partNumber:1,partCount:1,doseMg:scheduled.doseMg,units:scheduled.units,time:config?.injectionTime||plan.injectionTime||""}];
+    for(const administration of administrations){
+      const doseMg=num(administration?.doseMg),administrationUnits=num(administration?.units);
+      if(!(doseMg>0)&&!(administrationUnits>0))return {valid:false,reason:"Complete the dose/units for every active week"};
+      const enteredUnits=entryMode==="units"&&administrationUnits!=null?administrationUnits:null;
+      const phaseCalc=doseMg>0?phaseUnitCalculation(plan,doseMg,date,requestedCycle):{valid:false},units=enteredUnits!=null?enteredUnits:(phaseCalc.valid?phaseCalc.units:administrationUnits);
+      if(!(units>0))return {valid:false,reason:"Complete the dose/units for every active week"};
+      events.push({date:new Date(date.getFullYear(),date.getMonth(),date.getDate()),dateISO:localDateISO(date),units:round(units,4),doseMg,week,entryMode,enteredUnits,partKey:administration?.partKey||"",partNumber:administration?.partNumber||1,partCount:administration?.partCount||1,time:administration?.time||""});
+    }
   }
   if(!events.length)return {valid:false,reason:"Complete the cycle schedule and dose/units"};
   const prep=cycleVialPrepForSequence(plan,requestedCycle),unitsPerVial=prep?.finalMl>0?round(prep.finalMl*unitsPerMl,6):0;
@@ -12757,7 +12768,7 @@ function simulateCycleVialWindow(events,startCursor,openDate,unitsPerVial,dispos
   while(cursor<events.length){
     const event=events[cursor];
     if(manualFinish&&event.date>manualFinish){reason="Manual finish";break;}
-    if(!manualFinish&&dispose&&event.date>dispose){reason="Disposal limit";break;}
+    if(!manualFinish&&dispose&&event.date>=dispose){reason="Disposal limit";break;}
     if(event.units>unitsPerVial+0.000001)return {nextCursor:cursor,finishDate:openDate,lastFullDoseDate:"",usedUnits:0,fullDoseCount:0,remainingUnits:unitsPerVial,reason:"Dose exceeds vial capacity",invalid:true};
     if(event.units>remaining+0.000001){reason="Vial capacity";break;}
     remaining=round(remaining-event.units,6);usedUnits=round(usedUnits+event.units,6);fullDoseCount+=1;lastFullDoseDate=event.dateISO;cursor+=1;
@@ -12806,7 +12817,8 @@ function cycleVialScheduleComputation(plan,cycleUsage,requestedTotal=null){
     const previousFinishDate=index>1&&previousFinish?parseISO(previousFinish):null;
     const rowStartCursor=cursor;
     const fallbackOpenDate=previousFinishDate?localDateISO(addDays(previousFinishDate,1)):(previousFinish||"");
-    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):fallbackOpenDate;
+    const nextUnassignedDate=rowEvents[rowStartCursor]?.dateISO||"";
+    const calculatedOpenDate=index===1?localDateISO(dosePlan.period.start):(previousFinish&&nextUnassignedDate===previousFinish?previousFinish:fallbackOpenDate);
     const manualOpen=cycleVialRecordHasAuthoritativeOpen(record);
     const manualFinish=!!(record&&record.finishDate&&(record.scheduleFinishAuto===false||record.scheduleFinishAuto==null));
     const openDate=manualOpen?String(record.startDate||""):calculatedOpenDate;
