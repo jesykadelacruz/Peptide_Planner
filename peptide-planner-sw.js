@@ -1,4 +1,4 @@
-const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261309.02.1';
+const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261309.03';
 self.addEventListener('install',event=>{self.skipWaiting();});
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
@@ -17,5 +17,5 @@ self.addEventListener('activate',event=>{
 });
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
-  event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>fetch(event.request)));
+  event.respondWith(fetch(event.request,{cache:'no-cache'}).catch(()=>fetch(event.request)));
 });
