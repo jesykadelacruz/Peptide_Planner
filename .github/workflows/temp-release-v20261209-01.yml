@@ -1,0 +1,59 @@
+name: Temporary Peptide Planner release v20261209.01
+on:
+  push:
+    paths:
+      - '.github/workflows/temp-release-v20261209-01.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify, apply, validate and release
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_BASE='63170c5945a8b9ef3c73876f52de1c28d044e246'
+          RELEASE='Peptide_Planner_v20261209.01'
+          HELPER='.github/workflows/temp-release-v20261209-01.yml'
+          if [ "$(git rev-parse HEAD^)" != "$EXPECTED_BASE" ]; then
+            echo "Unexpected baseline: $(git rev-parse HEAD^)" >&2
+            exit 1
+          fi
+          printf '%s' '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' | base64 -d | gzip -d > /tmp/release.patch
+          echo 'fb815a0282d42650138d5528a815c22a819e4db4f05a3deabdf78f736f340833  /tmp/release.patch' | sha256sum -c -
+          git apply --check /tmp/release.patch
+          git apply /tmp/release.patch
+          rm -f "$HELPER"
+          grep -q '<title>Peptide_Planner_v20261209.01</title>' index.html
+          grep -q 'const APP_VERSION="Peptide_Planner_v20261209.01";' index.html
+          grep -q "const PEPTIDE_PLANNER_SW_VERSION='Peptide_Planner_v20261209.01';" peptide-planner-sw.js
+          python - <<'PYJS'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text()
+          parts=[]
+          for m in re.finditer(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I):
+              tag=s[m.start():s.find('>',m.start())+1]
+              if 'src=' not in tag.lower(): parts.append(m.group(1))
+          Path('/tmp/inline-js-check.js').write_text('\n'.join(parts))
+          PYJS
+          node --check /tmp/inline-js-check.js
+          node --check peptide-planner-sw.js
+          git add index.html peptide-planner-sw.js "$HELPER"
+          git diff --cached --check
+          mapfile -t changed < <(git diff --cached --name-only | sort)
+          expected=("$HELPER" "index.html" "peptide-planner-sw.js")
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          if [ "${changed[*]}" != "${expected_sorted[*]}" ]; then
+            printf 'Unexpected staged files:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "$RELEASE"
+          git push origin HEAD:main
