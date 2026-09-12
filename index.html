@@ -12,7 +12,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>Peptide_Planner_v20261309.02</title>
+<title>Peptide_Planner_v20261309.02.1</title>
 <!-- v2026.0909.04: Production hardening only. Cloud writes are serialized so overlapping autosaves cannot race or clear a newer local edit; successful writes preserve the dirty state when another edit occurred in flight. Password-reset redirects resolve from the planner URL currently in use instead of a fixed Pages hostname. Treatment, dose, vial, schedule, role and layout behavior are unchanged. -->
 <!-- v2026.0909.03: Continuous and cycled treatments now share the same pending replacement-vial transition. A replacement vial stays pending until its first scheduled administration date; after the prior vial can no longer supply another full scheduled dose, Dose left in vial shows Open Vial instead of 0, and the replacement vial becomes current on its first-use date. All unrelated treatment, sync, auth, role and UI behavior is unchanged. -->
 <!-- v2026.0909.02: Cache/runtime synchronization release. Production treatment UI, vial logic, dose calculations, cross-device sync and role behavior are unchanged from v2026.0909.01; the service worker version is advanced to the same release so devices cannot remain on an older cached planner. -->
@@ -7391,7 +7391,7 @@ body.mobile-app #vialPurchaseReminderList .vial-purchase-check{
 "use strict";
 const STORAGE_KEY="peptideTreatmentPlanner_v4";
 const LEGACY_KEY="personalTreatmentTracker_v1";
-const APP_VERSION="Peptide_Planner_v20261309.02";
+const APP_VERSION="Peptide_Planner_v20261309.02.1";
 const CLOUD_SYNC_META_KEY="peptidePlannerCloudSync_v1";
 const CLOUD_KB_CACHE_KEY="peptidePlannerKbOverrides_v1";
 const SUPABASE_URL="https://srfuwxjwulvbalzoymcc.supabase.co";
@@ -12822,12 +12822,18 @@ function cycleFullDoseCountForDisplay(events,startCursor,openDate,unitsPerVial){
   while(cursor<events.length&&events[cursor].date<open)cursor+=1;
   const ordered=[];
   for(let index=cursor;index<events.length;index+=1){const eventUnits=num(events[index]?.units);if(eventUnits>0)ordered.push(eventUnits);}
-  for(let index=0;index<Math.min(cursor,events.length);index+=1){const eventUnits=num(events[index]?.units);if(eventUnits>0)ordered.push(eventUnits);}
   if(!ordered.length)return 0;
+  let lastWeek=null;
+  for(let index=events.length-1;index>=0;index-=1){
+    if(num(events[index]?.units)>0){lastWeek=Number(events[index]?.week);break;}
+  }
+  let terminalPattern=[];
+  if(Number.isFinite(lastWeek))terminalPattern=events.filter(event=>Number(event?.week)===lastWeek&&num(event?.units)>0).map(event=>num(event.units));
+  if(!terminalPattern.length)terminalPattern=[ordered[ordered.length-1]];
   let remaining=unitsPerVial,count=0,index=0,safety=0;
   while(remaining>0.000001&&safety<100000){
     safety+=1;
-    const eventUnits=ordered[index%ordered.length];
+    const eventUnits=index<ordered.length?ordered[index]:terminalPattern[(index-ordered.length)%terminalPattern.length];
     if(eventUnits>remaining+0.000001)break;
     remaining=round(remaining-eventUnits,6);count+=1;index+=1;
   }
