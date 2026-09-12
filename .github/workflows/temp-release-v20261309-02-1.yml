@@ -1,0 +1,68 @@
+name: Temporary Release Peptide_Planner_v20261309.02.1
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.head_commit.message == 'Temporary release workflow for Peptide_Planner_v20261309.02.1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify, patch, validate and release
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='82a40eff93b34d6a2e70c020ef47385bf20cde8f'
+          RELEASE='Peptide_Planner_v20261309.02.1'
+          WORKFLOW='.github/workflows/temp-release-v20261309-02-1.yml'
+          test "$(git rev-parse HEAD^)" = "$BASE"
+          test "$(git hash-object index.html)" = '06650dbbc7eef1819ffa162f58f001f04baae811'
+          test "$(git hash-object peptide-planner-sw.js)" = 'd28112a9a8374428ecc80bc7caae19a85987862d'
+          export OLD64='ZnVuY3Rpb24gY3ljbGVGdWxsRG9zZUNvdW50Rm9yRGlzcGxheShldmVudHMsc3RhcnRDdXJzb3Isb3BlbkRhdGUsdW5pdHNQZXJWaWFsKXsKICBjb25zdCBvcGVuPXBhcnNlSVNPKG9wZW5EYXRlKTsKICBpZighb3Blbnx8IXVuaXRzUGVyVmlhbHx8dW5pdHNQZXJWaWFsPD0wfHwhQXJyYXkuaXNBcnJheShldmVudHMpfHwhZXZlbnRzLmxlbmd0aClyZXR1cm4gMDsKICBsZXQgY3Vyc29yPU1hdGgubWF4KDAsTWF0aC5mbG9vcihOdW1iZXIoc3RhcnRDdXJzb3IpfHwwKSk7CiAgd2hpbGUoY3Vyc29yPGV2ZW50cy5sZW5ndGgmJmV2ZW50c1tjdXJzb3JdLmRhdGU8b3BlbiljdXJzb3IrPTE7CiAgY29uc3Qgb3JkZXJlZD1bXTsKICBmb3IobGV0IGluZGV4PWN1cnNvcjtpbmRleDxldmVudHMubGVuZ3RoO2luZGV4Kz0xKXtjb25zdCBldmVudFVuaXRzPW51bShldmVudHNbaW5kZXhdPy51bml0cyk7aWYoZXZlbnRVbml0cz4wKW9yZGVyZWQucHVzaChldmVudFVuaXRzKTt9CiAgZm9yKGxldCBpbmRleD0wO2luZGV4PE1hdGgubWluKGN1cnNvcixldmVudHMubGVuZ3RoKTtpbmRleCs9MSl7Y29uc3QgZXZlbnRVbml0cz1udW0oZXZlbnRzW2luZGV4XT8udW5pdHMpO2lmKGV2ZW50VW5pdHM+MClvcmRlcmVkLnB1c2goZXZlbnRVbml0cyk7fQogIGlmKCFvcmRlcmVkLmxlbmd0aClyZXR1cm4gMDsKICBsZXQgcmVtYWluaW5nPXVuaXRzUGVyVmlhbCxjb3VudD0wLGluZGV4PTAsc2FmZXR5PTA7CiAgd2hpbGUocmVtYWluaW5nPjAuMDAwMDAxJiZzYWZldHk8MTAwMDAwKXsKICAgIHNhZmV0eSs9MTsKICAgIGNvbnN0IGV2ZW50VW5pdHM9b3JkZXJlZFtpbmRleCVvcmRlcmVkLmxlbmd0aF07CiAgICBpZihldmVudFVuaXRzPnJlbWFpbmluZyswLjAwMDAwMSlicmVhazsKICAgIHJlbWFpbmluZz1yb3VuZChyZW1haW5pbmctZXZlbnRVbml0cyw2KTtjb3VudCs9MTtpbmRleCs9MTsKICB9CiAgcmV0dXJuIGNvdW50Owp9'
+          export NEW64='ZnVuY3Rpb24gY3ljbGVGdWxsRG9zZUNvdW50Rm9yRGlzcGxheShldmVudHMsc3RhcnRDdXJzb3Isb3BlbkRhdGUsdW5pdHNQZXJWaWFsKXsKICBjb25zdCBvcGVuPXBhcnNlSVNPKG9wZW5EYXRlKTsKICBpZighb3Blbnx8IXVuaXRzUGVyVmlhbHx8dW5pdHNQZXJWaWFsPD0wfHwhQXJyYXkuaXNBcnJheShldmVudHMpfHwhZXZlbnRzLmxlbmd0aClyZXR1cm4gMDsKICBsZXQgY3Vyc29yPU1hdGgubWF4KDAsTWF0aC5mbG9vcihOdW1iZXIoc3RhcnRDdXJzb3IpfHwwKSk7CiAgd2hpbGUoY3Vyc29yPGV2ZW50cy5sZW5ndGgmJmV2ZW50c1tjdXJzb3JdLmRhdGU8b3BlbiljdXJzb3IrPTE7CiAgY29uc3Qgb3JkZXJlZD1bXTsKICBmb3IobGV0IGluZGV4PWN1cnNvcjtpbmRleDxldmVudHMubGVuZ3RoO2luZGV4Kz0xKXtjb25zdCBldmVudFVuaXRzPW51bShldmVudHNbaW5kZXhdPy51bml0cyk7aWYoZXZlbnRVbml0cz4wKW9yZGVyZWQucHVzaChldmVudFVuaXRzKTt9CiAgaWYoIW9yZGVyZWQubGVuZ3RoKXJldHVybiAwOwogIGxldCBsYXN0V2Vlaz1udWxsOwogIGZvcihsZXQgaW5kZXg9ZXZlbnRzLmxlbmd0aC0xO2luZGV4Pj0wO2luZGV4LT0xKXsKICAgIGlmKG51bShldmVudHNbaW5kZXhdPy51bml0cyk+MCl7bGFzdFdlZWs9TnVtYmVyKGV2ZW50c1tpbmRleF0/LndlZWspO2JyZWFrO30KICB9CiAgbGV0IHRlcm1pbmFsUGF0dGVybj1bXTsKICBpZihOdW1iZXIuaXNGaW5pdGUobGFzdFdlZWspKXRlcm1pbmFsUGF0dGVybj1ldmVudHMuZmlsdGVyKGV2ZW50PT5OdW1iZXIoZXZlbnQ/LndlZWspPT09bGFzdFdlZWsmJm51bShldmVudD8udW5pdHMpPjApLm1hcChldmVudD0+bnVtKGV2ZW50LnVuaXRzKSk7CiAgaWYoIXRlcm1pbmFsUGF0dGVybi5sZW5ndGgpdGVybWluYWxQYXR0ZXJuPVtvcmRlcmVkW29yZGVyZWQubGVuZ3RoLTFdXTsKICBsZXQgcmVtYWluaW5nPXVuaXRzUGVyVmlhbCxjb3VudD0wLGluZGV4PTAsc2FmZXR5PTA7CiAgd2hpbGUocmVtYWluaW5nPjAuMDAwMDAxJiZzYWZldHk8MTAwMDAwKXsKICAgIHNhZmV0eSs9MTsKICAgIGNvbnN0IGV2ZW50VW5pdHM9aW5kZXg8b3JkZXJlZC5sZW5ndGg/b3JkZXJlZFtpbmRleF06dGVybWluYWxQYXR0ZXJuWyhpbmRleC1vcmRlcmVkLmxlbmd0aCkldGVybWluYWxQYXR0ZXJuLmxlbmd0aF07CiAgICBpZihldmVudFVuaXRzPnJlbWFpbmluZyswLjAwMDAwMSlicmVhazsKICAgIHJlbWFpbmluZz1yb3VuZChyZW1haW5pbmctZXZlbnRVbml0cyw2KTtjb3VudCs9MTtpbmRleCs9MTsKICB9CiAgcmV0dXJuIGNvdW50Owp9'
+          python - <<'PYCODE'
+          from pathlib import Path
+          import os, base64, re
+          p=Path('index.html')
+          s=p.read_text()
+          old=base64.b64decode(os.environ['OLD64']).decode()
+          new=base64.b64decode(os.environ['NEW64']).decode()
+          if s.count(old)!=1:
+              raise SystemExit(f'Expected Full Dose helper once, found {s.count(old)}')
+          s=s.replace(old,new)
+          if s.count('Peptide_Planner_v20261309.02')!=2:
+              raise SystemExit('Unexpected index release-version occurrence count')
+          s=s.replace('Peptide_Planner_v20261309.02','Peptide_Planner_v20261309.02.1')
+          p.write_text(s)
+          sw=Path('peptide-planner-sw.js')
+          t=sw.read_text()
+          if t.count('Peptide_Planner_v20261309.02')!=1:
+              raise SystemExit('Unexpected SW release-version occurrence count')
+          sw.write_text(t.replace('Peptide_Planner_v20261309.02','Peptide_Planner_v20261309.02.1'))
+          scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
+          inline='\n'.join(x for x in scripts if x.strip())
+          Path('/tmp/planner-inline.js').write_text(inline)
+          PYCODE
+          node --check /tmp/planner-inline.js
+          node --check peptide-planner-sw.js
+          git diff --check
+          test "$(git hash-object index.html)" = 'd41eecfb2858926d411f4c543cbdc7e6aab204b8'
+          test "$(git hash-object peptide-planner-sw.js)" = '54b20f77ced33136984ccd14dc7ac7018f3406cf'
+          git rm "$WORKFLOW"
+          git add index.html peptide-planner-sw.js
+          mapfile -t CHANGED < <(git diff --name-only "$BASE" -- | sort)
+          printf '%s\n' 'Net changed files from Release 2 baseline:' "${CHANGED[*]}"
+          test "${#CHANGED[@]}" -eq 2
+          test "${CHANGED[0]}" = 'index.html'
+          test "${CHANGED[1]}" = 'peptide-planner-sw.js'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "$RELEASE"
+          git push origin HEAD:main
