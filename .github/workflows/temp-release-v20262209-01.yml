@@ -9,12 +9,12 @@ permissions:
 
 jobs:
   release:
-    if: github.event.head_commit.message == 'Temporary release workflow for Peptide_Planner_v20262209.01'
+    if: github.event.head_commit.message == 'Retry temporary release workflow for Peptide_Planner_v20262209.01'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 3
       - name: Verify, patch, validate and release
         shell: bash
         run: |
@@ -22,7 +22,7 @@ jobs:
           BASE='6c826801a12605c71d4e1b943b340212563d338c'
           RELEASE='Peptide_Planner_v20262209.01'
           WORKFLOW='.github/workflows/temp-release-v20262209-01.yml'
-          test "$(git rev-parse HEAD^)" = "$BASE"
+          git merge-base --is-ancestor "$BASE" HEAD
           test "$(git hash-object index.html)" = '0f4bcd9411c0823bac3c4bf175122b1d3f5cb313'
           test "$(git hash-object peptide-planner-sw.js)" = '950e2661cc2580234f37e2b77cad9ec9ec14b5d2'
           test "$(git hash-object _headers)" = '4523d690440b8ca021ca9b6f0a0460f8f34181cb'
@@ -85,10 +85,10 @@ jobs:
           git rm "$WORKFLOW"
           git add index.html peptide-planner-sw.js
           mapfile -t CHANGED < <(git diff --name-only "$BASE" -- | sort)
-          printf '%s\n' 'Net changed files from Release 3 baseline:' "\${CHANGED[*]}"
-          test "\${#CHANGED[@]}" -eq 2
-          test "\${CHANGED[0]}" = 'index.html'
-          test "\${CHANGED[1]}" = 'peptide-planner-sw.js'
+          printf '%s\n' 'Net changed files from Release 3 baseline:' "${CHANGED[*]}"
+          test "${#CHANGED[@]}" -eq 2
+          test "${CHANGED[0]}" = 'index.html'
+          test "${CHANGED[1]}" = 'peptide-planner-sw.js'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m "$RELEASE"
